@@ -95,29 +95,25 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
             <p className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Navigation</p>
             <ul>
               <li>
-                <Link href="/">
-                  <a className={cn(
-                    "flex items-center px-2 py-2 text-sm rounded-md",
-                    location === "/" 
-                      ? "text-primary bg-blue-50 font-medium" 
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}>
-                    <i className="fas fa-home w-5 mr-2"></i>
-                    Dashboard
-                  </a>
+                <Link href="/" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-home w-5 mr-2"></i>
+                  Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/search">
-                  <a className={cn(
-                    "flex items-center px-2 py-2 text-sm rounded-md",
-                    location === "/search" 
-                      ? "text-primary bg-blue-50 font-medium" 
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}>
-                    <i className="fas fa-search w-5 mr-2"></i>
-                    Search
-                  </a>
+                <Link href="/search" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/search" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-search w-5 mr-2"></i>
+                  Search
                 </Link>
               </li>
             </ul>
@@ -131,16 +127,14 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
               <ul>
                 {projects && projects.map((project: any) => (
                   <li key={project.id}>
-                    <Link href={`/projects/${project.id}`}>
-                      <a className={cn(
-                        "flex items-center px-2 py-2 text-sm rounded-md",
-                        location === `/projects/${project.id}` 
-                          ? "text-primary bg-blue-50 font-medium" 
-                          : "text-gray-700 hover:bg-gray-100"
-                      )}>
-                        <i className="fas fa-folder w-5 mr-2 text-yellow-500"></i>
-                        <span className="truncate flex-1">{project.name}</span>
-                      </a>
+                    <Link href={`/projects/${project.id}`} className={cn(
+                      "flex items-center px-2 py-2 text-sm rounded-md",
+                      location === `/projects/${project.id}` 
+                        ? "text-primary bg-blue-50 font-medium" 
+                        : "text-gray-700 hover:bg-gray-100"
+                    )}>
+                      <i className="fas fa-folder w-5 mr-2 text-yellow-500"></i>
+                      <span className="truncate flex-1">{project.name}</span>
                     </Link>
                   </li>
                 ))}
@@ -155,16 +149,14 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
             <p className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Team</p>
             <ul>
               <li>
-                <Link href="/users">
-                  <a className={cn(
-                    "flex items-center px-2 py-2 text-sm rounded-md",
-                    location === "/users" 
-                      ? "text-primary bg-blue-50 font-medium" 
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}>
-                    <i className="fas fa-user-cog w-5 mr-2"></i>
-                    User Management
-                  </a>
+                <Link href="/users" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/users" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-user-cog w-5 mr-2"></i>
+                  User Management
                 </Link>
               </li>
             </ul>
