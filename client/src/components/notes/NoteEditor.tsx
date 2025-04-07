@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { insertNoteSchema } from "@shared/schema";
 import { NoteFormData } from "@/lib/types";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Experiment, Note } from "@shared/schema";
+import { Editor } from "@tinymce/tinymce-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -68,14 +69,20 @@ export default function NoteEditor({
 
   // If editing, fetch attachments
   const { data: attachments } = useQuery({
-    queryKey: note ? ['/api/attachments/note', note.id] : null,
-    queryFn: note ? () => fetch(`/api/attachments/note/${note.id}`).then(res => res.json()) : null,
-    onSuccess: (data) => {
-      if (data) setExistingAttachments(data);
-    },
+    queryKey: note ? ['/api/attachments/note', note.id] : [],
+    queryFn: note ? () => fetch(`/api/attachments/note/${note.id}`).then(res => res.json()) : undefined,
     enabled: !!note
   });
 
+  // Update existing attachments when data changes
+  useEffect(() => {
+    if (attachments) {
+      setExistingAttachments(attachments);
+    }
+  }, [attachments]);
+
+  const editorRef = useRef<any>(null);
+  
   const form = useForm<NoteFormData>({
     resolver: zodResolver(extendedNoteSchema),
     defaultValues: {
@@ -88,6 +95,11 @@ export default function NoteEditor({
 
   const handleSave = async (data: NoteFormData) => {
     try {
+      // Get content from TinyMCE editor if available
+      if (editorRef.current) {
+        data.content = editorRef.current.getContent();
+      }
+      
       let savedNote;
       
       if (note) {
@@ -99,16 +111,16 @@ export default function NoteEditor({
       }
       
       // Upload attachments if there are any
-      if (uploadedFiles.length > 0) {
+      if (uploadedFiles.length > 0 && savedNote) {
         for (const file of uploadedFiles) {
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('noteId', savedNote.id);
+          formData.append('noteId', String(savedNote.id));
           
           await fetch('/api/attachments', {
             method: 'POST',
             body: formData,
-          });
+          }).then(res => res.json());
         }
       }
       
@@ -228,10 +240,24 @@ export default function NoteEditor({
                   <FormItem>
                     <FormLabel>Content</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter your note content here..." 
-                        className="min-h-[200px] font-normal resize-none"
-                        {...field} 
+                      <Editor
+                        apiKey="no-api-key"
+                        onInit={(evt: any, editor: any) => editorRef.current = editor}
+                        initialValue={field.value}
+                        init={{
+                          height: 400,
+                          menubar: true,
+                          plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                            'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
+                          ],
+                          toolbar: 'undo redo | blocks | ' +
+                            'bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat | help | emoticons | table',
+                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

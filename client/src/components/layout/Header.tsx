@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { AvatarWithFallback } from "@/components/ui/avatar-with-fallback";
 import { Button } from "@/components/ui/button";
+import logoImage from "../../assets/logo.png";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -21,10 +22,10 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-      <div className="flex items-center md:hidden">
-        <h1 className="text-xl font-semibold text-primary flex items-center">
-          <i className="fas fa-flask mr-2"></i>
-          SciNote
+      <div className="flex items-center">
+        <img src={logoImage} alt="Kapelczak Logo" className="h-10 mr-2" />
+        <h1 className="text-xl font-semibold text-primary hidden md:flex items-center">
+          Kapelczak
         </h1>
       </div>
       
