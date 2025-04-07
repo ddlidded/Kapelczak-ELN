@@ -180,7 +180,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(projects)
       .where(eq(projects.id, id));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Experiment operations
@@ -241,7 +241,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(experiments)
       .where(eq(experiments.id, id));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Note operations
@@ -290,7 +290,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(notes)
       .where(eq(notes.id, id));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Attachment operations
@@ -317,7 +317,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(attachments)
       .where(eq(attachments.id, id));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Project collaborator operations
@@ -338,7 +338,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async listCollaboratorsByProject(projectId: number): Promise<ProjectCollaborator[]> {
