@@ -56,6 +56,336 @@ export interface IStorage {
   searchExperiments(query: string): Promise<Experiment[]>;
 }
 
+// Database Implementation
+import { db } from "./db";
+import { eq, and, like, or, desc } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async listUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  // Project operations
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return db.select().from(projects);
+  }
+
+  async listProjectsByUser(userId: number): Promise<Project[]> {
+    // Get projects the user owns
+    const ownedProjects = await db.select().from(projects).where(eq(projects.ownerId, userId));
+    
+    // Get projects the user is a collaborator on
+    const collaboratedProjectIds = await db.select({
+      projectId: projectCollaborators.projectId
+    })
+    .from(projectCollaborators)
+    .where(eq(projectCollaborators.userId, userId));
+    
+    const collabProjects = collaboratedProjectIds.length > 0 
+      ? await db.select().from(projects)
+        .where(
+          or(
+            ...collaboratedProjectIds.map(collab => eq(projects.id, collab.projectId))
+          )
+        )
+      : [];
+    
+    // Combine both sets of projects
+    return [...ownedProjects, ...collabProjects];
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db
+      .insert(projects)
+      .values(insertProject)
+      .returning();
+    return project;
+  }
+
+  async updateProject(id: number, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updatedProject] = await db
+      .update(projects)
+      .set({
+        ...projectUpdate,
+        updatedAt: new Date()
+      })
+      .where(eq(projects.id, id))
+      .returning();
+    return updatedProject || undefined;
+  }
+
+  async deleteProject(id: number): Promise<boolean> {
+    // Delete all dependent records
+    
+    // First get all experiments for this project
+    const projectExperiments = await db.select({
+      id: experiments.id
+    })
+    .from(experiments)
+    .where(eq(experiments.projectId, id));
+    
+    // Delete all notes and attachments for these experiments
+    for (const exp of projectExperiments) {
+      // Find all notes for this experiment
+      const expNotes = await db.select({
+        id: notes.id
+      })
+      .from(notes)
+      .where(eq(notes.experimentId, exp.id));
+      
+      // Delete all attachments for these notes
+      for (const note of expNotes) {
+        await db.delete(attachments)
+          .where(eq(attachments.noteId, note.id));
+      }
+      
+      // Delete all notes
+      await db.delete(notes)
+        .where(eq(notes.experimentId, exp.id));
+    }
+    
+    // Delete all experiments
+    await db.delete(experiments)
+      .where(eq(experiments.projectId, id));
+    
+    // Delete all collaborators
+    await db.delete(projectCollaborators)
+      .where(eq(projectCollaborators.projectId, id));
+    
+    // Finally delete the project
+    const result = await db.delete(projects)
+      .where(eq(projects.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Experiment operations
+  async getExperiment(id: number): Promise<Experiment | undefined> {
+    const [experiment] = await db.select().from(experiments).where(eq(experiments.id, id));
+    return experiment || undefined;
+  }
+
+  async listExperiments(): Promise<Experiment[]> {
+    return db.select().from(experiments);
+  }
+
+  async listExperimentsByProject(projectId: number): Promise<Experiment[]> {
+    return db.select()
+      .from(experiments)
+      .where(eq(experiments.projectId, projectId));
+  }
+
+  async createExperiment(insertExperiment: InsertExperiment): Promise<Experiment> {
+    const [experiment] = await db
+      .insert(experiments)
+      .values(insertExperiment)
+      .returning();
+    return experiment;
+  }
+
+  async updateExperiment(id: number, experimentUpdate: Partial<InsertExperiment>): Promise<Experiment | undefined> {
+    const [updatedExperiment] = await db
+      .update(experiments)
+      .set({
+        ...experimentUpdate,
+        updatedAt: new Date()
+      })
+      .where(eq(experiments.id, id))
+      .returning();
+    return updatedExperiment || undefined;
+  }
+
+  async deleteExperiment(id: number): Promise<boolean> {
+    // First get all notes for this experiment
+    const experimentNotes = await db.select({
+      id: notes.id
+    })
+    .from(notes)
+    .where(eq(notes.experimentId, id));
+    
+    // Delete all attachments for these notes
+    for (const note of experimentNotes) {
+      await db.delete(attachments)
+        .where(eq(attachments.noteId, note.id));
+    }
+    
+    // Delete all notes
+    await db.delete(notes)
+      .where(eq(notes.experimentId, id));
+    
+    // Finally delete the experiment
+    const result = await db.delete(experiments)
+      .where(eq(experiments.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Note operations
+  async getNote(id: number): Promise<Note | undefined> {
+    const [note] = await db.select().from(notes).where(eq(notes.id, id));
+    return note || undefined;
+  }
+
+  async listNotes(): Promise<Note[]> {
+    return db.select().from(notes).orderBy(desc(notes.updatedAt));
+  }
+
+  async listNotesByExperiment(experimentId: number): Promise<Note[]> {
+    return db.select()
+      .from(notes)
+      .where(eq(notes.experimentId, experimentId))
+      .orderBy(desc(notes.updatedAt));
+  }
+
+  async createNote(insertNote: InsertNote): Promise<Note> {
+    const [note] = await db
+      .insert(notes)
+      .values(insertNote)
+      .returning();
+    return note;
+  }
+
+  async updateNote(id: number, noteUpdate: Partial<InsertNote>): Promise<Note | undefined> {
+    const [updatedNote] = await db
+      .update(notes)
+      .set({
+        ...noteUpdate,
+        updatedAt: new Date()
+      })
+      .where(eq(notes.id, id))
+      .returning();
+    return updatedNote || undefined;
+  }
+
+  async deleteNote(id: number): Promise<boolean> {
+    // First delete all attachments
+    await db.delete(attachments)
+      .where(eq(attachments.noteId, id));
+    
+    // Then delete the note
+    const result = await db.delete(notes)
+      .where(eq(notes.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Attachment operations
+  async getAttachment(id: number): Promise<Attachment | undefined> {
+    const [attachment] = await db.select().from(attachments).where(eq(attachments.id, id));
+    return attachment || undefined;
+  }
+
+  async listAttachmentsByNote(noteId: number): Promise<Attachment[]> {
+    return db.select()
+      .from(attachments)
+      .where(eq(attachments.noteId, noteId));
+  }
+
+  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+    const [attachment] = await db
+      .insert(attachments)
+      .values(insertAttachment)
+      .returning();
+    return attachment;
+  }
+
+  async deleteAttachment(id: number): Promise<boolean> {
+    const result = await db.delete(attachments)
+      .where(eq(attachments.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Project collaborator operations
+  async addCollaborator(insertCollaborator: InsertProjectCollaborator): Promise<ProjectCollaborator> {
+    const [collaborator] = await db
+      .insert(projectCollaborators)
+      .values(insertCollaborator)
+      .returning();
+    return collaborator;
+  }
+
+  async removeCollaborator(projectId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(projectCollaborators)
+      .where(
+        and(
+          eq(projectCollaborators.projectId, projectId),
+          eq(projectCollaborators.userId, userId)
+        )
+      );
+    
+    return result.rowCount > 0;
+  }
+
+  async listCollaboratorsByProject(projectId: number): Promise<ProjectCollaborator[]> {
+    return db.select()
+      .from(projectCollaborators)
+      .where(eq(projectCollaborators.projectId, projectId));
+  }
+
+  // Search operations
+  async searchNotes(query: string): Promise<Note[]> {
+    const searchTerm = `%${query}%`;
+    return db.select()
+      .from(notes)
+      .where(
+        or(
+          like(notes.title, searchTerm),
+          like(notes.content || '', searchTerm)
+        )
+      );
+  }
+
+  async searchProjects(query: string): Promise<Project[]> {
+    const searchTerm = `%${query}%`;
+    return db.select()
+      .from(projects)
+      .where(
+        or(
+          like(projects.name, searchTerm),
+          like(projects.description || '', searchTerm)
+        )
+      );
+  }
+
+  async searchExperiments(query: string): Promise<Experiment[]> {
+    const searchTerm = `%${query}%`;
+    return db.select()
+      .from(experiments)
+      .where(
+        or(
+          like(experiments.name, searchTerm),
+          like(experiments.description || '', searchTerm)
+        )
+      );
+  }
+}
+
+// Memory Implementation (for reference)
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private projects: Map<number, Project>;
@@ -356,4 +686,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

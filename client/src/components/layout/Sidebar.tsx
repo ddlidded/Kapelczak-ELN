@@ -76,7 +76,7 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-semibold text-primary flex items-center">
             <i className="fas fa-flask mr-2"></i>
-            SciNote
+            Kapelczak Notes
           </h1>
           <p className="text-xs text-gray-500">Laboratory Notebook</p>
         </div>

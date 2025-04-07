@@ -23,9 +23,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
       <div className="flex items-center">
-        <img src={logoImage} alt="Kapelczak Logo" className="h-10 mr-2" />
+        <img src={logoImage} alt="Kapelczak Notes Logo" className="h-10 mr-2" />
         <h1 className="text-xl font-semibold text-primary hidden md:flex items-center">
-          Kapelczak
+          Kapelczak Notes
         </h1>
       </div>
       
