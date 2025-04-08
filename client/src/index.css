@@ -2,6 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tiptap Editor Styles */
+.ProseMirror {
+  @apply outline-none w-full;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
+
+.ProseMirror table {
+  @apply border border-border;
+}
+
+.ProseMirror th {
+  @apply bg-muted font-medium p-2 text-left border border-border;
+}
+
+.ProseMirror td {
+  @apply p-2 border border-border;
+}
+
+.ProseMirror pre {
+  @apply bg-muted font-mono p-4 rounded-md text-sm overflow-x-auto;
+}
+
+.ProseMirror code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-muted pl-4 italic;
+}
+
+.ProseMirror ul[data-type="taskList"] {
+  @apply list-none p-0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  @apply flex items-start;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  @apply mr-2 flex-shrink-0;
+}
+
+.ProseMirror img {
+  @apply max-w-full h-auto;
+}
+
+.ProseMirror hr {
+  @apply border-t border-border my-4;
+}
+
 @layer base {
   * {
     @apply border-border;

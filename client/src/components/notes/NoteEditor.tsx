@@ -1,187 +1,163 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { insertNoteSchema } from "@shared/schema";
-import { NoteFormData } from "@/lib/types";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Experiment, Note } from "@shared/schema";
-import { Editor } from "@tinymce/tinymce-react";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter 
+  DialogFooter
 } from "@/components/ui/dialog";
 import { 
   Form, 
+  FormControl, 
   FormField, 
   FormItem, 
   FormLabel, 
-  FormControl, 
   FormMessage 
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import {
+import { 
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue
 } from "@/components/ui/select";
-import FileUpload from "./FileUpload";
-import { formatDistanceToNow } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
+// Define the form validation schema
+const noteSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  experimentId: z.string().or(z.number()).optional(),
+  content: z.string().min(1, "Content cannot be empty"),
+});
+
+// Define props for the NoteEditor component
 interface NoteEditorProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: number;
-  note?: Note | null;
-  experiments: Experiment[];
-  preSelectedExperimentId?: number;
+  note: any | null; // The note to edit, or null for a new note
+  experiments: any[]; // List of experiments in the project
+  preSelectedExperimentId?: number; // Optional pre-selected experiment ID
 }
 
-const extendedNoteSchema = insertNoteSchema.extend({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  content: z.string().optional(),
-});
+// Define the form values type based on our schema
+type NoteFormValues = z.infer<typeof noteSchema>;
 
-export default function NoteEditor({ 
-  isOpen, 
-  onClose, 
-  projectId, 
-  note, 
+export default function NoteEditor({
+  isOpen,
+  onClose,
+  projectId,
+  note,
   experiments,
-  preSelectedExperimentId 
+  preSelectedExperimentId
 }: NoteEditorProps) {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Hardcoded current user for demo purposes
-  const currentUser = {
-    id: 1,
-    displayName: "Dr. Sarah Chen"
-  };
-
-  // If editing, fetch attachments
-  const { data: attachments } = useQuery({
-    queryKey: note ? ['/api/attachments/note', note.id] : [],
-    queryFn: note ? () => fetch(`/api/attachments/note/${note.id}`).then(res => res.json()) : undefined,
-    enabled: !!note
-  });
-
-  // Update existing attachments when data changes
-  useEffect(() => {
-    if (attachments) {
-      setExistingAttachments(attachments);
-    }
-  }, [attachments]);
-
-  const editorRef = useRef<any>(null);
-  
-  const form = useForm<NoteFormData>({
-    resolver: zodResolver(extendedNoteSchema),
+  // Setup form with default values
+  const form = useForm<NoteFormValues>({
+    resolver: zodResolver(noteSchema),
     defaultValues: {
       title: note?.title || "",
+      experimentId: note?.experimentId || preSelectedExperimentId?.toString() || "",
       content: note?.content || "",
-      experimentId: note?.experimentId || preSelectedExperimentId || (experiments[0]?.id || 0),
-      authorId: currentUser.id
-    }
+    },
   });
 
-  const handleSave = async (data: NoteFormData) => {
+  // Update form values when the note or preSelectedExperimentId changes
+  useEffect(() => {
+    if (note) {
+      form.reset({
+        title: note.title,
+        experimentId: note.experimentId?.toString(),
+        content: note.content,
+      });
+    } else {
+      form.reset({
+        title: "",
+        experimentId: preSelectedExperimentId?.toString() || "",
+        content: "",
+      });
+    }
+  }, [note, preSelectedExperimentId, form]);
+
+  // Handle form submission
+  const onSubmit = async (data: NoteFormValues) => {
+    setIsSaving(true);
     try {
-      // Get content from TinyMCE editor if available
-      if (editorRef.current) {
-        data.content = editorRef.current.getContent();
-      }
-      
-      let savedNote;
-      
+      const payload = {
+        ...data,
+        projectId,
+        experimentId: data.experimentId ? parseInt(data.experimentId.toString()) : null,
+      };
+
       if (note) {
         // Update existing note
-        savedNote = await apiRequest('PUT', `/api/notes/${note.id}`, data);
+        await apiRequest("PATCH", `/api/notes/${note.id}`, payload);
+        toast({
+          title: "Note updated",
+          description: "Your note has been updated successfully.",
+        });
       } else {
         // Create new note
-        savedNote = await apiRequest('POST', '/api/notes', data);
+        await apiRequest("POST", "/api/notes", payload);
+        toast({
+          title: "Note created",
+          description: "Your note has been created successfully.",
+        });
       }
-      
-      // Upload attachments if there are any
-      if (uploadedFiles.length > 0 && savedNote) {
-        for (const file of uploadedFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('noteId', String(savedNote.id));
-          
-          await fetch('/api/attachments', {
-            method: 'POST',
-            body: formData,
-          }).then(res => res.json());
-        }
-      }
-      
-      // Invalidate queries
+
+      // Invalidate queries to refetch data
       queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/notes/experiment', data.experimentId] });
-      if (note) {
-        queryClient.invalidateQueries({ queryKey: ['/api/notes', note.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/attachments/note', note.id] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId] });
       
+      if (data.experimentId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/notes/experiment', parseInt(data.experimentId.toString())] 
+        });
+      }
+
+      // Close the dialog
       onClose();
     } catch (error) {
-      console.error("Failed to save note:", error);
+      console.error("Error saving note:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save note. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
-  
-  const handleFileChange = (files: File[]) => {
-    setUploadedFiles(files);
-  };
-  
-  const removeExistingAttachment = async (attachmentId: number) => {
-    try {
-      await apiRequest('DELETE', `/api/attachments/${attachmentId}`, undefined);
-      setExistingAttachments(prev => prev.filter(a => a.id !== attachmentId));
-      queryClient.invalidateQueries({ queryKey: ['/api/attachments/note', note?.id] });
-    } catch (error) {
-      console.error("Failed to delete attachment:", error);
-    }
-  };
-  
-  const removeUploadedFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return 'fa-image text-blue-500';
-    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return 'fa-file-excel text-green-500';
-    if (fileType.includes('csv')) return 'fa-file-csv text-orange-500';
-    if (fileType.includes('pdf')) return 'fa-file-pdf text-red-500';
-    if (fileType.includes('word') || fileType.includes('document')) return 'fa-file-word text-blue-700';
-    return 'fa-file text-gray-500';
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  // Handle content change from the Tiptap editor
+  const handleContentChange = (html: string) => {
+    form.setValue("content", html, { shouldValidate: true });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{note ? "Edit Note" : "Create New Note"}</DialogTitle>
+          <DialogTitle>
+            {note ? "Edit Note" : "Create New Note"}
+          </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSave)} className="flex flex-col flex-1 overflow-hidden">
-            <div className="space-y-4 px-1 overflow-y-auto flex-1">
-              {/* Note title */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 flex flex-col overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Title field */}
               <FormField
                 control={form.control}
                 name="title"
@@ -195,17 +171,17 @@ export default function NoteEditor({
                   </FormItem>
                 )}
               />
-              
-              {/* Experiment selection */}
+
+              {/* Experiment selection field */}
               <FormField
                 control={form.control}
                 name="experimentId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Experiment</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
+                    <FormLabel>Experiment (Optional)</FormLabel>
+                    <Select
+                      value={field.value?.toString() || ""}
+                      onValueChange={field.onChange}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -213,6 +189,7 @@ export default function NoteEditor({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="">None</SelectItem>
                         {experiments.map((experiment) => (
                           <SelectItem key={experiment.id} value={experiment.id.toString()}>
                             {experiment.name}
@@ -224,114 +201,50 @@ export default function NoteEditor({
                   </FormItem>
                 )}
               />
-              
-              {/* Last edited info */}
-              {note && (
-                <div className="text-sm text-gray-500">
-                  Last edited: {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
-                </div>
-              )}
-              
-              {/* Note content */}
-              <FormField
-                control={form.control}
-                name="content"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Content</FormLabel>
-                    <FormControl>
-                      <Editor
-                        apiKey="no-api-key"
-                        onInit={(evt: any, editor: any) => editorRef.current = editor}
-                        initialValue={field.value}
-                        init={{
-                          height: 400,
-                          menubar: true,
-                          plugins: [
-                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                            'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
-                          ],
-                          toolbar: 'undo redo | blocks | ' +
-                            'bold italic forecolor | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | help | emoticons | table',
-                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {/* Attachments section */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
-                
-                {/* Existing attachments */}
-                {existingAttachments.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {existingAttachments.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center bg-white border border-gray-200 rounded-md px-3 py-1.5 text-sm">
-                        <i className={`fas ${getFileIcon(attachment.fileType)} mr-2`}></i>
-                        <span className="text-gray-700">{attachment.fileName}</span>
-                        <span className="text-gray-400 mx-1">•</span>
-                        <span className="text-gray-500">{formatFileSize(attachment.fileSize)}</span>
-                        <button 
-                          type="button"
-                          className="ml-2 text-gray-400 hover:text-red-500"
-                          onClick={() => removeExistingAttachment(attachment.id)}
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* New attachments */}
-                {uploadedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {uploadedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center bg-white border border-gray-200 rounded-md px-3 py-1.5 text-sm">
-                        <i className={`fas ${getFileIcon(file.type)} mr-2`}></i>
-                        <span className="text-gray-700">{file.name}</span>
-                        <span className="text-gray-400 mx-1">•</span>
-                        <span className="text-gray-500">{formatFileSize(file.size)}</span>
-                        <button 
-                          type="button"
-                          className="ml-2 text-gray-400 hover:text-red-500"
-                          onClick={() => removeUploadedFile(index)}
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* File upload component */}
-                <FileUpload onFilesSelected={handleFileChange} />
-              </div>
             </div>
-            
-            <DialogFooter className="mt-4 pt-4 border-t border-gray-200">
+
+            {/* Content editor field */}
+            <FormField
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <FormItem className="flex-1 flex flex-col min-h-0">
+                  <FormLabel>Content</FormLabel>
+                  <FormControl>
+                    <div className="flex-1 overflow-y-auto">
+                      <TiptapEditor
+                        content={field.value}
+                        onChange={handleContentChange}
+                        placeholder="Write your research notes here..."
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={onClose}
+                disabled={isSaving}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting 
-                  ? (note ? "Saving..." : "Creating...") 
-                  : (note ? "Save Changes" : "Create Note")
-                }
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Note
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>

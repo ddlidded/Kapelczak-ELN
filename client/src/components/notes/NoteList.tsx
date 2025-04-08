@@ -1,10 +1,38 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import NoteCard from "./NoteCard";
+import { PlusCircle, Search, FileX } from "lucide-react";
+import NoteView from "./NoteView";
 import NoteEditor from "./NoteEditor";
-import { Note, Experiment } from "@shared/schema";
+
+// Define the Note interface to fix type errors
+interface Note {
+  id: number;
+  title: string;
+  content: string;
+  projectId: number;
+  experimentId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: {
+    id: number;
+    username: string;
+    displayName?: string;
+  };
+  experiment?: {
+    id: number;
+    name: string;
+  };
+  attachments?: Array<{
+    id: number;
+    name: string;
+    fileType: string;
+    filePath: string;
+    createdAt: string;
+  }>;
+}
 
 interface NoteListProps {
   projectId: number;
@@ -12,114 +40,122 @@ interface NoteListProps {
 }
 
 export default function NoteList({ projectId, experimentId }: NoteListProps) {
-  const [viewType, setViewType] = useState<"list" | "grid">("list");
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  
-  // Query to fetch notes
-  const { data: notes, isLoading: notesLoading } = useQuery({
-    queryKey: experimentId 
-      ? ['/api/notes/experiment', experimentId] 
-      : ['/api/notes'],
-    queryFn: () => {
-      const url = experimentId 
-        ? `/api/notes/experiment/${experimentId}` 
-        : '/api/notes';
-      return fetch(url).then(res => res.json());
-    },
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
 
-  // Query to fetch experiments for this project
+  // Fetch notes for this project or experiment
+  const queryKey = experimentId 
+    ? ['/api/notes/experiment', experimentId]
+    : ['/api/notes/project', projectId];
+    
+  const queryUrl = experimentId 
+    ? `/api/notes/experiment/${experimentId}`
+    : `/api/notes/project/${projectId}`;
+
+  const { data: notes, isLoading, refetch } = useQuery({
+    queryKey,
+    queryFn: () => fetch(queryUrl).then(res => res.json()),
+  });
+  
+  // Fetch experiments for the project (for the note editor)
   const { data: experiments } = useQuery({
     queryKey: ['/api/experiments/project', projectId],
     queryFn: () => fetch(`/api/experiments/project/${projectId}`).then(res => res.json()),
   });
 
-  if (notesLoading) {
+  // Filter notes based on search query
+  const filteredNotes = notes?.filter((note: Note) => 
+    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    // Simple text content search (this will search in HTML content)
+    note.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (isLoading) {
     return (
       <div className="space-y-4">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="bg-white border border-gray-200 rounded-md p-4">
-            <Skeleton className="h-6 w-3/4 mb-2" />
-            <Skeleton className="h-4 w-full mb-1" />
-            <Skeleton className="h-4 w-2/3 mb-3" />
-            <div className="border-t border-gray-200 pt-2">
-              <Skeleton className="h-4 w-1/4" />
-            </div>
-          </div>
-        ))}
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-medium text-gray-800">Notes</h2>
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <Skeleton className="h-10 w-full mb-4" />
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
       </div>
     );
   }
 
-  const handleEditNote = (note: Note) => {
-    setEditingNote(note);
-    setIsCreating(false);
-  };
-
-  const handleCreateNote = () => {
-    setEditingNote(null);
-    setIsCreating(true);
-  };
-
-  const closeEditor = () => {
-    setEditingNote(null);
-    setIsCreating(false);
-  };
-
   return (
-    <>
-      <div className="flex items-center justify-between mb-4">
+    <div>
+      <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium text-gray-800">
-          {experimentId ? "Experiment Notes" : "Recent Notes"}
+          Notes {experimentId ? 'for this experiment' : 'in this project'}
         </h2>
-        <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={viewType === "grid" ? "text-primary" : "text-gray-500 hover:text-gray-700"}
-            onClick={() => setViewType("grid")}
-          >
-            <i className="fas fa-th-large"></i>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={viewType === "list" ? "text-primary" : "text-gray-500 hover:text-gray-700"}
-            onClick={() => setViewType("list")}
-          >
-            <i className="fas fa-list"></i>
-          </Button>
-        </div>
+        <Button onClick={() => setIsCreateNoteOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Note
+        </Button>
+      </div>
+      
+      {/* Search input */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search notes..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
-      {(!notes || notes.length === 0) && (
-        <div className="text-center py-8 bg-white border border-gray-200 rounded-md">
-          <p className="text-gray-500 mb-4">No notes found for this experiment</p>
-          <Button onClick={handleCreateNote}>Create First Note</Button>
+      {/* Notes list */}
+      {filteredNotes && filteredNotes.length > 0 ? (
+        <div className="space-y-4">
+          {filteredNotes.map((note: Note) => (
+            <NoteView 
+              key={note.id} 
+              note={note}
+              experiments={experiments || []}
+              onEdit={refetch}
+              onDelete={refetch}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center p-8 border border-dashed border-gray-300 rounded-md bg-gray-50">
+          <FileX className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No notes found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchQuery 
+              ? "No notes match your search criteria."
+              : `Get started by creating a new note ${experimentId ? 'for this experiment' : 'in this project'}.`}
+          </p>
+          {!searchQuery && (
+            <Button 
+              onClick={() => setIsCreateNoteOpen(true)}
+              className="mt-4"
+            >
+              Create Note
+            </Button>
+          )}
         </div>
       )}
-
-      <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-4"}>
-        {notes && notes.map((note: Note) => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            onEdit={() => handleEditNote(note)}
-          />
-        ))}
-      </div>
-
-      {(isCreating || editingNote) && (
+      
+      {/* Create Note Dialog */}
+      {isCreateNoteOpen && (
         <NoteEditor 
-          isOpen={true}
-          onClose={closeEditor}
+          isOpen={isCreateNoteOpen}
+          onClose={() => {
+            setIsCreateNoteOpen(false);
+            refetch();
+          }}
           projectId={projectId}
-          note={editingNote}
+          note={null}
           experiments={experiments || []}
           preSelectedExperimentId={experimentId}
         />
       )}
-    </>
+    </div>
   );
 }

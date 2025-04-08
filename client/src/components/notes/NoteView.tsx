@@ -1,0 +1,278 @@
+import { useState } from 'react';
+import { TiptapViewer } from '@/components/ui/tiptap-editor';
+import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CalendarDays, Edit, MoreHorizontal, Trash2, ChevronDown, FileBadge, Upload } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import NoteEditor from './NoteEditor';
+import { FileUploader } from './FileUploader';
+
+interface Attachment {
+  id: number;
+  name: string;
+  fileType: string;
+  filePath: string;
+  createdAt: string;
+}
+
+interface Note {
+  id: number;
+  title: string;
+  content: string;
+  projectId: number;
+  experimentId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: {
+    id: number;
+    username: string;
+    displayName?: string;
+  };
+  experiment?: {
+    id: number;
+    name: string;
+  };
+  attachments?: Attachment[];
+}
+
+interface Experiment {
+  id: number;
+  name: string;
+  description?: string;
+  projectId: number;
+}
+
+interface NoteViewProps {
+  note: Note;
+  experiments: Experiment[];
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
+export default function NoteView({ note, experiments, onEdit, onDelete }: NoteViewProps) {
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+
+  const handleDelete = async () => {
+    try {
+      await apiRequest('DELETE', `/api/notes/${note.id}`);
+      
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', note.projectId] });
+      
+      if (note.experimentId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/notes/experiment', note.experimentId] 
+        });
+      }
+      
+      toast({
+        title: "Note deleted",
+        description: "The note has been deleted successfully.",
+      });
+      
+      setIsDeleteDialogOpen(false);
+      if (onDelete) onDelete();
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete note. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openAttachment = (attachment: Attachment) => {
+    setSelectedAttachment(attachment);
+    setIsAttachmentDialogOpen(true);
+  };
+
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) {
+      return <FileBadge className="h-4 w-4 text-blue-500" />;
+    }
+    return <FileBadge className="h-4 w-4 text-gray-500" />;
+  };
+
+  return (
+    <>
+      <Card className="mb-4">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-xl">{note.title}</CardTitle>
+              <div className="text-sm text-muted-foreground flex items-center mt-1">
+                <CalendarDays className="mr-1 h-3 w-3" />
+                {formatDate(note.updatedAt || note.createdAt)}
+                {note.experiment && (
+                  <Badge variant="outline" className="ml-2">
+                    {note.experiment.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsUploadDialogOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Files
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
+        <CardContent className={isExpanded ? "" : "max-h-64 overflow-hidden relative"}>
+          <div className={isExpanded ? "" : "prose-truncate"}>
+            <TiptapViewer content={note.content} />
+          </div>
+          {!isExpanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent"></div>
+          )}
+        </CardContent>
+        <CardFooter className="pt-0 flex justify-between items-center">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-sm flex items-center"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? 'Show less' : 'Show more'}
+            <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </Button>
+          {note.attachments && note.attachments.length > 0 && (
+            <div className="flex space-x-2">
+              {note.attachments.map(attachment => (
+                <Button
+                  key={attachment.id}
+                  size="sm"
+                  variant="outline"
+                  className="text-sm"
+                  onClick={() => openAttachment(attachment)}
+                >
+                  {getFileIcon(attachment.fileType)}
+                  <span className="ml-1 max-w-32 truncate">{attachment.name}</span>
+                </Button>
+              ))}
+            </div>
+          )}
+        </CardFooter>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Note</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this note? This action cannot be undone.</p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Note Dialog */}
+      {isEditDialogOpen && (
+        <NoteEditor
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            if (onEdit) onEdit();
+          }}
+          projectId={note.projectId}
+          note={note}
+          experiments={experiments}
+        />
+      )}
+
+      {/* Attachment Preview Dialog */}
+      <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
+        <DialogContent className="sm:max-w-[900px]">
+          <DialogHeader>
+            <DialogTitle>{selectedAttachment?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 flex justify-center">
+            {selectedAttachment?.fileType.startsWith('image/') ? (
+              <img 
+                src={selectedAttachment.filePath} 
+                alt={selectedAttachment.name}
+                className="max-h-[70vh] max-w-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8">
+                <FileBadge className="h-16 w-16 text-primary mb-4" />
+                <p>This file cannot be previewed.</p>
+                <Button 
+                  className="mt-4"
+                  onClick={() => window.open(selectedAttachment?.filePath, '_blank')}
+                >
+                  Download File
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Upload Dialog */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Files to Note</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <FileUploader 
+              noteId={note.id} 
+              onUploadComplete={() => {
+                setIsUploadDialogOpen(false);
+                if (onEdit) onEdit();
+              }} 
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
