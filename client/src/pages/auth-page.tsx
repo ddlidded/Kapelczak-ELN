@@ -36,6 +36,17 @@ export default function AuthPage() {
   const { toast } = useToast();
   const { user, isLoading, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
+  
+  // Export the setActiveTab function to window for the Auth component to use
+  useEffect(() => {
+    // @ts-ignore - Adding to window object for other components to access
+    window.setAuthTab = setActiveTab;
+    
+    return () => {
+      // @ts-ignore - Clean up
+      delete window.setAuthTab;
+    };
+  }, []);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({

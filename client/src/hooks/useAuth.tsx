@@ -103,9 +103,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest('POST', '/api/auth/login', credentials);
-      const data = await res.json();
-      return data;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        });
+        
+        // Check for non-JSON responses
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+        }
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Authentication failed');
+        }
+        
+        return await res.json();
+      } catch (err) {
+        console.error('Login error:', err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
       // Save token
@@ -132,9 +155,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: async (credentials: RegisterData) => {
-      const res = await apiRequest('POST', '/api/auth/register', credentials);
-      const data = await res.json();
-      return data;
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        });
+        
+        // Check for non-JSON responses
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+        }
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Registration failed');
+        }
+        
+        return await res.json();
+      } catch (err) {
+        console.error('Registration error:', err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
       // If registration returns a token directly (auto-login)
@@ -146,8 +192,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       toast({
         title: 'Registration successful',
-        description: data.message || 'Your account has been created.',
+        description: data.message || 'Your account has been created. Please check your email for verification.',
       });
+      
+      // Switch to login tab after successful registration if no token
+      if (!data.token) {
+        // Use the window function set by auth-page.tsx
+        try {
+          // @ts-ignore - Access window function
+          if (typeof window.setAuthTab === 'function') {
+            window.setAuthTab('login');
+          }
+        } catch (e) {
+          console.warn('Could not switch to login tab:', e);
+        }
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -162,11 +221,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       if (token) {
-        await apiRequest('POST', '/api/auth/logout', undefined, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        try {
+          const res = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          // Even if logout fails, we'll still clear the local session
+          if (!res.ok) {
+            console.warn('Logout request failed, but continuing with local logout');
           }
-        });
+        } catch (err) {
+          console.error('Logout error:', err);
+          // Even if the API call fails, we'll still clear local session
+        }
       }
     },
     onSettled: () => {
