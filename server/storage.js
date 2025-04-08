@@ -1,30 +1,64 @@
 const { db } = require('./db');
 const { eq, like, or } = require('drizzle-orm');
 
+// Helper function to exponentially back off and retry database operations
+async function withRetry(operation, maxRetries = 3) {
+  let retries = 0;
+  
+  while (true) {
+    try {
+      return await operation();
+    } catch (error) {
+      retries++;
+      
+      // Check if it's a connection error that might be temporary
+      const isConnectionError = error.message?.includes('ECONNREFUSED') ||
+                               error.message?.includes('connection') ||
+                               error.code === 'ECONNRESET' ||
+                               error.code === 'ETIMEDOUT';
+                               
+      if (isConnectionError && retries < maxRetries) {
+        console.warn(`Database connection error, retrying (${retries}/${maxRetries})...`);
+        // Exponential backoff: 200ms, 400ms, 800ms
+        await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, retries - 1)));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+}
+
 class DatabaseStorage {
   // User operations
   async getUser(id) {
     try {
-      const [user] = await db.query.users.findMany({
-        where: eq(db.schema.users.id, id),
-        limit: 1
+      return await withRetry(async () => {
+        const [user] = await db.query.users.findMany({
+          where: eq(db.schema.users.id, id),
+          limit: 1
+        });
+        return user || undefined;
       });
-      return user || undefined;
     } catch (error) {
       console.error('Error in getUser:', error);
+      console.error(error.stack || error);
       return undefined;
     }
   }
 
   async getUserByUsername(username) {
     try {
-      const [user] = await db.query.users.findMany({
-        where: eq(db.schema.users.username, username),
-        limit: 1
+      return await withRetry(async () => {
+        const [user] = await db.query.users.findMany({
+          where: eq(db.schema.users.username, username),
+          limit: 1
+        });
+        return user || undefined;
       });
-      return user || undefined;
     } catch (error) {
       console.error('Error in getUserByUsername:', error);
+      console.error(error.stack || error);
       return undefined;
     }
   }
@@ -66,39 +100,47 @@ class DatabaseStorage {
 
   async listProjects() {
     try {
-      return await db.query.projects.findMany();
+      return await withRetry(async () => {
+        return await db.query.projects.findMany();
+      });
     } catch (error) {
       console.error('Error in listProjects:', error);
+      console.error(error.stack || error);
       return [];
     }
   }
 
   async listProjectsByUser(userId) {
     try {
-      // Direct projects (owner)
-      const ownedProjects = await db.query.projects.findMany({
-        where: eq(db.schema.projects.ownerId, userId),
+      return await withRetry(async () => {
+        // Direct projects (owner)
+        const ownedProjects = await db.query.projects.findMany({
+          where: eq(db.schema.projects.ownerId, userId),
+        });
+        
+        // Collaborations
+        const collaborations = await db.query.projectCollaborators.findMany({
+          where: eq(db.schema.projectCollaborators.userId, userId),
+          with: {
+            project: true
+          }
+        });
+        
+        const collaboratedProjects = collaborations
+          .filter(c => c && c.project) // Protect against null values
+          .map(c => c.project);
+        
+        // Combine and remove duplicates
+        const allProjects = [...(ownedProjects || []), ...(collaboratedProjects || [])];
+        const uniqueProjects = allProjects.filter((project, index, self) =>
+          project && index === self.findIndex(p => p && p.id === project.id)
+        );
+        
+        return uniqueProjects;
       });
-      
-      // Collaborations
-      const collaborations = await db.query.projectCollaborators.findMany({
-        where: eq(db.schema.projectCollaborators.userId, userId),
-        with: {
-          project: true
-        }
-      });
-      
-      const collaboratedProjects = collaborations.map(c => c.project);
-      
-      // Combine and remove duplicates
-      const allProjects = [...ownedProjects, ...collaboratedProjects];
-      const uniqueProjects = allProjects.filter((project, index, self) =>
-        index === self.findIndex(p => p.id === project.id)
-      );
-      
-      return uniqueProjects;
     } catch (error) {
       console.error('Error in listProjectsByUser:', error);
+      console.error(error.stack || error);
       return [];
     }
   }
@@ -234,11 +276,14 @@ class DatabaseStorage {
 
   async listNotesByExperiment(experimentId) {
     try {
-      return await db.query.notes.findMany({
-        where: eq(db.schema.notes.experimentId, experimentId),
+      return await withRetry(async () => {
+        return await db.query.notes.findMany({
+          where: eq(db.schema.notes.experimentId, experimentId),
+        });
       });
     } catch (error) {
       console.error('Error in listNotesByExperiment:', error);
+      console.error(error.stack || error);
       return [];
     }
   }

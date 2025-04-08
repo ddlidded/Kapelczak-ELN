@@ -1,0 +1,545 @@
+2025-04-07 22:55:56 
+2025-04-07 22:55:56 > rest-express@1.0.0 start
+2025-04-07 22:55:56 > NODE_ENV=production node dist/index.js
+2025-04-07 22:55:56 
+2025-04-07 22:55:57 5:55:57 AM [express] serving on port 5000
+2025-04-07 22:56:09 5:56:09 AM [express] GET /api/projects/user/1 500 in 45ms :: {"message":"An unexpected error occurre…
+2025-04-07 22:56:09 API Error: ErrorEvent {
+2025-04-07 22:56:09   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:09     _events: [Object: null prototype] {
+2025-04-07 22:56:09       error: [Function],
+2025-04-07 22:56:09       message: [Function],
+2025-04-07 22:56:09       close: [Function],
+2025-04-07 22:56:09       open: [Function]
+2025-04-07 22:56:09     },
+2025-04-07 22:56:09     _eventsCount: 4,
+2025-04-07 22:56:09     _maxListeners: undefined,
+2025-04-07 22:56:09     _binaryType: 'arraybuffer',
+2025-04-07 22:56:09     _closeCode: 1006,
+2025-04-07 22:56:09     _closeFrameReceived: false,
+2025-04-07 22:56:09     _closeFrameSent: false,
+2025-04-07 22:56:09     _closeMessage: <Buffer >,
+2025-04-07 22:56:09     _closeTimer: null,
+2025-04-07 22:56:09     _errorEmitted: true,
+2025-04-07 22:56:09     _extensions: {},
+2025-04-07 22:56:09     _paused: false,
+2025-04-07 22:56:09     _protocol: '',
+2025-04-07 22:56:09     _readyState: 3,
+2025-04-07 22:56:09     _receiver: null,
+2025-04-07 22:56:09     _sender: null,
+2025-04-07 22:56:09     _socket: null,
+2025-04-07 22:56:09     _bufferedAmount: 0,
+2025-04-07 22:56:09     _isServer: false,
+2025-04-07 22:56:09     _redirects: 0,
+2025-04-07 22:56:09     _autoPong: true,
+2025-04-07 22:56:09     _url: 'wss://postgres/v2',
+2025-04-07 22:56:09     _req: null,
+2025-04-07 22:56:09     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:09     [Symbol(kCapture)]: false
+2025-04-07 22:56:09   },
+2025-04-07 22:56:09   [Symbol(kType)]: 'error',
+2025-04-07 22:56:09   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:09       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:09     errno: -111,
+2025-04-07 22:56:09     code: 'ECONNREFUSED',
+2025-04-07 22:56:09     syscall: 'connect',
+2025-04-07 22:56:09     address: '172.23.0.2',
+2025-04-07 22:56:09     port: 443
+2025-04-07 22:56:09   },
+2025-04-07 22:56:09   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:09 }
+2025-04-07 22:56:09 API Error: ErrorEvent {
+2025-04-07 22:56:09   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:09     _events: [Object: null prototype] {
+2025-04-07 22:56:09       error: [Function],
+2025-04-07 22:56:09       message: [Function],
+2025-04-07 22:56:09       close: [Function],
+2025-04-07 22:56:09       open: [Function]
+2025-04-07 22:56:09     },
+2025-04-07 22:56:09     _eventsCount: 4,
+2025-04-07 22:56:09     _maxListeners: undefined,
+2025-04-07 22:56:09     _binaryType: 'arraybuffer',
+2025-04-07 22:56:09     _closeCode: 1006,
+2025-04-07 22:56:09     _closeFrameReceived: false,
+2025-04-07 22:56:09     _closeFrameSent: false,
+2025-04-07 22:56:09     _closeMessage: <Buffer >,
+2025-04-07 22:56:09     _closeTimer: null,
+2025-04-07 22:56:09     _errorEmitted: true,
+2025-04-07 22:56:09     _extensions: {},
+2025-04-07 22:56:09     _paused: false,
+2025-04-07 22:56:09     _protocol: '',
+2025-04-07 22:56:09     _readyState: 3,
+2025-04-07 22:56:09     _receiver: null,
+2025-04-07 22:56:09     _sender: null,
+2025-04-07 22:56:09     _socket: null,
+2025-04-07 22:56:09     _bufferedAmount: 0,
+2025-04-07 22:56:09     _isServer: false,
+2025-04-07 22:56:09     _redirects: 0,
+2025-04-07 22:56:09     _autoPong: true,
+2025-04-07 22:56:09     _url: 'wss://postgres/v2',
+2025-04-07 22:56:09     _req: null,
+2025-04-07 22:56:09     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:09     [Symbol(kCapture)]: false
+2025-04-07 22:56:09   },
+2025-04-07 22:56:09   [Symbol(kType)]: 'error',
+2025-04-07 22:56:09   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:09       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:09     errno: -111,
+2025-04-07 22:56:09     code: 'ECONNREFUSED',
+2025-04-07 22:56:09     syscall: 'connect',
+2025-04-07 22:56:09     address: '172.23.0.2',
+2025-04-07 22:56:09     port: 443
+2025-04-07 22:56:09   },
+2025-04-07 22:56:09   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:09 }
+2025-04-07 22:56:15 API Error: ErrorEvent {
+2025-04-07 22:56:15   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:15     _events: [Object: null prototype] {
+2025-04-07 22:56:15       error: [Function],
+2025-04-07 22:56:15       message: [Function],
+2025-04-07 22:56:15       close: [Function],
+2025-04-07 22:56:15       open: [Function]
+2025-04-07 22:56:15     },
+2025-04-07 22:56:15     _eventsCount: 4,
+2025-04-07 22:56:15     _maxListeners: undefined,
+2025-04-07 22:56:15     _binaryType: 'arraybuffer',
+2025-04-07 22:56:15     _closeCode: 1006,
+2025-04-07 22:56:15     _closeFrameReceived: false,
+2025-04-07 22:56:15     _closeFrameSent: false,
+2025-04-07 22:56:15     _closeMessage: <Buffer >,
+2025-04-07 22:56:15     _closeTimer: null,
+2025-04-07 22:56:15     _errorEmitted: true,
+2025-04-07 22:56:15     _extensions: {},
+2025-04-07 22:56:15     _paused: false,
+2025-04-07 22:56:15     _protocol: '',
+2025-04-07 22:56:15     _readyState: 3,
+2025-04-07 22:56:15     _receiver: null,
+2025-04-07 22:56:15     _sender: null,
+2025-04-07 22:56:15     _socket: null,
+2025-04-07 22:56:15     _bufferedAmount: 0,
+2025-04-07 22:56:15     _isServer: false,
+2025-04-07 22:56:15     _redirects: 0,
+2025-04-07 22:56:15     _autoPong: true,
+2025-04-07 22:56:15     _url: 'wss://postgres/v2',
+2025-04-07 22:56:15     _req: null,
+2025-04-07 22:56:15     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:15     [Symbol(kCapture)]: false
+2025-04-07 22:56:15   },
+2025-04-07 22:56:15   [Symbol(kType)]: 'error',
+2025-04-07 22:56:15   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:15       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:15     errno: -111,
+2025-04-07 22:56:15     code: 'ECONNREFUSED',
+2025-04-07 22:56:09 5:56:09 AM [express] GET /api/projects 500 in 6ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:56:15 5:56:15 AM [express] GET /api/projects/user/1 500 in 11ms :: {"message":"An unexpected error occurre…
+2025-04-07 22:56:15 5:56:15 AM [express] GET /api/projects 500 in 9ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:56:23 5:56:23 AM [express] GET /api/projects/user/1 500 in 5ms :: {"message":"An unexpected error occurred…
+2025-04-07 22:56:23 5:56:23 AM [express] GET /api/projects 500 in 3ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:56:15     syscall: 'connect',
+2025-04-07 22:56:15     address: '172.23.0.2',
+2025-04-07 22:56:15     port: 443
+2025-04-07 22:56:15   },
+2025-04-07 22:56:15   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:15 }
+2025-04-07 22:56:15 API Error: ErrorEvent {
+2025-04-07 22:56:15   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:15     _events: [Object: null prototype] {
+2025-04-07 22:56:15       error: [Function],
+2025-04-07 22:56:15       message: [Function],
+2025-04-07 22:56:15       close: [Function],
+2025-04-07 22:56:15       open: [Function]
+2025-04-07 22:56:15     },
+2025-04-07 22:56:15     _eventsCount: 4,
+2025-04-07 22:56:15     _maxListeners: undefined,
+2025-04-07 22:56:15     _binaryType: 'arraybuffer',
+2025-04-07 22:56:15     _closeCode: 1006,
+2025-04-07 22:56:15     _closeFrameReceived: false,
+2025-04-07 22:56:15     _closeFrameSent: false,
+2025-04-07 22:56:15     _closeMessage: <Buffer >,
+2025-04-07 22:56:15     _closeTimer: null,
+2025-04-07 22:56:15     _errorEmitted: true,
+2025-04-07 22:56:15     _extensions: {},
+2025-04-07 22:56:15     _paused: false,
+2025-04-07 22:56:15     _protocol: '',
+2025-04-07 22:56:15     _readyState: 3,
+2025-04-07 22:56:15     _receiver: null,
+2025-04-07 22:56:15     _sender: null,
+2025-04-07 22:56:15     _socket: null,
+2025-04-07 22:56:15     _bufferedAmount: 0,
+2025-04-07 22:56:15     _isServer: false,
+2025-04-07 22:56:15     _redirects: 0,
+2025-04-07 22:56:15     _autoPong: true,
+2025-04-07 22:56:15     _url: 'wss://postgres/v2',
+2025-04-07 22:56:15     _req: null,
+2025-04-07 22:56:15     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:15     [Symbol(kCapture)]: false
+2025-04-07 22:56:15   },
+2025-04-07 22:56:15   [Symbol(kType)]: 'error',
+2025-04-07 22:56:15   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:15       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:15     errno: -111,
+2025-04-07 22:56:15     code: 'ECONNREFUSED',
+2025-04-07 22:56:15     syscall: 'connect',
+2025-04-07 22:56:15     address: '172.23.0.2',
+2025-04-07 22:56:15     port: 443
+2025-04-07 22:56:15   },
+2025-04-07 22:56:15   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:15 }
+2025-04-07 22:56:23 API Error: ErrorEvent {
+2025-04-07 22:56:23   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:23     _events: [Object: null prototype] {
+2025-04-07 22:56:23       error: [Function],
+2025-04-07 22:56:23       message: [Function],
+2025-04-07 22:56:23       close: [Function],
+2025-04-07 22:56:23       open: [Function]
+2025-04-07 22:56:23     },
+2025-04-07 22:56:23     _eventsCount: 4,
+2025-04-07 22:56:23     _maxListeners: undefined,
+2025-04-07 22:56:23     _binaryType: 'arraybuffer',
+2025-04-07 22:56:23     _closeCode: 1006,
+2025-04-07 22:56:23     _closeFrameReceived: false,
+2025-04-07 22:56:23     _closeFrameSent: false,
+2025-04-07 22:56:23     _closeMessage: <Buffer >,
+2025-04-07 22:56:23     _closeTimer: null,
+2025-04-07 22:56:23     _errorEmitted: true,
+2025-04-07 22:56:23     _extensions: {},
+2025-04-07 22:56:23     _paused: false,
+2025-04-07 22:56:23     _protocol: '',
+2025-04-07 22:56:23     _readyState: 3,
+2025-04-07 22:56:23     _receiver: null,
+2025-04-07 22:56:23     _sender: null,
+2025-04-07 22:56:23     _socket: null,
+2025-04-07 22:56:23     _bufferedAmount: 0,
+2025-04-07 22:56:23     _isServer: false,
+2025-04-07 22:56:23     _redirects: 0,
+2025-04-07 22:56:23     _autoPong: true,
+2025-04-07 22:56:23     _url: 'wss://postgres/v2',
+2025-04-07 22:56:23     _req: null,
+2025-04-07 22:56:23     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:23     [Symbol(kCapture)]: false
+2025-04-07 22:56:23   },
+2025-04-07 22:56:23   [Symbol(kType)]: 'error',
+2025-04-07 22:56:23   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:23       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:23     errno: -111,
+2025-04-07 22:56:23     code: 'ECONNREFUSED',
+2025-04-07 22:56:23     syscall: 'connect',
+2025-04-07 22:56:23     address: '172.23.0.2',
+2025-04-07 22:56:23     port: 443
+2025-04-07 22:56:23   },
+2025-04-07 22:56:23   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:23 }
+2025-04-07 22:56:23 API Error: ErrorEvent {
+2025-04-07 22:56:23   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:56:23     _events: [Object: null prototype] {
+2025-04-07 22:56:23       error: [Function],
+2025-04-07 22:56:23       message: [Function],
+2025-04-07 22:56:23       close: [Function],
+2025-04-07 22:56:23       open: [Function]
+2025-04-07 22:56:23     },
+2025-04-07 22:56:23     _eventsCount: 4,
+2025-04-07 22:56:23     _maxListeners: undefined,
+2025-04-07 22:56:23     _binaryType: 'arraybuffer',
+2025-04-07 22:56:23     _closeCode: 1006,
+2025-04-07 22:56:23     _closeFrameReceived: false,
+2025-04-07 22:56:23     _closeFrameSent: false,
+2025-04-07 22:56:23     _closeMessage: <Buffer >,
+2025-04-07 22:56:23     _closeTimer: null,
+2025-04-07 22:56:23     _errorEmitted: true,
+2025-04-07 22:56:23     _extensions: {},
+2025-04-07 22:56:23     _paused: false,
+2025-04-07 22:56:23     _protocol: '',
+2025-04-07 22:56:23     _readyState: 3,
+2025-04-07 22:56:23     _receiver: null,
+2025-04-07 22:56:23     _sender: null,
+2025-04-07 22:56:23     _socket: null,
+2025-04-07 22:56:23     _bufferedAmount: 0,
+2025-04-07 22:56:23     _isServer: false,
+2025-04-07 22:56:23     _redirects: 0,
+2025-04-07 22:56:23     _autoPong: true,
+2025-04-07 22:56:23     _url: 'wss://postgres/v2',
+2025-04-07 22:56:23     _req: null,
+2025-04-07 22:56:23     [Symbol(shapeMode)]: false,
+2025-04-07 22:56:23     [Symbol(kCapture)]: false
+2025-04-07 22:56:23   },
+2025-04-07 22:56:23   [Symbol(kType)]: 'error',
+2025-04-07 22:56:23   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:56:23       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:56:23     errno: -111,
+2025-04-07 22:56:23     code: 'ECONNREFUSED',
+2025-04-07 22:56:23     syscall: 'connect',
+2025-04-07 22:56:23     address: '172.23.0.2',
+2025-04-07 22:56:23     port: 443
+2025-04-07 22:56:23   },
+2025-04-07 22:56:23   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:56:23 }
+2025-04-07 22:59:11 API Error: ErrorEvent {
+2025-04-07 22:59:11   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:11     _events: [Object: null prototype] {
+2025-04-07 22:59:11       error: [Function],
+2025-04-07 22:59:11       message: [Function],
+2025-04-07 22:59:11       close: [Function],
+2025-04-07 22:59:11 5:59:11 AM [express] GET /api/projects/user/1 500 in 14ms :: {"message":"An unexpected error occurre…
+2025-04-07 22:59:11 5:59:11 AM [express] GET /api/projects 500 in 10ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:59:26 5:59:26 AM [express] GET /api/projects/user/1 500 in 5ms :: {"message":"An unexpected error occurred…
+2025-04-07 22:59:11       open: [Function]
+2025-04-07 22:59:11     },
+2025-04-07 22:59:11     _eventsCount: 4,
+2025-04-07 22:59:11     _maxListeners: undefined,
+2025-04-07 22:59:11     _binaryType: 'arraybuffer',
+2025-04-07 22:59:11     _closeCode: 1006,
+2025-04-07 22:59:11     _closeFrameReceived: false,
+2025-04-07 22:59:11     _closeFrameSent: false,
+2025-04-07 22:59:11     _closeMessage: <Buffer >,
+2025-04-07 22:59:11     _closeTimer: null,
+2025-04-07 22:59:11     _errorEmitted: true,
+2025-04-07 22:59:11     _extensions: {},
+2025-04-07 22:59:11     _paused: false,
+2025-04-07 22:59:11     _protocol: '',
+2025-04-07 22:59:11     _readyState: 3,
+2025-04-07 22:59:11     _receiver: null,
+2025-04-07 22:59:11     _sender: null,
+2025-04-07 22:59:11     _socket: null,
+2025-04-07 22:59:11     _bufferedAmount: 0,
+2025-04-07 22:59:11     _isServer: false,
+2025-04-07 22:59:11     _redirects: 0,
+2025-04-07 22:59:11     _autoPong: true,
+2025-04-07 22:59:11     _url: 'wss://postgres/v2',
+2025-04-07 22:59:11     _req: null,
+2025-04-07 22:59:11     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:11     [Symbol(kCapture)]: false
+2025-04-07 22:59:11   },
+2025-04-07 22:59:11   [Symbol(kType)]: 'error',
+2025-04-07 22:59:11   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:11       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:11     errno: -111,
+2025-04-07 22:59:11     code: 'ECONNREFUSED',
+2025-04-07 22:59:11     syscall: 'connect',
+2025-04-07 22:59:11     address: '172.23.0.2',
+2025-04-07 22:59:11     port: 443
+2025-04-07 22:59:11   },
+2025-04-07 22:59:11   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:11 }
+2025-04-07 22:59:11 API Error: ErrorEvent {
+2025-04-07 22:59:11   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:11     _events: [Object: null prototype] {
+2025-04-07 22:59:11       error: [Function],
+2025-04-07 22:59:11       message: [Function],
+2025-04-07 22:59:11       close: [Function],
+2025-04-07 22:59:11       open: [Function]
+2025-04-07 22:59:11     },
+2025-04-07 22:59:11     _eventsCount: 4,
+2025-04-07 22:59:11     _maxListeners: undefined,
+2025-04-07 22:59:11     _binaryType: 'arraybuffer',
+2025-04-07 22:59:11     _closeCode: 1006,
+2025-04-07 22:59:11     _closeFrameReceived: false,
+2025-04-07 22:59:11     _closeFrameSent: false,
+2025-04-07 22:59:11     _closeMessage: <Buffer >,
+2025-04-07 22:59:11     _closeTimer: null,
+2025-04-07 22:59:11     _errorEmitted: true,
+2025-04-07 22:59:11     _extensions: {},
+2025-04-07 22:59:11     _paused: false,
+2025-04-07 22:59:11     _protocol: '',
+2025-04-07 22:59:11     _readyState: 3,
+2025-04-07 22:59:11     _receiver: null,
+2025-04-07 22:59:11     _sender: null,
+2025-04-07 22:59:11     _socket: null,
+2025-04-07 22:59:11     _bufferedAmount: 0,
+2025-04-07 22:59:11     _isServer: false,
+2025-04-07 22:59:11     _redirects: 0,
+2025-04-07 22:59:11     _autoPong: true,
+2025-04-07 22:59:11     _url: 'wss://postgres/v2',
+2025-04-07 22:59:11     _req: null,
+2025-04-07 22:59:11     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:11     [Symbol(kCapture)]: false
+2025-04-07 22:59:11   },
+2025-04-07 22:59:11   [Symbol(kType)]: 'error',
+2025-04-07 22:59:11   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:11       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:11     errno: -111,
+2025-04-07 22:59:11     code: 'ECONNREFUSED',
+2025-04-07 22:59:11     syscall: 'connect',
+2025-04-07 22:59:11     address: '172.23.0.2',
+2025-04-07 22:59:11     port: 443
+2025-04-07 22:59:11   },
+2025-04-07 22:59:11   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:11 }
+2025-04-07 22:59:26 API Error: ErrorEvent {
+2025-04-07 22:59:26   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:26     _events: [Object: null prototype] {
+2025-04-07 22:59:26       error: [Function],
+2025-04-07 22:59:26       message: [Function],
+2025-04-07 22:59:26       close: [Function],
+2025-04-07 22:59:26       open: [Function]
+2025-04-07 22:59:26     },
+2025-04-07 22:59:26     _eventsCount: 4,
+2025-04-07 22:59:26     _maxListeners: undefined,
+2025-04-07 22:59:26     _binaryType: 'arraybuffer',
+2025-04-07 22:59:26     _closeCode: 1006,
+2025-04-07 22:59:26     _closeFrameReceived: false,
+2025-04-07 22:59:26     _closeFrameSent: false,
+2025-04-07 22:59:26     _closeMessage: <Buffer >,
+2025-04-07 22:59:26     _closeTimer: null,
+2025-04-07 22:59:26     _errorEmitted: true,
+2025-04-07 22:59:26     _extensions: {},
+2025-04-07 22:59:26     _paused: false,
+2025-04-07 22:59:26     _protocol: '',
+2025-04-07 22:59:26     _readyState: 3,
+2025-04-07 22:59:26     _receiver: null,
+2025-04-07 22:59:26     _sender: null,
+2025-04-07 22:59:26     _socket: null,
+2025-04-07 22:59:26     _bufferedAmount: 0,
+2025-04-07 22:59:26     _isServer: false,
+2025-04-07 22:59:26     _redirects: 0,
+2025-04-07 22:59:26     _autoPong: true,
+2025-04-07 22:59:26     _url: 'wss://postgres/v2',
+2025-04-07 22:59:26     _req: null,
+2025-04-07 22:59:26     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:26     [Symbol(kCapture)]: false
+2025-04-07 22:59:26   },
+2025-04-07 22:59:26   [Symbol(kType)]: 'error',
+2025-04-07 22:59:26   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:26       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:26     errno: -111,
+2025-04-07 22:59:26     code: 'ECONNREFUSED',
+2025-04-07 22:59:26     syscall: 'connect',
+2025-04-07 22:59:26     address: '172.23.0.2',
+2025-04-07 22:59:26     port: 443
+2025-04-07 22:59:26   },
+2025-04-07 22:59:26   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:26 }
+2025-04-07 22:59:26 API Error: ErrorEvent {
+2025-04-07 22:59:26   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:26     _events: [Object: null prototype] {
+2025-04-07 22:59:26       error: [Function],
+2025-04-07 22:59:26       message: [Function],
+2025-04-07 22:59:26       close: [Function],
+2025-04-07 22:59:26       open: [Function]
+2025-04-07 22:59:26     },
+2025-04-07 22:59:26     _eventsCount: 4,
+2025-04-07 22:59:26     _maxListeners: undefined,
+2025-04-07 22:59:26     _binaryType: 'arraybuffer',
+2025-04-07 22:59:26     _closeCode: 1006,
+2025-04-07 22:59:26     _closeFrameReceived: false,
+2025-04-07 22:59:26     _closeFrameSent: false,
+2025-04-07 22:59:26     _closeMessage: <Buffer >,
+2025-04-07 22:59:26     _closeTimer: null,
+2025-04-07 22:59:26     _errorEmitted: true,
+2025-04-07 22:59:26     _extensions: {},
+2025-04-07 22:59:26     _paused: false,
+2025-04-07 22:59:26 5:59:26 AM [express] GET /api/projects 500 in 3ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:59:28 5:59:28 AM [express] GET /api/projects/user/1 500 in 8ms :: {"message":"An unexpected error occurred…
+2025-04-07 22:59:28 5:59:28 AM [express] GET /api/projects 500 in 7ms :: {"message":"An unexpected error occurred"}
+2025-04-07 22:59:26     _protocol: '',
+2025-04-07 22:59:26     _readyState: 3,
+2025-04-07 22:59:26     _receiver: null,
+2025-04-07 22:59:26     _sender: null,
+2025-04-07 22:59:26     _socket: null,
+2025-04-07 22:59:26     _bufferedAmount: 0,
+2025-04-07 22:59:26     _isServer: false,
+2025-04-07 22:59:26     _redirects: 0,
+2025-04-07 22:59:26     _autoPong: true,
+2025-04-07 22:59:26     _url: 'wss://postgres/v2',
+2025-04-07 22:59:26     _req: null,
+2025-04-07 22:59:26     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:26     [Symbol(kCapture)]: false
+2025-04-07 22:59:26   },
+2025-04-07 22:59:26   [Symbol(kType)]: 'error',
+2025-04-07 22:59:26   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:26       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:26     errno: -111,
+2025-04-07 22:59:26     code: 'ECONNREFUSED',
+2025-04-07 22:59:26     syscall: 'connect',
+2025-04-07 22:59:26     address: '172.23.0.2',
+2025-04-07 22:59:26     port: 443
+2025-04-07 22:59:26   },
+2025-04-07 22:59:26   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:26 }
+2025-04-07 22:59:28 API Error: ErrorEvent {
+2025-04-07 22:59:28   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:28     _events: [Object: null prototype] {
+2025-04-07 22:59:28       error: [Function],
+2025-04-07 22:59:28       message: [Function],
+2025-04-07 22:59:28       close: [Function],
+2025-04-07 22:59:28       open: [Function]
+2025-04-07 22:59:28     },
+2025-04-07 22:59:28     _eventsCount: 4,
+2025-04-07 22:59:28     _maxListeners: undefined,
+2025-04-07 22:59:28     _binaryType: 'arraybuffer',
+2025-04-07 22:59:28     _closeCode: 1006,
+2025-04-07 22:59:28     _closeFrameReceived: false,
+2025-04-07 22:59:28     _closeFrameSent: false,
+2025-04-07 22:59:28     _closeMessage: <Buffer >,
+2025-04-07 22:59:28     _closeTimer: null,
+2025-04-07 22:59:28     _errorEmitted: true,
+2025-04-07 22:59:28     _extensions: {},
+2025-04-07 22:59:28     _paused: false,
+2025-04-07 22:59:28     _protocol: '',
+2025-04-07 22:59:28     _readyState: 3,
+2025-04-07 22:59:28     _receiver: null,
+2025-04-07 22:59:28     _sender: null,
+2025-04-07 22:59:28     _socket: null,
+2025-04-07 22:59:28     _bufferedAmount: 0,
+2025-04-07 22:59:28     _isServer: false,
+2025-04-07 22:59:28     _redirects: 0,
+2025-04-07 22:59:28     _autoPong: true,
+2025-04-07 22:59:28     _url: 'wss://postgres/v2',
+2025-04-07 22:59:28     _req: null,
+2025-04-07 22:59:28     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:28     [Symbol(kCapture)]: false
+2025-04-07 22:59:28   },
+2025-04-07 22:59:28   [Symbol(kType)]: 'error',
+2025-04-07 22:59:28   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:28       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:28     errno: -111,
+2025-04-07 22:59:28     code: 'ECONNREFUSED',
+2025-04-07 22:59:28     syscall: 'connect',
+2025-04-07 22:59:28     address: '172.23.0.2',
+2025-04-07 22:59:28     port: 443
+2025-04-07 22:59:28   },
+2025-04-07 22:59:28   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:28 }
+2025-04-07 22:59:28 API Error: ErrorEvent {
+2025-04-07 22:59:28   [Symbol(kTarget)]: WebSocket {
+2025-04-07 22:59:28     _events: [Object: null prototype] {
+2025-04-07 22:59:28       error: [Function],
+2025-04-07 22:59:28       message: [Function],
+2025-04-07 22:59:28       close: [Function],
+2025-04-07 22:59:28       open: [Function]
+2025-04-07 22:59:28     },
+2025-04-07 22:59:28     _eventsCount: 4,
+2025-04-07 22:59:28     _maxListeners: undefined,
+2025-04-07 22:59:28     _binaryType: 'arraybuffer',
+2025-04-07 22:59:28     _closeCode: 1006,
+2025-04-07 22:59:28     _closeFrameReceived: false,
+2025-04-07 22:59:28     _closeFrameSent: false,
+2025-04-07 22:59:28     _closeMessage: <Buffer >,
+2025-04-07 22:59:28     _closeTimer: null,
+2025-04-07 22:59:28     _errorEmitted: true,
+2025-04-07 22:59:28     _extensions: {},
+2025-04-07 22:59:28     _paused: false,
+2025-04-07 22:59:28     _protocol: '',
+2025-04-07 22:59:28     _readyState: 3,
+2025-04-07 22:59:28     _receiver: null,
+2025-04-07 22:59:28     _sender: null,
+2025-04-07 22:59:28     _socket: null,
+2025-04-07 22:59:28     _bufferedAmount: 0,
+2025-04-07 22:59:28     _isServer: false,
+2025-04-07 22:59:28     _redirects: 0,
+2025-04-07 22:59:28     _autoPong: true,
+2025-04-07 22:59:28     _url: 'wss://postgres/v2',
+2025-04-07 22:59:28     _req: null,
+2025-04-07 22:59:28     [Symbol(shapeMode)]: false,
+2025-04-07 22:59:28     [Symbol(kCapture)]: false
+2025-04-07 22:59:28   },
+2025-04-07 22:59:28   [Symbol(kType)]: 'error',
+2025-04-07 22:59:28   [Symbol(kError)]: Error: connect ECONNREFUSED 172.23.0.2:443
+2025-04-07 22:59:28       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+2025-04-07 22:59:28     errno: -111,
+2025-04-07 22:59:28     code: 'ECONNREFUSED',
+2025-04-07 22:59:28     syscall: 'connect',
+2025-04-07 22:59:28     address: '172.23.0.2',
+2025-04-07 22:59:28     port: 443
+2025-04-07 22:59:28   },
+2025-04-07 22:59:28   [Symbol(kMessage)]: 'connect ECONNREFUSED 172.23.0.2:443'
+2025-04-07 22:59:28 }
