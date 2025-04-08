@@ -3,6 +3,16 @@ import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { AvatarWithFallback } from "@/components/ui/avatar-with-fallback";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2, LogOut, Settings, User } from "lucide-react";
 import logoImage from "../../assets/logo.png";
 
 interface HeaderProps {
@@ -12,12 +22,21 @@ interface HeaderProps {
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [_, navigate] = useLocation();
+  const { user, logoutMutation } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
+  };
+  
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        navigate('/auth');
+      }
+    });
   };
 
   return (
@@ -51,10 +70,39 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         </Button>
         <div className="hidden md:block border-l border-gray-300 h-6 mx-2"></div>
         <div className="hidden md:flex items-center">
-          <AvatarWithFallback 
-            name="Dr. Sarah Chen" 
-            className="h-8 w-8 border border-gray-300" 
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <AvatarWithFallback 
+                  name={user?.displayName || user?.username || 'User'}
+                  className="h-8 w-8 border border-gray-300" 
+                />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.displayName || user?.username}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/account')}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+                {logoutMutation.isPending && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <Button 
           variant="ghost" 

@@ -3,6 +3,7 @@ const multer = require('multer');
 const { z } = require('zod');
 const { fromZodError } = require('zod-validation-error');
 const { storage } = require('./storage');
+const { setupAuth } = require('./auth');
 
 function registerRoutes(app, existingServer) {
   return new Promise((resolve) => {
@@ -13,6 +14,9 @@ function registerRoutes(app, existingServer) {
         fileSize: 5 * 1024 * 1024, // 5MB limit
       },
     });
+
+    // Setup authentication
+    const { requireAuth, requireAdmin } = setupAuth(app);
 
     // API error handler middleware
     const apiErrorHandler = (fn) => async (req, res) => {
@@ -34,17 +38,29 @@ function registerRoutes(app, existingServer) {
     };
 
     // User routes
-    app.post("/api/users", apiErrorHandler(async (req, res) => {
+    app.post("/api/users", requireAuth, requireAdmin, apiErrorHandler(async (req, res) => {
       const user = await storage.createUser(req.body);
       res.status(201).json(user);
     }));
 
-    app.get("/api/users", apiErrorHandler(async (_req, res) => {
+    app.get("/api/users", requireAuth, apiErrorHandler(async (req, res) => {
+      // If not admin, return only basic user info
+      if (!req.isAdmin) {
+        const users = await storage.listUsers();
+        // Remove sensitive fields
+        const sanitizedUsers = users.map(user => {
+          const { password, resetPasswordToken, resetPasswordExpires, ...safeUser } = user;
+          return safeUser;
+        });
+        return res.json(sanitizedUsers);
+      }
+      
+      // Admin gets all user data
       const users = await storage.listUsers();
       res.json(users);
     }));
 
-    app.get("/api/users/:id", apiErrorHandler(async (req, res) => {
+    app.get("/api/users/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const userId = parseInt(req.params.id);
       const user = await storage.getUser(userId);
       
@@ -52,27 +68,53 @@ function registerRoutes(app, existingServer) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(user);
+      // Only return sensitive fields to admins or the user themselves
+      if (req.isAdmin || req.userId === userId) {
+        // Still don't return the password
+        const { password, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);
+      }
+      
+      // For other users, return only public information
+      const { password, resetPasswordToken, resetPasswordExpires, email, ...safeUser } = user;
+      res.json(safeUser);
     }));
 
     // Project routes
-    app.post("/api/projects", apiErrorHandler(async (req, res) => {
-      const project = await storage.createProject(req.body);
+    app.post("/api/projects", requireAuth, apiErrorHandler(async (req, res) => {
+      // Ensure the current user is set as the owner
+      const project = await storage.createProject({
+        ...req.body,
+        ownerId: req.userId,
+      });
       res.status(201).json(project);
     }));
 
-    app.get("/api/projects", apiErrorHandler(async (_req, res) => {
-      const projects = await storage.listProjects();
+    app.get("/api/projects", requireAuth, apiErrorHandler(async (req, res) => {
+      // Admins can see all projects
+      if (req.isAdmin) {
+        const projects = await storage.listProjects();
+        return res.json(projects);
+      }
+      
+      // Regular users can only see their own projects
+      const projects = await storage.listProjectsByUser(req.userId);
       res.json(projects);
     }));
 
-    app.get("/api/projects/user/:userId", apiErrorHandler(async (req, res) => {
+    app.get("/api/projects/user/:userId", requireAuth, apiErrorHandler(async (req, res) => {
       const userId = parseInt(req.params.userId);
+      
+      // Users can only access their own projects, unless they are admins
+      if (!req.isAdmin && req.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const projects = await storage.listProjectsByUser(userId);
       res.json(projects);
     }));
 
-    app.get("/api/projects/:id", apiErrorHandler(async (req, res) => {
+    app.get("/api/projects/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
       
@@ -80,49 +122,128 @@ function registerRoutes(app, existingServer) {
         return res.status(404).json({ message: "Project not found" });
       }
       
+      // Check if user has access to this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        // Also check if user is a collaborator
+        const collaborators = await storage.listCollaboratorsByProject(projectId);
+        const isCollaborator = collaborators.some(c => c.userId === req.userId);
+        
+        if (!isCollaborator) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
       res.json(project);
     }));
 
-    app.put("/api/projects/:id", apiErrorHandler(async (req, res) => {
+    app.put("/api/projects/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const projectId = parseInt(req.params.id);
-      const updatedProject = await storage.updateProject(projectId, req.body);
+      const project = await storage.getProject(projectId);
       
-      if (!updatedProject) {
+      if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
       
+      // Check if user has permission to update this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Don't allow changing the owner
+      const { ownerId, ...updateData } = req.body;
+      
+      const updatedProject = await storage.updateProject(projectId, updateData);
       res.json(updatedProject);
     }));
 
-    app.delete("/api/projects/:id", apiErrorHandler(async (req, res) => {
+    app.delete("/api/projects/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const projectId = parseInt(req.params.id);
-      const success = await storage.deleteProject(projectId);
+      const project = await storage.getProject(projectId);
       
-      if (!success) {
+      if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
       
+      // Only admin or project owner can delete a project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteProject(projectId);
       res.status(204).end();
     }));
 
     // Experiment routes
-    app.post("/api/experiments", apiErrorHandler(async (req, res) => {
+    app.post("/api/experiments", requireAuth, apiErrorHandler(async (req, res) => {
+      const projectId = parseInt(req.body.projectId);
+      
+      // Verify that user has access to the project
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user has access to this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        // Also check if user is a collaborator
+        const collaborators = await storage.listCollaboratorsByProject(projectId);
+        const isCollaborator = collaborators.some(c => c.userId === req.userId);
+        
+        if (!isCollaborator) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
       const experiment = await storage.createExperiment(req.body);
       res.status(201).json(experiment);
     }));
 
-    app.get("/api/experiments", apiErrorHandler(async (_req, res) => {
-      const experiments = await storage.listExperiments();
-      res.json(experiments);
+    app.get("/api/experiments", requireAuth, apiErrorHandler(async (req, res) => {
+      // Admins can see all experiments
+      if (req.isAdmin) {
+        const experiments = await storage.listExperiments();
+        return res.json(experiments);
+      }
+      
+      // Regular users should only see experiments of projects they have access to
+      // Get all projects the user has access to
+      const projects = await storage.listProjectsByUser(req.userId);
+      const projectIds = projects.map(p => p.id);
+      
+      // Filter experiments by those project IDs
+      const allExperiments = await storage.listExperiments();
+      const accessibleExperiments = allExperiments.filter(e => 
+        projectIds.includes(e.projectId)
+      );
+      
+      res.json(accessibleExperiments);
     }));
 
-    app.get("/api/experiments/project/:projectId", apiErrorHandler(async (req, res) => {
+    app.get("/api/experiments/project/:projectId", requireAuth, apiErrorHandler(async (req, res) => {
       const projectId = parseInt(req.params.projectId);
+      
+      // Verify that user has access to the project
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user has access to this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        // Also check if user is a collaborator
+        const collaborators = await storage.listCollaboratorsByProject(projectId);
+        const isCollaborator = collaborators.some(c => c.userId === req.userId);
+        
+        if (!isCollaborator) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
       const experiments = await storage.listExperimentsByProject(projectId);
       res.json(experiments);
     }));
 
-    app.get("/api/experiments/:id", apiErrorHandler(async (req, res) => {
+    app.get("/api/experiments/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const experimentId = parseInt(req.params.id);
       const experiment = await storage.getExperiment(experimentId);
       
@@ -130,28 +251,78 @@ function registerRoutes(app, existingServer) {
         return res.status(404).json({ message: "Experiment not found" });
       }
       
+      // Verify that user has access to the related project
+      const project = await storage.getProject(experiment.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user has access to this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        // Also check if user is a collaborator
+        const collaborators = await storage.listCollaboratorsByProject(experiment.projectId);
+        const isCollaborator = collaborators.some(c => c.userId === req.userId);
+        
+        if (!isCollaborator) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
       res.json(experiment);
     }));
 
-    app.put("/api/experiments/:id", apiErrorHandler(async (req, res) => {
+    app.put("/api/experiments/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const experimentId = parseInt(req.params.id);
-      const updatedExperiment = await storage.updateExperiment(experimentId, req.body);
+      const experiment = await storage.getExperiment(experimentId);
       
-      if (!updatedExperiment) {
+      if (!experiment) {
         return res.status(404).json({ message: "Experiment not found" });
       }
       
+      // Verify that user has access to the related project
+      const project = await storage.getProject(experiment.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user has access to this project
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        // Also check if user is a collaborator
+        const collaborators = await storage.listCollaboratorsByProject(experiment.projectId);
+        const isCollaborator = collaborators.some(c => c.userId === req.userId);
+        
+        if (!isCollaborator) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
+      // Don't allow changing the project ID
+      const { projectId, ...updateData } = req.body;
+      
+      const updatedExperiment = await storage.updateExperiment(experimentId, updateData);
       res.json(updatedExperiment);
     }));
 
-    app.delete("/api/experiments/:id", apiErrorHandler(async (req, res) => {
+    app.delete("/api/experiments/:id", requireAuth, apiErrorHandler(async (req, res) => {
       const experimentId = parseInt(req.params.id);
-      const success = await storage.deleteExperiment(experimentId);
+      const experiment = await storage.getExperiment(experimentId);
       
-      if (!success) {
+      if (!experiment) {
         return res.status(404).json({ message: "Experiment not found" });
       }
       
+      // Verify that user has access to the related project
+      const project = await storage.getProject(experiment.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Only admin or project owner can delete an experiment
+      if (!req.isAdmin && project.ownerId !== req.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteExperiment(experimentId);
       res.status(204).end();
     }));
 

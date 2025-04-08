@@ -11,12 +11,19 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  options?: RequestInit
 ): Promise<Response> {
+  const headers: HeadersInit = {
+    ...(data ? { "Content-Type": "application/json" } : {}),
+    ...(options?.headers || {})
+  };
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    ...(options ? { ...options, headers: undefined } : {}),
   });
 
   await throwIfResNotOk(res);
@@ -24,13 +31,17 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
+type QueryFnOptions = {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
+  headers?: HeadersInit;
+};
+
+export const getQueryFn: <T>(options: QueryFnOptions) => QueryFunction<T> =
+  ({ on401: unauthorizedBehavior, headers }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers: headers || {},
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

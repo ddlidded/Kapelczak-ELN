@@ -1,5 +1,5 @@
 const { db } = require('./db');
-const { eq, like, or } = require('drizzle-orm');
+const { eq, like, or, not } = require('drizzle-orm');
 
 // Helper function to exponentially back off and retry database operations
 async function withRetry(operation, maxRetries = 3) {
@@ -60,6 +60,59 @@ class DatabaseStorage {
       console.error('Error in getUserByUsername:', error);
       console.error(error.stack || error);
       return undefined;
+    }
+  }
+  
+  async getUserByEmail(email) {
+    try {
+      return await withRetry(async () => {
+        const [user] = await db.query.users.findMany({
+          where: eq(db.schema.users.email, email),
+          limit: 1
+        });
+        return user || undefined;
+      });
+    } catch (error) {
+      console.error('Error in getUserByEmail:', error);
+      console.error(error.stack || error);
+      return undefined;
+    }
+  }
+  
+  async getUserByResetToken(token) {
+    try {
+      const [user] = await db.query.users.findMany({
+        where: eq(db.schema.users.resetPasswordToken, token),
+        limit: 1
+      });
+      return user || undefined;
+    } catch (error) {
+      console.error('Error in getUserByResetToken:', error);
+      return undefined;
+    }
+  }
+  
+  async updateUser(id, userData) {
+    try {
+      const [updatedUser] = await db.update(db.schema.users)
+        .set(userData)
+        .where(eq(db.schema.users.id, id))
+        .returning();
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error('Error in updateUser:', error);
+      return undefined;
+    }
+  }
+  
+  async deleteUser(id) {
+    try {
+      await db.delete(db.schema.users)
+        .where(eq(db.schema.users.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUser:', error);
+      return false;
     }
   }
 
@@ -450,6 +503,129 @@ class DatabaseStorage {
     } catch (error) {
       console.error('Error in searchExperiments:', error);
       return [];
+    }
+  }
+  
+  // User verification operations
+  async getUserVerificationByToken(token) {
+    try {
+      const [verification] = await db.query.userVerifications.findMany({
+        where: eq(db.schema.userVerifications.token, token),
+        limit: 1
+      });
+      return verification || undefined;
+    } catch (error) {
+      console.error('Error in getUserVerificationByToken:', error);
+      return undefined;
+    }
+  }
+  
+  async createUserVerification(insertVerification) {
+    try {
+      const [verification] = await db.insert(db.schema.userVerifications)
+        .values(insertVerification)
+        .returning();
+      return verification;
+    } catch (error) {
+      console.error('Error in createUserVerification:', error);
+      throw error;
+    }
+  }
+  
+  async deleteUserVerification(id) {
+    try {
+      await db.delete(db.schema.userVerifications)
+        .where(eq(db.schema.userVerifications.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUserVerification:', error);
+      return false;
+    }
+  }
+  
+  async deleteUserVerificationsByUserId(userId) {
+    try {
+      await db.delete(db.schema.userVerifications)
+        .where(eq(db.schema.userVerifications.userId, userId));
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUserVerificationsByUserId:', error);
+      return false;
+    }
+  }
+  
+  // User session operations
+  async getUserSessionByToken(token) {
+    try {
+      const [session] = await db.query.userSessions.findMany({
+        where: eq(db.schema.userSessions.token, token),
+        limit: 1
+      });
+      return session || undefined;
+    } catch (error) {
+      console.error('Error in getUserSessionByToken:', error);
+      return undefined;
+    }
+  }
+  
+  async createUserSession(insertSession) {
+    try {
+      const [session] = await db.insert(db.schema.userSessions)
+        .values(insertSession)
+        .returning();
+      return session;
+    } catch (error) {
+      console.error('Error in createUserSession:', error);
+      throw error;
+    }
+  }
+  
+  async updateUserSession(id, sessionUpdate) {
+    try {
+      const [updatedSession] = await db.update(db.schema.userSessions)
+        .set(sessionUpdate)
+        .where(eq(db.schema.userSessions.id, id))
+        .returning();
+      return updatedSession || undefined;
+    } catch (error) {
+      console.error('Error in updateUserSession:', error);
+      return undefined;
+    }
+  }
+  
+  async deleteUserSessionByToken(token) {
+    try {
+      await db.delete(db.schema.userSessions)
+        .where(eq(db.schema.userSessions.token, token));
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUserSessionByToken:', error);
+      return false;
+    }
+  }
+  
+  async deleteUserSessionsByUserId(userId) {
+    try {
+      await db.delete(db.schema.userSessions)
+        .where(eq(db.schema.userSessions.userId, userId));
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUserSessionsByUserId:', error);
+      return false;
+    }
+  }
+  
+  async deleteUserSessionsExceptToken(userId, token) {
+    try {
+      await db.delete(db.schema.userSessions)
+        .where(
+          eq(db.schema.userSessions.userId, userId) && 
+          not(eq(db.schema.userSessions.token, token))
+        );
+      return true;
+    } catch (error) {
+      console.error('Error in deleteUserSessionsExceptToken:', error);
+      return false;
     }
   }
 }
