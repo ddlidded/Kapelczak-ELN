@@ -8,7 +8,7 @@ set -e  # Exit on any error
 APP_DIR="$PWD"                 # Application directory
 LOGS_DIR="$APP_DIR/logs"       # Logs directory
 UPLOADS_DIR="$APP_DIR/uploads" # Uploads directory
-NODE_VERSION="16"              # Node.js version to use
+NODE_VERSION="20"              # Node.js version to use
 PORT=5000                      # Application port
 DB_USER="kapelczak_user"       # Database user
 DB_PASSWORD="your_password"    # Database password (change this!)
@@ -116,6 +116,11 @@ log_info "Configuring environment..."
 cat > .env.production << EOF
 # Database Configuration
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}
+PGUSER=${DB_USER}
+PGPASSWORD=${DB_PASSWORD}
+PGDATABASE=${DB_NAME}
+PGHOST=${DB_HOST}
+PGPORT=5432
 
 # Application Configuration
 PORT=${PORT}
@@ -126,10 +131,11 @@ UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=10485760
 EOF
 log_success "Environment configured."
+log_success "Environment configured."
 
 # Build the frontend
 log_info "Building the frontend..."
-npx vite build
+npm run build
 log_success "Frontend built successfully."
 
 # Check for PostgreSQL
@@ -158,7 +164,7 @@ fi
 
 # Push database schema
 log_info "Pushing database schema..."
-npx drizzle-kit push
+npm run db:push
 
 # Setup Nginx (if requested)
 log_info "Would you like to configure Nginx as a reverse proxy? (y/n)"
@@ -236,7 +242,7 @@ fi
 if [ "$USE_PM2" = true ]; then
   log_info "Starting the application with PM2..."
   pm2 delete kapelczak-notes 2>/dev/null || true
-  pm2 start server/prod.js --name kapelczak-notes --env production
+  pm2 start ecosystem.config.js --env production
   pm2 save
   log_info "Setting up PM2 to start on system boot..."
   pm2 startup | tail -n 1 | sh
@@ -260,10 +266,10 @@ echo "Installing dependencies..."
 npm ci
 
 echo "Building the application..."
-npx vite build
+npm run build
 
 echo "Pushing database schema..."
-npx drizzle-kit push
+npm run db:push
 
 if command -v pm2 &> /dev/null; then
   echo "Restarting the application with PM2..."

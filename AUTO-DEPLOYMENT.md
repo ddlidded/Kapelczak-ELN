@@ -1,255 +1,80 @@
 # Kapelczak Notes Auto-Deployment Guide
 
-This guide provides step-by-step instructions for setting up automatic deployment of the Kapelczak Notes application on a Linux server. Copy and paste the script below into a file named `deploy.sh` on your server, modify the configuration variables as needed, and then run it.
+This guide provides step-by-step instructions for setting up automatic deployment of the Kapelczak Notes application on a Linux server.
 
-## Deployment Script
+## Server Requirements
 
-```bash
-#!/bin/bash
-# Kapelczak Notes Auto-Deployment Script
-# ---------------------------------------
+- Node.js v20 or higher
+- npm v8 or higher 
+- PostgreSQL database
+- Optional: Nginx for reverse proxy
+- Optional: PM2 for process management (will be automatically installed if not present)
 
-set -e  # Exit on any error
+## Quick Deployment
 
-# Configuration variables - edit these to match your environment
-APP_DIR="$PWD"
-LOGS_DIR="$APP_DIR/logs"
-UPLOADS_DIR="$APP_DIR/uploads"
-PORT=5000
-DB_USER="kapelczak_user"
-DB_PASSWORD="your_password"
-DB_NAME="kapelczak_notes"
-DB_HOST="localhost"
-DOMAIN="your-domain.com"
-
-# Display header
-echo "=========================================================="
-echo "    KAPELCZAK NOTES DEPLOYMENT SCRIPT"
-echo "=========================================================="
-echo "This script will deploy the Kapelczak Notes application."
-echo "Make sure you have edited the script configuration section."
-echo ""
-
-# Create necessary directories
-echo "[INFO] Creating necessary directories..."
-mkdir -p "$LOGS_DIR"
-mkdir -p "$UPLOADS_DIR"
-echo "[SUCCESS] Directories created."
-
-# Check for Node.js
-if ! command -v node &> /dev/null; then
-    echo "[ERROR] Node.js is not installed. Please install Node.js 14 or higher."
-    exit 1
-fi
-
-# Check for npm
-if ! command -v npm &> /dev/null; then
-    echo "[ERROR] npm is not installed. Please install npm."
-    exit 1
-fi
-
-# Install project dependencies
-echo "[INFO] Installing project dependencies..."
-npm install
-echo "[SUCCESS] Project dependencies installed."
-
-# Configure environment
-echo "[INFO] Configuring environment..."
-cat > .env.production << ENVEND
-# Database Configuration
-DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}
-
-# Application Configuration
-PORT=${PORT}
-NODE_ENV=production
-
-# File Upload Configuration
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=10485760
-ENVEND
-echo "[SUCCESS] Environment configured."
-
-# Build the frontend
-echo "[INFO] Building the frontend..."
-npx vite build
-echo "[SUCCESS] Frontend built successfully."
-
-# Push database schema
-echo "[INFO] Pushing database schema..."
-npx drizzle-kit push
-echo "[SUCCESS] Database schema updated."
-
-# Setup PM2 configuration
-echo "[INFO] Setting up PM2 configuration..."
-if ! command -v pm2 &> /dev/null; then
-    echo "[WARNING] PM2 not found. Installing PM2..."
-    npm install -g pm2
-    echo "[SUCCESS] PM2 installed."
-fi
-
-# Start the application with PM2
-echo "[INFO] Starting the application with PM2..."
-pm2 delete kapelczak-notes 2>/dev/null || true
-pm2 start ecosystem.config.js
-pm2 save
-echo "[SUCCESS] Application started with PM2."
-
-# Nginx configuration (if needed)
-if command -v nginx &> /dev/null; then
-    echo "[INFO] Nginx is installed. Would you like to configure Nginx as a reverse proxy? (y/n)"
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "[INFO] Creating Nginx configuration..."
-        cat > kapelczak-notes.conf << NGINXEND
-server {
-    listen 80;
-    server_name ${DOMAIN};
-
-    # Logs
-    access_log /var/log/nginx/kapelczak-notes.access.log;
-    error_log /var/log/nginx/kapelczak-notes.error.log;
-
-    # File upload size limit
-    client_max_body_size 10M;
-
-    # Proxy to Node.js application
-    location / {
-        proxy_pass http://localhost:${PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    # Static file caching for improved performance
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-        proxy_pass http://localhost:${PORT};
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-
-    # Security headers
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
-NGINXEND
-        echo "[SUCCESS] Nginx configuration created at kapelczak-notes.conf"
-        echo "[INFO] To use this configuration, run:"
-        echo "  sudo cp kapelczak-notes.conf /etc/nginx/sites-available/"
-        echo "  sudo ln -s /etc/nginx/sites-available/kapelczak-notes.conf /etc/nginx/sites-enabled/"
-        echo "  sudo nginx -t && sudo systemctl reload nginx"
-    fi
-else
-    echo "[INFO] Nginx is not installed. Skipping Nginx configuration."
-fi
-
-# Create a helper script for redeployment
-echo "[INFO] Creating redeployment script..."
-cat > redeploy.sh << 'REDEPLOYEND'
-#!/bin/bash
-set -e
-
-echo "[INFO] Running git pull to get latest changes..."
-git pull
-
-echo "[INFO] Installing dependencies..."
-npm install
-
-echo "[INFO] Building the application..."
-npx vite build
-
-echo "[INFO] Pushing database schema..."
-npx drizzle-kit push
-
-echo "[INFO] Restarting the application with PM2..."
-pm2 restart kapelczak-notes
-
-echo "[SUCCESS] Redeployment complete!"
-REDEPLOYEND
-chmod +x redeploy.sh
-echo "[SUCCESS] Created redeploy.sh script for future updates."
-
-echo ""
-echo "=========================================================="
-echo "    DEPLOYMENT COMPLETE"
-echo "=========================================================="
-echo ""
-echo "[INFO] Your application is deployed and running!"
-echo "[INFO] Local URL: http://localhost:$PORT"
-echo ""
-echo "To ensure the application starts on system boot:"
-echo "Run: pm2 startup"
-echo "Follow the instructions provided by the command"
-echo ""
-echo "To redeploy after updates, run: ./redeploy.sh"
-echo ""
-```
+1. Clone this repository to your server
+2. Run the included `deploy.sh` script after editing the configuration variables
+3. Follow the prompts to complete installation
 
 ## Step-by-Step Deployment Instructions
 
-1. **Prerequisites**
-
-   Ensure the following are installed on your server:
-   - Node.js (v14 or higher)
-   - npm (v6 or higher)
-   - PostgreSQL database
-
-2. **Clone the Repository**
+1. **Clone the Repository**
 
    ```bash
    git clone [your-repo-url] /path/to/kapelczak-notes
    cd /path/to/kapelczak-notes
    ```
 
-3. **Create the Deployment Script**
+2. **Edit the Deployment Script** 
 
-   ```bash
-   nano deploy.sh
-   ```
-   
-   Copy and paste the above script into this file.
-   
-   Make it executable:
+   Edit the following variables at the top of `deploy.sh`:
+   - `DB_USER`: Your PostgreSQL username
+   - `DB_PASSWORD`: Your PostgreSQL password (use a secure password!)
+   - `DB_NAME`: Your PostgreSQL database name
+   - `DB_HOST`: Your PostgreSQL host (usually localhost)
+   - `DOMAIN`: Your domain name if using Nginx
+   - `PORT`: The port to run the application on (default: 5000)
+   - `USE_PM2`: Whether to use PM2 for process management (true/false)
+
+3. **Make the Script Executable**
+
    ```bash
    chmod +x deploy.sh
    ```
 
-4. **Edit Configuration Variables**
-
-   Edit the following variables in the script:
-   - `DB_USER`: Your PostgreSQL username
-   - `DB_PASSWORD`: Your PostgreSQL password
-   - `DB_NAME`: Your PostgreSQL database name
-   - `DB_HOST`: Your PostgreSQL host (usually localhost)
-   - `DOMAIN`: Your domain name (if using Nginx)
-
-5. **Run the Deployment Script**
+4. **Run the Deployment Script**
 
    ```bash
    ./deploy.sh
    ```
 
-6. **Setup PM2 for Auto-Start on Boot**
+5. **Follow Interactive Prompts**
 
-   ```bash
-   pm2 startup
-   ```
-   
-   Follow the instructions displayed by the command.
+   The script will guide you through:
+   - Installing required dependencies
+   - Setting up the PostgreSQL database (if not already present)
+   - Building the application
+   - Configuring Nginx (optional)
+   - Setting up Let's Encrypt SSL certificates (optional)
+   - Starting the application with PM2
 
-7. **Configure Nginx (Optional)**
+## Production Environment
 
-   If you chose to create an Nginx configuration, follow the instructions displayed in the script output to enable it.
+The deployment script sets up the following directory structure:
 
-## Auto-Redeployment
+```
+/path/to/kapelczak-notes/
+├── dist/            # Production build files
+├── logs/            # Application and PM2 logs  
+├── uploads/         # File uploads storage
+├── .env.production  # Production environment variables
+├── ecosystem.config.js  # PM2 configuration
+└── redeploy.sh      # Script for future updates
+```
 
-The script creates a `redeploy.sh` file which you can use for future updates. Simply run:
+## Manual Redeployment
+
+For future updates, you can use the automatically generated `redeploy.sh` script:
 
 ```bash
 ./redeploy.sh
@@ -258,65 +83,115 @@ The script creates a `redeploy.sh` file which you can use for future updates. Si
 This will:
 1. Pull the latest changes from git
 2. Install any new dependencies
-3. Rebuild the frontend
+3. Rebuild the application
 4. Push any database schema changes
-5. Restart the application
+5. Restart the application with PM2
 
-## Setting Up Continuous Deployment (Optional)
+## Production Debugging
 
-You can set up a GitHub webhook to trigger the redeploy script whenever changes are pushed to your repository.
+### Checking Logs
 
-1. Create a webhook receiver script:
-
+**Application Logs**:
 ```bash
-#!/bin/bash
-# github-webhook.sh
-
-# Log directory
-LOG_DIR="/path/to/kapelczak-notes/logs"
-mkdir -p "$LOG_DIR"
-
-# Log file
-LOG_FILE="$LOG_DIR/webhook.log"
-
-# Directory containing your application
-APP_DIR="/path/to/kapelczak-notes"
-
-echo "$(date): Webhook received" >> "$LOG_FILE"
-
-# Navigate to application directory
-cd "$APP_DIR" || exit 1
-
-# Run redeployment script
-./redeploy.sh >> "$LOG_FILE" 2>&1
-
-echo "$(date): Redeployment complete" >> "$LOG_FILE"
+pm2 logs kapelczak-notes
 ```
 
-2. Set up a service to listen for GitHub webhooks and trigger this script.
+**Nginx Logs** (if using Nginx):
+```bash
+sudo tail -f /var/log/nginx/kapelczak-notes.access.log
+sudo tail -f /var/log/nginx/kapelczak-notes.error.log
+```
+
+### Checking Application Status
+
+```bash
+pm2 status
+```
+
+### Restarting the Application
+
+```bash
+pm2 restart kapelczak-notes
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues and Solutions
 
-**Issue**: `tsx: command not found` or `vite: command not found`
+**Issue**: Blank page in browser but application seems to be running
 
-**Solution**: Install these globally:
+**Solution**: Check the Nginx configuration and make sure it's correctly set up to serve the static files and proxy API requests. Also verify the application is running on the expected port with `pm2 status`.
+
+**Issue**: Application fails to start with database connection errors
+
+**Solution**: Verify PostgreSQL is running and the connection details in `.env.production` are correct:
 ```bash
-npm install -g tsx vite drizzle-kit
+sudo systemctl status postgresql
+cat .env.production
 ```
 
-**Issue**: Application starts but cannot connect to database
+**Issue**: File uploads not working
 
-**Solution**: Check your database connection string in `.env.production` and ensure the PostgreSQL service is running.
-
-**Issue**: PM2 fails to start on boot
-
-**Solution**: Ensure you've run `pm2 save` after starting your application, then run `pm2 startup` again.
-
-**Issue**: Nginx configuration not working
-
-**Solution**: Check Nginx error logs:
+**Solution**: Ensure the uploads directory exists and has proper permissions:
 ```bash
-sudo tail -f /var/log/nginx/error.log
+mkdir -p uploads
+chmod 755 uploads
 ```
+
+**Issue**: "Not Found" errors for static assets
+
+**Solution**: This can happen if the build process didn't complete correctly. Check the build logs and try rebuilding:
+```bash
+npm run build
+```
+
+**Issue**: PM2 not restarting on server reboot
+
+**Solution**: Set up PM2 to start on boot:
+```bash
+pm2 startup
+pm2 save
+```
+
+## Security Recommendations
+
+1. **Setup a Firewall**
+   ```bash
+   sudo ufw allow 22/tcp  # SSH
+   sudo ufw allow 80/tcp  # HTTP
+   sudo ufw allow 443/tcp # HTTPS
+   sudo ufw enable
+   ```
+
+2. **Use SSL/TLS** with Let's Encrypt
+   ```bash
+   sudo certbot --nginx -d yourdomain.com
+   ```
+
+3. **Regular Updates**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   ```
+
+4. **Database Security**
+   - Use a strong password for the database
+   - Don't expose the PostgreSQL port to the internet
+   - Consider setting up database backups
+
+## Performance Optimization
+
+1. **Enable Gzip Compression** in Nginx:
+   ```nginx
+   gzip on;
+   gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+   ```
+
+2. **Implement Browser Caching** (already included in the Nginx config)
+
+3. **Configure PM2 Clustering** (already set up in ecosystem.config.js)
+
+4. **Consider Adding a CDN** for global deployments
+
+---
+
+For further assistance or questions, please refer to the project documentation or contact the development team.
