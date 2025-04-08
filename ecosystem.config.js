@@ -1,8 +1,7 @@
 module.exports = {
   apps: [{
     name: "kapelczak-notes",
-    script: "npm",
-    args: "start",
+    script: "server/prod.js",
     env: {
       NODE_ENV: "production",
       PORT: 5000

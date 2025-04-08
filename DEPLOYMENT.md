@@ -43,6 +43,8 @@ This document outlines how to deploy the Kapelczak Notes application on your own
 2. Install dependencies:
    ```bash
    npm install
+   # Install global dependencies needed for building
+   npm install -g tsx vite
    ```
 
 3. Create a `.env` file in the project root:
