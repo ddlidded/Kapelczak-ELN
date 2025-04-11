@@ -105,14 +105,18 @@ export default function NoteEditor({
   const onSubmit = async (data: NoteFormValues) => {
     setIsSaving(true);
     try {
-      const payload = {
-        ...data,
-        projectId,
+      // Prepare the payload with correct data types
+      const payload: any = {
+        title: data.title,
+        content: data.content,
+        projectId: projectId,
         authorId: data.authorId || 1, // Ensure authorId is set
-        experimentId: data.experimentId && data.experimentId !== "none" 
-          ? parseInt(data.experimentId.toString()) 
-          : null,
       };
+      
+      // Only add experimentId if it's a valid experiment (not "none")
+      if (data.experimentId && data.experimentId !== "none") {
+        payload.experimentId = parseInt(data.experimentId.toString());
+      }
 
       if (note) {
         // Update existing note

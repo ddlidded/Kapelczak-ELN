@@ -76,10 +76,16 @@ export const notes = pgTable("notes", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertNoteSchema = createInsertSchema(notes).omit({
+// Base insert schema
+const baseInsertNoteSchema = createInsertSchema(notes).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Custom schema that allows experimentId to be null
+export const insertNoteSchema = baseInsertNoteSchema.extend({
+  experimentId: z.number().nullable().optional(),
 });
 
 // Attachments table

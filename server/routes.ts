@@ -255,9 +255,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Note routes
   app.post("/api/notes", apiErrorHandler(async (req: Request, res: Response) => {
-    const validatedData = insertNoteSchema.parse(req.body);
-    const note = await storage.createNote(validatedData);
-    res.status(201).json(note);
+    try {
+      console.log("Received note data:", JSON.stringify(req.body));
+      
+      // Add default authorId if not provided
+      const noteData = {
+        ...req.body,
+        authorId: req.body.authorId || 1,
+      };
+      
+      // Validate the data
+      const validatedData = insertNoteSchema.parse(noteData);
+      console.log("Validated note data:", JSON.stringify(validatedData));
+      
+      // Create the note
+      const note = await storage.createNote(validatedData);
+      console.log("Created note:", JSON.stringify(note));
+      
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating note:", error);
+      throw error;
+    }
   }));
 
   app.get("/api/notes", apiErrorHandler(async (_req: Request, res: Response) => {
