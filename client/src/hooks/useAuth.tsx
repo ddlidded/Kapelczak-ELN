@@ -183,21 +183,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: (data) => {
-      // If registration returns a token directly (auto-login)
+      // Registration now returns a token for direct login
       if (data.token) {
         localStorage.setItem('auth-token', data.token);
         setToken(data.token);
         queryClient.setQueryData(['/api/auth/me'], data.user);
-      }
-      
-      toast({
-        title: 'Registration successful',
-        description: data.message || 'Your account has been created. Please check your email for verification.',
-      });
-      
-      // Switch to login tab after successful registration if no token
-      if (!data.token) {
-        // Use the window function set by auth-page.tsx
+        
+        // Show different messages based on admin status
+        if (data.user && data.user.isAdmin) {
+          toast({
+            title: 'Admin account created',
+            description: 'You have been registered as an administrator and are now logged in.',
+          });
+        } else {
+          toast({
+            title: 'Registration successful',
+            description: 'Your account has been created and you are now logged in.',
+          });
+        }
+      } else {
+        toast({
+          title: 'Registration successful',
+          description: data.message || 'Your account has been created.',
+        });
+        
+        // Switch to login tab if no token was provided
         try {
           // @ts-ignore - Access window function
           if (typeof window.setAuthTab === 'function') {

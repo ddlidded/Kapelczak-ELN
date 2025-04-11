@@ -165,36 +165,32 @@ function setupAuth(app) {
       // Hash password
       const hashedPassword = await hashPassword(password);
       
+      // Check if this is the first user to determine admin status
+      const users = await storage.listUsers();
+      const isFirstUser = users.length === 0;
+      
       // Create user
       const newUser = await storage.createUser({
         username,
         email,
         password: hashedPassword,
-        displayName,
-        role: 'Researcher',
-        isAdmin: false,
-        isVerified: false
+        displayName: displayName || username,
+        role: isFirstUser ? 'Administrator' : 'Researcher',
+        isAdmin: isFirstUser, // First user gets admin privileges
+        isVerified: true // For simplicity, marking as verified for now
       });
       
-      // Generate verification token
-      const verificationToken = cryptoRandomString({ length: 64, type: 'url-safe' });
-      const expiresAt = dayjs().add(24, 'hour').toDate();
-      
-      // Store verification token
-      await storage.createUserVerification({
-        userId: newUser.id,
-        token: verificationToken,
-        expiresAt
-      });
-      
-      // Send verification email
-      await sendVerificationEmail(newUser, verificationToken);
+      // Generate a token for the user
+      const token = generateToken(newUser.id, newUser.isAdmin);
       
       // Return user without password
       const { password: _, ...userWithoutPassword } = newUser;
       res.status(201).json({ 
         user: userWithoutPassword,
-        message: 'Registration successful. Please check your email to verify your account.'
+        token,
+        message: isFirstUser 
+          ? 'Registration successful. You have been granted administrator privileges.' 
+          : 'Registration successful.'
       });
     } catch (error) {
       console.error('Registration error:', error);
