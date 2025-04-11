@@ -63,8 +63,11 @@ export default function NoteList({ projectId, experimentId }: NoteListProps) {
     queryFn: () => fetch(`/api/experiments/project/${projectId}`).then(res => res.json()),
   });
 
+  // Ensure notes is an array before filtering
+  const notesArray = Array.isArray(notes) ? notes : [];
+  
   // Filter notes based on search query
-  const filteredNotes = notes?.filter((note: Note) => 
+  const filteredNotes = notesArray.filter((note: Note) => 
     note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     // Simple text content search (this will search in HTML content)
     note.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -110,7 +113,7 @@ export default function NoteList({ projectId, experimentId }: NoteListProps) {
       </div>
 
       {/* Notes list */}
-      {filteredNotes && filteredNotes.length > 0 ? (
+      {filteredNotes.length > 0 ? (
         <div className="space-y-4">
           {filteredNotes.map((note: Note) => (
             <NoteView 
