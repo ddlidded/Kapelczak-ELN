@@ -69,22 +69,22 @@ export const insertExperimentSchema = createInsertSchema(experiments).omit({
 export const notes = pgTable("notes", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
-  content: text("content"),
-  experimentId: integer("experiment_id"), // Removed notNull() to allow null values
+  content: text("content").default("").notNull(),
+  experimentId: integer("experiment_id"), // Nullable
   authorId: integer("author_id").notNull(),
+  projectId: integer("project_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Base insert schema
-const baseInsertNoteSchema = createInsertSchema(notes).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// Custom schema for notes
+export const insertNoteSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  content: z.string().default(""),
+  authorId: z.number().default(1),
+  projectId: z.number(),
+  experimentId: z.number().optional()
 });
-
-// Custom schema that allows experimentId to be null
-export const insertNoteSchema = baseInsertNoteSchema.extend({});
 
 // Attachments table
 export const attachments = pgTable("attachments", {
