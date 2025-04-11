@@ -70,7 +70,7 @@ export const notes = pgTable("notes", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   content: text("content"),
-  experimentId: integer("experiment_id").notNull(),
+  experimentId: integer("experiment_id"), // Removed notNull() to allow null values
   authorId: integer("author_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

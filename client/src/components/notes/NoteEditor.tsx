@@ -38,6 +38,7 @@ const noteSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   experimentId: z.string().or(z.number()).optional(),
   content: z.string().min(1, "Content cannot be empty"),
+  authorId: z.number().optional(), // Added authorId field
 });
 
 // Define props for the NoteEditor component
@@ -75,6 +76,7 @@ export default function NoteEditor({
           ? preSelectedExperimentId.toString() 
           : "none",
       content: note?.content || "",
+      authorId: note?.authorId || 1, // Default authorId to 1 (admin user)
     },
   });
 
@@ -85,6 +87,7 @@ export default function NoteEditor({
         title: note.title,
         experimentId: note.experimentId ? note.experimentId.toString() : "none",
         content: note.content,
+        authorId: note.authorId || 1,
       });
     } else {
       form.reset({
@@ -93,6 +96,7 @@ export default function NoteEditor({
           ? preSelectedExperimentId.toString() 
           : "none",
         content: "",
+        authorId: 1,
       });
     }
   }, [note, preSelectedExperimentId, form]);
@@ -104,6 +108,7 @@ export default function NoteEditor({
       const payload = {
         ...data,
         projectId,
+        authorId: data.authorId || 1, // Ensure authorId is set
         experimentId: data.experimentId && data.experimentId !== "none" 
           ? parseInt(data.experimentId.toString()) 
           : null,
