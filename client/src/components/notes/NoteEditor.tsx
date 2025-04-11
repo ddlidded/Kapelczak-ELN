@@ -10,7 +10,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle, 
+  DialogTitle,
+  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
 import { 
@@ -68,7 +69,11 @@ export default function NoteEditor({
     resolver: zodResolver(noteSchema),
     defaultValues: {
       title: note?.title || "",
-      experimentId: note?.experimentId || preSelectedExperimentId?.toString() || "",
+      experimentId: note?.experimentId 
+        ? note.experimentId.toString() 
+        : preSelectedExperimentId 
+          ? preSelectedExperimentId.toString() 
+          : "none",
       content: note?.content || "",
     },
   });
@@ -78,13 +83,15 @@ export default function NoteEditor({
     if (note) {
       form.reset({
         title: note.title,
-        experimentId: note.experimentId?.toString(),
+        experimentId: note.experimentId ? note.experimentId.toString() : "none",
         content: note.content,
       });
     } else {
       form.reset({
         title: "",
-        experimentId: preSelectedExperimentId?.toString() || "",
+        experimentId: preSelectedExperimentId 
+          ? preSelectedExperimentId.toString() 
+          : "none",
         content: "",
       });
     }
@@ -97,7 +104,9 @@ export default function NoteEditor({
       const payload = {
         ...data,
         projectId,
-        experimentId: data.experimentId ? parseInt(data.experimentId.toString()) : null,
+        experimentId: data.experimentId && data.experimentId !== "none" 
+          ? parseInt(data.experimentId.toString()) 
+          : null,
       };
 
       if (note) {
@@ -120,7 +129,7 @@ export default function NoteEditor({
       queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId] });
       
-      if (data.experimentId) {
+      if (data.experimentId && data.experimentId !== "none") {
         queryClient.invalidateQueries({ 
           queryKey: ['/api/notes/experiment', parseInt(data.experimentId.toString())] 
         });
@@ -152,6 +161,11 @@ export default function NoteEditor({
           <DialogTitle>
             {note ? "Edit Note" : "Create New Note"}
           </DialogTitle>
+          <DialogDescription>
+            {note 
+              ? "Update your research note details and content" 
+              : "Enter the details of your research note"}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -180,7 +194,7 @@ export default function NoteEditor({
                   <FormItem>
                     <FormLabel>Experiment (Optional)</FormLabel>
                     <Select
-                      value={field.value?.toString() || ""}
+                      value={field.value?.toString() || "none"}
                       onValueChange={field.onChange}
                     >
                       <FormControl>
@@ -189,7 +203,7 @@ export default function NoteEditor({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {experiments.map((experiment) => (
                           <SelectItem key={experiment.id} value={experiment.id.toString()}>
                             {experiment.name}
