@@ -8,12 +8,7 @@ import { fromZodError } from "zod-validation-error";
 
 // Custom type for multer with file
 interface MulterRequest extends Request {
-  file?: {
-    originalname: string;
-    size: number;
-    mimetype: string;
-    buffer: Buffer;
-  };
+  file?: Express.Multer.File;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

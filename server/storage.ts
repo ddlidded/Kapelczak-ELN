@@ -63,12 +63,34 @@ import { eq, and, like, or, desc } from "drizzle-orm";
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      password: users.password,
+      displayName: users.displayName,
+      role: users.role,
+      isAdmin: users.isAdmin,
+      isVerified: users.isVerified,
+      avatarUrl: users.avatarUrl,
+      createdAt: users.createdAt
+    }).from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      password: users.password,
+      displayName: users.displayName,
+      role: users.role,
+      isAdmin: users.isAdmin,
+      isVerified: users.isVerified,
+      avatarUrl: users.avatarUrl,
+      createdAt: users.createdAt
+    }).from(users).where(eq(users.username, username));
     return user || undefined;
   }
 
@@ -76,12 +98,34 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(insertUser)
-      .returning();
+      .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        password: users.password,
+        displayName: users.displayName,
+        role: users.role,
+        isAdmin: users.isAdmin,
+        isVerified: users.isVerified,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt
+      });
     return user;
   }
 
   async listUsers(): Promise<User[]> {
-    return db.select().from(users);
+    return db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      password: users.password,
+      displayName: users.displayName,
+      role: users.role,
+      isAdmin: users.isAdmin,
+      isVerified: users.isVerified,
+      avatarUrl: users.avatarUrl,
+      createdAt: users.createdAt
+    }).from(users);
   }
 
   // Project operations
