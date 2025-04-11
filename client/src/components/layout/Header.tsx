@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, LogOut, Settings, User } from "lucide-react";
+import { Settings, User } from "lucide-react";
 import logoImage from "../../assets/logo.png";
 
 interface HeaderProps {
@@ -22,21 +22,13 @@ interface HeaderProps {
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [_, navigate] = useLocation();
-  const { user, logoutMutation } = useAuth();
+  const { user } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
-  };
-  
-  const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        navigate('/auth');
-      }
-    });
   };
 
   return (
@@ -94,12 +86,6 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               <DropdownMenuItem onClick={() => navigate('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-                {logoutMutation.isPending && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -4,35 +4,33 @@ import ProjectView from "@/pages/project";
 import SearchPage from "@/pages/search";
 import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/auth-page";
 import { AuthProvider } from "@/hooks/useAuth";
-import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import MainLayout from "@/components/layout/MainLayout";
 
 // Router
 function Router() {
   return (
     <Switch>
       <Route path="/" component={() => (
-          <ProtectedLayout>
+          <MainLayout>
             <Dashboard />
-          </ProtectedLayout>
+          </MainLayout>
         )} />
       <Route path="/projects/:id" component={() => (
-          <ProtectedLayout>
+          <MainLayout>
             <ProjectView />
-          </ProtectedLayout>
+          </MainLayout>
         )} />
       <Route path="/search" component={() => (
-          <ProtectedLayout>
+          <MainLayout>
             <SearchPage />
-          </ProtectedLayout>
+          </MainLayout>
         )} />
       <Route path="/users" component={() => (
-          <ProtectedLayout>
+          <MainLayout>
             <UserManagement />
-          </ProtectedLayout>
+          </MainLayout>
         )} />
-      <Route path="/auth" component={AuthPage} />
       <Route>
         <NotFound />
       </Route>
