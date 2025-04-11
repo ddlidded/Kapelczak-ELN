@@ -258,18 +258,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Received note data:", JSON.stringify(req.body));
       
-      // Add default authorId if not provided
+      // Create a clean data object with only the fields we need
       const noteData = {
-        ...req.body,
+        title: req.body.title,
+        content: req.body.content || "",
         authorId: req.body.authorId || 1,
+        projectId: req.body.projectId,
       };
       
-      // Validate the data
-      const validatedData = insertNoteSchema.parse(noteData);
-      console.log("Validated note data:", JSON.stringify(validatedData));
+      // Only add experimentId if it's present and not "none"
+      if (req.body.experimentId && req.body.experimentId !== "none") {
+        noteData.experimentId = typeof req.body.experimentId === 'string' 
+          ? parseInt(req.body.experimentId) 
+          : req.body.experimentId;
+      }
+      
+      console.log("Prepared note data:", JSON.stringify(noteData));
       
       // Create the note
-      const note = await storage.createNote(validatedData);
+      const note = await storage.createNote(noteData);
       console.log("Created note:", JSON.stringify(note));
       
       res.status(201).json(note);

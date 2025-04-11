@@ -84,9 +84,7 @@ const baseInsertNoteSchema = createInsertSchema(notes).omit({
 });
 
 // Custom schema that allows experimentId to be null
-export const insertNoteSchema = baseInsertNoteSchema.extend({
-  experimentId: z.number().nullable().optional(),
-});
+export const insertNoteSchema = baseInsertNoteSchema.extend({});
 
 // Attachments table
 export const attachments = pgTable("attachments", {
