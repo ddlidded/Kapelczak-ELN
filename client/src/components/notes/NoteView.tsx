@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TiptapViewer } from '@/components/ui/tiptap-editor';
+import { HugeRTEViewer } from '@/components/ui/hugerte-editor';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -160,7 +160,7 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
         </CardHeader>
         <CardContent className={isExpanded ? "" : "max-h-64 overflow-hidden relative"}>
           <div className={isExpanded ? "" : "prose-truncate"}>
-            <TiptapViewer content={note.content} />
+            <HugeRTEViewer content={note.content} />
           </div>
           {!isExpanded && (
             <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent"></div>

@@ -212,7 +212,7 @@ export default function NoteEditor({
                   <FormLabel>Content</FormLabel>
                   <FormControl>
                     <div className="flex-1 overflow-y-auto">
-                      <TiptapEditor
+                      <HugeRTEEditor
                         content={field.value}
                         onChange={handleContentChange}
                         placeholder="Write your research notes here..."

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Editor } from '@hugerte/hugerte-react';
-import 'hugerte/dist/hugerte.min.css';
+// Import the default styles
+import 'hugerte/skins/ui/oxide/skin.min.css';
+import 'hugerte/skins/content/default/content.min.css';
 import { cn } from '@/lib/utils';
 
 export interface HugeRTEEditorProps {
@@ -38,7 +40,7 @@ export function HugeRTEEditor({
             bullist numlist | link image table | \
             removeformat code fullscreen',
           placeholder,
-          readonly: !editable,
+          disabled: !editable,
           content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }',
           branding: false,
           promotion: false,
