@@ -4,11 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ProjectList() {
+  const { user } = useAuth();
+  const userId = user?.id || 1; // Default to 1 for our mock admin user
+  
+  // Fetch projects specific to the current user instead of all projects
   const { data: projects, isLoading, error } = useQuery({
-    queryKey: ['/api/projects'],
-    queryFn: () => fetch('/api/projects').then(res => res.json()),
+    queryKey: ['/api/projects/user', userId],
+    queryFn: () => fetch(`/api/projects/user/${userId}`).then(res => res.json()),
   });
 
   if (isLoading) {
@@ -53,9 +58,9 @@ export default function ProjectList() {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500 mb-4">No projects found</p>
-        <Link href="/">
-          <Button>Create Your First Project</Button>
-        </Link>
+        <Button onClick={() => window.location.reload()}>
+          Create Your First Project
+        </Button>
       </div>
     );
   }

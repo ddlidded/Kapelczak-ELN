@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import ProjectList from "@/components/projects/ProjectList";
 import { ProjectFormData } from "@/lib/types";
@@ -8,11 +8,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema } from "@shared/schema";
 import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
+  DialogDescription,
   DialogFooter 
 } from "@/components/ui/dialog";
 import { 
@@ -33,11 +36,13 @@ const extendedProjectSchema = insertProjectSchema.extend({
 
 export default function Dashboard() {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
   
-  // Hardcoded current user for demo purposes
+  // Get current user from auth context
   const currentUser = {
-    id: 1,
-    displayName: "Dr. Sarah Chen"
+    id: user?.id || 1,
+    displayName: user?.displayName || user?.username || "Administrator"
   };
 
   const form = useForm<ProjectFormData>({
@@ -49,16 +54,42 @@ export default function Dashboard() {
     }
   });
 
-  const handleCreateProject = async (data: ProjectFormData) => {
-    try {
-      await apiRequest('POST', '/api/projects', data);
+  // Update form value when user changes
+  useEffect(() => {
+    form.setValue("ownerId", currentUser.id);
+  }, [currentUser.id, form]);
+
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: ProjectFormData) => {
+      const response = await apiRequest('POST', '/api/projects', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate both project query caches
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects/user', currentUser.id] });
+      
+      // Close dialog and reset form
       setIsCreateProjectOpen(false);
       form.reset();
-    } catch (error) {
-      console.error("Failed to create project:", error);
-    }
+      
+      toast({
+        title: "Project created",
+        description: "Your new project has been created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to create project",
+        description: error.message || "There was a problem creating your project",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateProject = async (data: ProjectFormData) => {
+    createProjectMutation.mutate(data);
   };
 
   return (
@@ -88,6 +119,9 @@ export default function Dashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Add a new project to organize your experiments and notes
+            </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
@@ -132,8 +166,11 @@ export default function Dashboard() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "Creating..." : "Create Project"}
+                <Button 
+                  type="submit" 
+                  disabled={createProjectMutation.isPending || form.formState.isSubmitting}
+                >
+                  {createProjectMutation.isPending ? "Creating..." : "Create Project"}
                 </Button>
               </DialogFooter>
             </form>
