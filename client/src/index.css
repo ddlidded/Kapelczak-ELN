@@ -2,57 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tiptap Editor Styles */
-.ProseMirror {
-  @apply outline-none w-full;
+/* HugeRTE Editor Styles */
+.hugerte-root {
+  @apply border-0 !important;
 }
 
-.ProseMirror p.is-editor-empty:first-child::before {
-  @apply text-muted-foreground float-left h-0 pointer-events-none;
-  content: attr(data-placeholder);
+.hugerte-editor {
+  @apply min-h-[200px] outline-none border-0 !important;
 }
 
-.ProseMirror table {
-  @apply border border-border;
+.hugerte-content-readonly {
+  @apply prose max-w-none;
 }
 
-.ProseMirror th {
+.hugerte-content-readonly img {
+  @apply max-w-full h-auto rounded-md;
+}
+
+.hugerte-content-readonly table {
+  @apply border-collapse table-auto w-full border border-border;
+}
+
+.hugerte-content-readonly th {
   @apply bg-muted font-medium p-2 text-left border border-border;
 }
 
-.ProseMirror td {
+.hugerte-content-readonly td {
   @apply p-2 border border-border;
 }
 
-.ProseMirror pre {
+.hugerte-content-readonly pre {
   @apply bg-muted font-mono p-4 rounded-md text-sm overflow-x-auto;
 }
 
-.ProseMirror code {
+.hugerte-content-readonly code {
   @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
-.ProseMirror blockquote {
+.hugerte-content-readonly blockquote {
   @apply border-l-4 border-muted pl-4 italic;
 }
 
-.ProseMirror ul[data-type="taskList"] {
-  @apply list-none p-0;
-}
-
-.ProseMirror ul[data-type="taskList"] li {
-  @apply flex items-start;
-}
-
-.ProseMirror ul[data-type="taskList"] li > label {
-  @apply mr-2 flex-shrink-0;
-}
-
-.ProseMirror img {
-  @apply max-w-full h-auto;
-}
-
-.ProseMirror hr {
+.hugerte-content-readonly hr {
   @apply border-t border-border my-4;
 }
 
