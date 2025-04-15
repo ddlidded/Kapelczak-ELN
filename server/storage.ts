@@ -13,6 +13,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   listUsers(): Promise<User[]>;
 
   // Project operations
@@ -128,6 +129,26 @@ export class DatabaseStorage implements IStorage {
       avatarUrl: users.avatarUrl,
       createdAt: users.createdAt
     }).from(users);
+  }
+  
+  async updateUser(id: number, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userUpdate)
+      .where(eq(users.id, id))
+      .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        password: users.password,
+        displayName: users.displayName,
+        role: users.role,
+        isAdmin: users.isAdmin,
+        isVerified: users.isVerified,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt
+      });
+    return updatedUser || undefined;
   }
 
   // Project operations

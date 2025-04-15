@@ -160,6 +160,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const updatedUser = await storage.updateUser(userId, req.body);
     res.json(updatedUser);
   }));
+  
+  // User avatar upload endpoint
+  app.post("/api/users/:id/avatar", upload.single("avatar"), apiErrorHandler(async (req: MulterRequest, res: Response) => {
+    const userId = parseInt(req.params.id);
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    
+    // Get the uploaded file details
+    const file = req.file;
+    
+    // Check if file is an image
+    if (!file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ message: "File must be an image" });
+    }
+    
+    // Convert image to base64 data URL for storage
+    const fileData = file.buffer.toString("base64");
+    const avatarUrl = `data:${file.mimetype};base64,${fileData}`;
+    
+    // Update user with new avatar URL
+    const updatedUser = await storage.updateUser(userId, { avatarUrl });
+    
+    if (!updatedUser) {
+      return res.status(500).json({ message: "Failed to update avatar" });
+    }
+    
+    // Return the updated user without sensitive data
+    const { password, ...userWithoutPassword } = updatedUser;
+    res.json(userWithoutPassword);
+  }));
 
   // Project routes
   app.post("/api/projects", apiErrorHandler(async (req: Request, res: Response) => {
