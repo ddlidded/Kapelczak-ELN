@@ -148,6 +148,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     res.json(user);
   }));
+  
+  app.patch("/api/users/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.id);
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const updatedUser = await storage.updateUser(userId, req.body);
+    res.json(updatedUser);
+  }));
 
   // Project routes
   app.post("/api/projects", apiErrorHandler(async (req: Request, res: Response) => {
