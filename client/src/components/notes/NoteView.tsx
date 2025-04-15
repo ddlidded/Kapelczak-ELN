@@ -11,11 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CalendarDays, Edit, MoreHorizontal, Trash2, ChevronDown, FileBadge, Upload } from 'lucide-react';
+import { CalendarDays, Edit, MoreHorizontal, Trash2, ChevronDown, FileBadge, Upload, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import NoteEditor from './NoteEditor';
 import { FileUploader } from './FileUploader';
+import { Link, useLocation } from 'wouter';
 
 interface Attachment {
   id: number;
@@ -115,13 +116,25 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
     return <FileBadge className="h-4 w-4 text-gray-500" />;
   };
 
+  const [location] = useLocation();
+  const isDetailPage = location.startsWith('/notes/');
+  
   return (
     <>
       <Card className="mb-4">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-xl">{note.title}</CardTitle>
+              {isDetailPage ? (
+                <CardTitle className="text-xl">{note.title}</CardTitle>
+              ) : (
+                <Link href={`/notes/${note.id}`}>
+                  <CardTitle className="text-xl text-primary hover:underline cursor-pointer flex items-center">
+                    {note.title}
+                    <ExternalLink className="ml-2 h-4 w-4 opacity-50" />
+                  </CardTitle>
+                </Link>
+              )}
               <div className="text-sm text-muted-foreground flex items-center mt-1">
                 <CalendarDays className="mr-1 h-3 w-3" />
                 {formatDate(note.updatedAt || note.createdAt)}
@@ -139,6 +152,14 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {!isDetailPage && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/notes/${note.id}`}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      View Full Page
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit

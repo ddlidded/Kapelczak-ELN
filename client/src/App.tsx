@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import Dashboard from "@/pages/dashboard";
 import ProjectView from "@/pages/project";
+import NotePage from "@/pages/note-page";
 import SearchPage from "@/pages/search";
 import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
@@ -21,6 +22,7 @@ function Router() {
             <ProjectView />
           </MainLayout>
         )} />
+      <Route path="/notes/:noteId" component={NotePage} />
       <Route path="/search" component={() => (
           <MainLayout>
             <SearchPage />

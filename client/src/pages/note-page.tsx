@@ -1,17 +1,21 @@
 import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, CalendarDays, User, Beaker, ClipboardList } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import NoteView from '@/components/notes/NoteView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { queryClient } from '@/lib/queryClient';
 import { useEffect } from 'react';
 import { Link } from 'wouter';
+import { format } from 'date-fns';
 
 export default function NotePage() {
   const { noteId } = useParams();
-  const id = parseInt(noteId);
+  const id = noteId ? parseInt(noteId) : NaN;
 
   // Fetch the note data
   const { data: note, isLoading: isNoteLoading, error: noteError, refetch: refetchNote } = useQuery({
@@ -77,12 +81,79 @@ export default function NotePage() {
             </AlertDescription>
           </Alert>
         ) : note ? (
-          <NoteView
-            note={note}
-            experiments={experiments || []}
-            onEdit={handleNoteUpdated}
-            onDelete={handleNoteUpdated}
-          />
+          <div>
+            <Card className="mb-6">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium flex items-center">
+                        <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                        Created
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(note.createdAt), 'PPP')}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium flex items-center">
+                        <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                        Last Updated
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(note.updatedAt), 'PPP')}
+                      </p>
+                    </div>
+                    {note.author && (
+                      <div>
+                        <h3 className="text-sm font-medium flex items-center">
+                          <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Author
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {note.author.displayName || note.author.username}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {note.experimentId && experiments && (
+                      <div>
+                        <h3 className="text-sm font-medium flex items-center">
+                          <Beaker className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Experiment
+                        </h3>
+                        <div className="mt-1">
+                          <Badge className="font-normal">
+                            {experiments.find((e: any) => e.id === note.experimentId)?.name || 'Unknown'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {experiments.find((e: any) => e.id === note.experimentId)?.description || 'No description available'}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-sm font-medium flex items-center">
+                        <ClipboardList className="h-4 w-4 mr-2 text-muted-foreground" />
+                        Note ID
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {note.id}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <NoteView
+              note={note}
+              experiments={experiments || []}
+              onEdit={handleNoteUpdated}
+              onDelete={handleNoteUpdated}
+            />
+          </div>
         ) : (
           <Alert>
             <AlertCircle className="h-4 w-4" />
