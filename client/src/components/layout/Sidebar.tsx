@@ -15,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema } from "@shared/schema";
 import { z } from "zod";
+import { useAuth } from "@/hooks/mock-auth";
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -29,18 +30,12 @@ const extendedProjectSchema = insertProjectSchema.extend({
 export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
-  
-  // Hardcoded current user for demo purposes
-  const currentUser = {
-    id: 1,
-    username: "sarah.chen",
-    displayName: "Dr. Sarah Chen",
-    role: "Principal Investigator"
-  };
+  const { user } = useAuth();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
-    queryKey: ['/api/projects/user', currentUser.id],
-    queryFn: () => fetch(`/api/projects/user/${currentUser.id}`).then(res => res.json()),
+    queryKey: ['/api/projects/user', user?.id],
+    queryFn: () => fetch(`/api/projects/user/${user?.id}`).then(res => res.json()),
+    enabled: !!user,
   });
 
   const form = useForm<ProjectFormData>({
@@ -48,7 +43,7 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
     defaultValues: {
       name: "",
       description: "",
-      ownerId: currentUser.id
+      ownerId: user?.id || 1
     }
   });
 
@@ -56,7 +51,7 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
     try {
       await apiRequest('POST', '/api/projects', data);
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/projects/user', currentUser.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects/user', user?.id] });
       setIsCreateProjectOpen(false);
       form.reset();
     } catch (error) {
@@ -166,12 +161,12 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
         <div className="mt-auto p-4 border-t border-gray-200">
           <div className="flex items-center">
             <AvatarWithFallback 
-              name={currentUser.displayName} 
+              name={user?.displayName || user?.username || 'User'} 
               className="h-8 w-8 border border-gray-300" 
             />
             <div className="ml-2">
-              <p className="text-sm font-medium">{currentUser.displayName}</p>
-              <p className="text-xs text-gray-500">{currentUser.role}</p>
+              <p className="text-sm font-medium">{user?.displayName || user?.username}</p>
+              <p className="text-xs text-gray-500">{user?.role || 'User'}</p>
             </div>
           </div>
         </div>
