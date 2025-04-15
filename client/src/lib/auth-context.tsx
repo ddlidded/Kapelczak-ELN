@@ -11,6 +11,8 @@ export interface User {
   isVerified: boolean;
   role?: string;
   createdAt: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 // Login data type
