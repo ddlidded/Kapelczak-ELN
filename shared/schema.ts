@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   resetPasswordExpires: timestamp("reset_password_expires"),
   lastLogin: timestamp("last_login"),
   avatarUrl: text("avatar_url"),
+  bio: text("bio"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -4,6 +4,8 @@ import ProjectView from "@/pages/project";
 import NotePage from "@/pages/note-page";
 import SearchPage from "@/pages/search";
 import UserManagement from "@/pages/user-management";
+import ProfilePage from "@/pages/profile-page";
+import SettingsPage from "@/pages/settings-page";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/useAuth";
 import MainLayout from "@/components/layout/MainLayout";
@@ -31,6 +33,16 @@ function Router() {
       <Route path="/users" component={() => (
           <MainLayout>
             <UserManagement />
+          </MainLayout>
+        )} />
+      <Route path="/profile" component={() => (
+          <MainLayout>
+            <ProfilePage />
+          </MainLayout>
+        )} />
+      <Route path="/settings" component={() => (
+          <MainLayout>
+            <SettingsPage />
           </MainLayout>
         )} />
       <Route>
