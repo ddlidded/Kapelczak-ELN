@@ -20,9 +20,13 @@ import { Link, useLocation } from 'wouter';
 
 interface Attachment {
   id: number;
-  name: string;
+  name?: string;
+  fileName?: string;
   fileType: string;
   filePath: string;
+  fileSize?: number;
+  fileData?: string;
+  noteId?: number;
   createdAt: string;
 }
 
@@ -210,7 +214,7 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
                   onClick={() => openAttachment(attachment)}
                 >
                   {getFileIcon(attachment.fileType)}
-                  <span className="ml-1 max-w-32 truncate">{attachment.name}</span>
+                  <span className="ml-1 max-w-32 truncate">{attachment.fileName || attachment.name}</span>
                 </Button>
               ))}
             </div>
@@ -254,13 +258,13 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
       <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
         <DialogContent className="sm:max-w-[900px]">
           <DialogHeader>
-            <DialogTitle>{selectedAttachment?.name}</DialogTitle>
+            <DialogTitle>{selectedAttachment?.fileName || selectedAttachment?.name}</DialogTitle>
           </DialogHeader>
           <div className="mt-4 flex justify-center">
             {selectedAttachment?.fileType.startsWith('image/') ? (
               <img 
                 src={selectedAttachment.filePath} 
-                alt={selectedAttachment.name}
+                alt={selectedAttachment?.fileName || selectedAttachment?.name}
                 className="max-h-[70vh] max-w-full object-contain"
               />
             ) : (

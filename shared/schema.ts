@@ -93,6 +93,7 @@ export const attachments = pgTable("attachments", {
   fileSize: integer("file_size").notNull(),
   fileType: text("file_type").notNull(),
   fileData: text("file_data").notNull(), // Base64 encoded data
+  filePath: text("file_path"), // Optional URL for external storage
   noteId: integer("note_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
