@@ -248,7 +248,7 @@ export default function SettingsPage() {
                           <AvatarUploader 
                             userId={user.id} 
                             currentAvatarUrl={user.avatarUrl || null}
-                            displayName={user.displayName}
+                            displayName={user.displayName || "User"}
                             onUploadComplete={(avatarUrl) => {
                               // Update the form field with the new avatar URL
                               profileForm.setValue('avatarUrl', avatarUrl);
