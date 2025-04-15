@@ -151,20 +151,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/users/:id", apiErrorHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
-    const user = await storage.getUser(userId);
+    let user = await storage.getUser(userId);
+    
+    // Special handling for mock users
+    if (!user && userId === 1) {
+      // Create a default admin user in the database for the mock user
+      user = await storage.createUser({
+        username: "admin",
+        email: "admin@kapelczak.com",
+        password: "password123", // This would be hashed in a real implementation
+        displayName: "System Administrator",
+        role: "Administrator",
+        isAdmin: true,
+        isVerified: true,
+        avatarUrl: "https://api.dicebear.com/7.x/personas/svg?seed=admin",
+        bio: "System administrator for Kapelczak Notes application."
+      });
+    }
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
     const updatedUser = await storage.updateUser(userId, req.body);
+    
+    if (!updatedUser) {
+      return res.status(500).json({ message: "Failed to update user" });
+    }
+    
     res.json(updatedUser);
   }));
   
   // User avatar upload endpoint
   app.post("/api/users/:id/avatar", upload.single("avatar"), apiErrorHandler(async (req: MulterRequest, res: Response) => {
     const userId = parseInt(req.params.id);
-    const user = await storage.getUser(userId);
+    let user = await storage.getUser(userId);
+    
+    // Same special handling for mock users
+    if (!user && userId === 1) {
+      // Create a default admin user in the database for the mock user
+      user = await storage.createUser({
+        username: "admin",
+        email: "admin@kapelczak.com",
+        password: "password123", // This would be hashed in a real implementation
+        displayName: "System Administrator",
+        role: "Administrator",
+        isAdmin: true,
+        isVerified: true,
+        avatarUrl: "https://api.dicebear.com/7.x/personas/svg?seed=admin",
+        bio: "System administrator for Kapelczak Notes application."
+      });
+    }
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
