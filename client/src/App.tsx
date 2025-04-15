@@ -7,7 +7,7 @@ import UserManagement from "@/pages/user-management";
 import ProfilePage from "@/pages/profile-page";
 import SettingsPage from "@/pages/settings-page";
 import NotFound from "@/pages/not-found";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/use-auth";
 import MainLayout from "@/components/layout/MainLayout";
 
 // Router

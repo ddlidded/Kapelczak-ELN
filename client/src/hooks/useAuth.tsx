@@ -10,6 +10,8 @@ export interface User {
   isVerified: boolean;
   role?: string;
   createdAt: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 // Auth context type
@@ -28,7 +30,9 @@ const mockAdminUser: User = {
   isAdmin: true,
   isVerified: true,
   role: "Administrator",
-  createdAt: new Date().toISOString()
+  createdAt: new Date().toISOString(),
+  avatarUrl: "https://api.dicebear.com/7.x/personas/svg?seed=admin",
+  bio: "System administrator for Kapelczak Notes application. Contact for any technical issues or user management inquiries."
 };
 
 // Create auth context
