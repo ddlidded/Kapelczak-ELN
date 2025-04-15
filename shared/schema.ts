@@ -22,16 +22,21 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  isAdmin: true,
-  isVerified: true,
-  verificationToken: true,
-  resetPasswordToken: true,
-  resetPasswordExpires: true,
-  lastLogin: true,
+// Custom insertUserSchema with optional fields
+export const insertUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  displayName: z.string().min(2, "Display name must be at least 2 characters"),
+  role: z.string().optional(),
+  isAdmin: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+  verificationToken: z.string().nullable().optional(),
+  resetPasswordToken: z.string().nullable().optional(),
+  resetPasswordExpires: z.date().nullable().optional(),
+  lastLogin: z.date().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  bio: z.string().nullable().optional(),
 });
 
 // Projects table
