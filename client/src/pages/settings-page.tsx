@@ -59,7 +59,7 @@ type NotificationsFormValues = z.infer<typeof notificationsFormSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   
   const profileForm = useForm<ProfileFormValues>({
@@ -94,7 +94,15 @@ export default function SettingsPage() {
     setIsUpdating(true);
     try {
       await apiRequest('PATCH', `/api/users/${user?.id}`, data);
+      
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id] });
+      
+      // Explicitly refresh the user data
+      if (user) {
+        await refreshUser();
+      }
       
       toast({
         title: "Profile updated",
@@ -254,6 +262,9 @@ export default function SettingsPage() {
                               profileForm.setValue('avatarUrl', avatarUrl);
                               // Invalidate the auth query to update the user in the app
                               queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id] });
+                              // Refresh user data
+                              refreshUser();
                             }}
                           />
                         )}
