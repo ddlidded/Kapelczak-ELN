@@ -67,6 +67,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <AvatarWithFallback 
                   name={user?.displayName || user?.username || 'User'}
+                  src={user?.avatarUrl || undefined}
                   className="h-8 w-8 border border-gray-300" 
                 />
               </Button>
