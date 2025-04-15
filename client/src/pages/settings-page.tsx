@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AvatarUploader } from '@/components/users/AvatarUploader';
+import { Textarea } from '@/components/ui/textarea';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ const profileFormSchema = z.object({
   avatarUrl: z.string().url({
     message: "Please enter a valid URL.",
   }).optional().nullable(),
+  bio: z.string().optional().nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -269,6 +271,27 @@ export default function SettingsPage() {
                               </FormControl>
                               <FormDescription>
                                 Enter a URL to your profile picture.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={profileForm.control}
+                          name="bio"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bio</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Tell us about yourself" 
+                                  className="resize-y min-h-[100px]" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Share a brief bio about yourself and your work.
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
