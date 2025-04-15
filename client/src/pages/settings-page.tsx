@@ -68,6 +68,7 @@ export default function SettingsPage() {
       displayName: user?.displayName || "",
       email: user?.email || "",
       avatarUrl: user?.avatarUrl || "",
+      bio: user?.bio || "",
     },
   });
 
@@ -93,9 +94,32 @@ export default function SettingsPage() {
   async function onProfileSubmit(data: ProfileFormValues) {
     setIsUpdating(true);
     try {
-      await apiRequest('PATCH', `/api/users/${user?.id}`, data);
+      console.log("⏳ Updating profile with data:", data);
+      
+      // Ensure all fields are properly formatted
+      const profileData = {
+        displayName: data.displayName,
+        email: data.email,
+        avatarUrl: data.avatarUrl || null,
+        // Include bio if it's part of the form data
+        ...(data.bio !== undefined && { bio: data.bio || null })
+      };
+      
+      console.log("📤 Sending profile update request:", profileData);
+      
+      const response = await apiRequest('PATCH', `/api/users/${user?.id}`, profileData);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Server error:", response.status, errorText);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
+      
+      const updatedUser = await response.json();
+      console.log("✅ Profile updated successfully:", updatedUser);
       
       // Invalidate relevant queries
+      console.log("🔄 Invalidating queries and refreshing user data");
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id] });
       
@@ -109,7 +133,7 @@ export default function SettingsPage() {
         description: "Your profile has been updated successfully.",
       });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('❌ Error updating profile:', error);
       toast({
         title: "Update failed",
         description: "There was an error updating your profile.",

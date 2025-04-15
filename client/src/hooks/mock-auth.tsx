@@ -57,32 +57,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchCurrentUser = async () => {
     try {
       setIsLoading(true);
+      console.log("⏳ Fetching user data...");
       
       // Try to get user from the API
       const response = await apiRequest('GET', '/api/auth/me');
       
       if (response.ok) {
         const userData = await response.json();
+        console.log("✅ User data fetched from /api/auth/me:", userData);
         setUser(userData);
         return;
       }
       
       // As a fallback, try to get user 1 from the users API
       try {
+        console.log("🔄 Attempting fallback to /api/users/1");
         const fallbackResponse = await apiRequest('GET', '/api/users/1');
         if (fallbackResponse.ok) {
           const userData = await fallbackResponse.json();
+          console.log("✅ User data fetched from fallback endpoint:", userData);
           setUser(userData);
           return;
+        } else {
+          console.warn("❌ Fallback request failed with status:", fallbackResponse.status);
         }
       } catch (fallbackError) {
-        console.warn('Failed to fetch user from fallback endpoint:', fallbackError);
+        console.warn('❌ Failed to fetch user from fallback endpoint:', fallbackError);
       }
       
       // If all else fails, use the default admin user
+      console.log("⚠️ Using default admin user as last resort");
       setUser(defaultAdminUser);
     } catch (err) {
-      console.error('Failed to fetch user:', err);
+      console.error('❌ Failed to fetch user:', err);
       setUser(defaultAdminUser);
     } finally {
       setIsLoading(false);
