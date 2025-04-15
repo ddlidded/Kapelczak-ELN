@@ -75,8 +75,14 @@ export class DatabaseStorage implements IStorage {
       role: users.role,
       isAdmin: users.isAdmin,
       isVerified: users.isVerified,
+      verificationToken: users.verificationToken,
+      resetPasswordToken: users.resetPasswordToken,
+      resetPasswordExpires: users.resetPasswordExpires,
+      lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
-      createdAt: users.createdAt
+      bio: users.bio,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
     }).from(users).where(eq(users.id, id));
     return user || undefined;
   }
@@ -91,8 +97,14 @@ export class DatabaseStorage implements IStorage {
       role: users.role,
       isAdmin: users.isAdmin,
       isVerified: users.isVerified,
+      verificationToken: users.verificationToken,
+      resetPasswordToken: users.resetPasswordToken,
+      resetPasswordExpires: users.resetPasswordExpires,
+      lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
-      createdAt: users.createdAt
+      bio: users.bio,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
     }).from(users).where(eq(users.username, username));
     return user || undefined;
   }
@@ -110,8 +122,14 @@ export class DatabaseStorage implements IStorage {
         role: users.role,
         isAdmin: users.isAdmin,
         isVerified: users.isVerified,
+        verificationToken: users.verificationToken,
+        resetPasswordToken: users.resetPasswordToken,
+        resetPasswordExpires: users.resetPasswordExpires,
+        lastLogin: users.lastLogin,
         avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt
+        bio: users.bio,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
       });
     return user;
   }
@@ -126,8 +144,14 @@ export class DatabaseStorage implements IStorage {
       role: users.role,
       isAdmin: users.isAdmin,
       isVerified: users.isVerified,
+      verificationToken: users.verificationToken,
+      resetPasswordToken: users.resetPasswordToken,
+      resetPasswordExpires: users.resetPasswordExpires,
+      lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
-      createdAt: users.createdAt
+      bio: users.bio,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
     }).from(users);
   }
   
@@ -145,8 +169,14 @@ export class DatabaseStorage implements IStorage {
         role: users.role,
         isAdmin: users.isAdmin,
         isVerified: users.isVerified,
+        verificationToken: users.verificationToken,
+        resetPasswordToken: users.resetPasswordToken,
+        resetPasswordExpires: users.resetPasswordExpires,
+        lastLogin: users.lastLogin,
         avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt
+        bio: users.bio,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
       });
     return updatedUser || undefined;
   }

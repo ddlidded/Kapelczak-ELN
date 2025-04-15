@@ -86,6 +86,9 @@ export default function NoteEditor({
         experimentId: note.experimentId ? note.experimentId.toString() : "none",
         content: note.content,
       });
+      
+      // Set current note ID for image uploads in HugeRTE editor
+      window.currentNoteId = note.id;
     } else {
       form.reset({
         title: "",
@@ -94,7 +97,15 @@ export default function NoteEditor({
           : "none",
         content: "",
       });
+      
+      // Clear the current note ID as we're creating a new note
+      window.currentNoteId = undefined;
     }
+    
+    // Clean up function to reset current note ID when component unmounts
+    return () => {
+      window.currentNoteId = undefined;
+    };
   }, [note, preSelectedExperimentId, form]);
 
   // Handle form submission
@@ -123,7 +134,14 @@ export default function NoteEditor({
         });
       } else {
         // Create new note
-        await apiRequest("POST", "/api/notes", payload);
+        const response = await apiRequest("POST", "/api/notes", payload);
+        const newNote = await response.json();
+        
+        // Update the currentNoteId for image uploads right after creation
+        if (newNote && newNote.id) {
+          window.currentNoteId = newNote.id;
+        }
+        
         toast({
           title: "Note created",
           description: "Your note has been created successfully.",
