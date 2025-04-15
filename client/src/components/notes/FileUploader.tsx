@@ -70,12 +70,26 @@ export function FileUploader({ noteId, onUploadComplete }: FileUploaderProps) {
           setFiles([]);
           onUploadComplete();
         } else {
-          throw new Error(`Server responded with status: ${xhr.status}`);
+          // Handle error with toast instead of throwing an exception
+          toast({
+            title: "Upload failed",
+            description: `Server responded with status: ${xhr.status}`,
+            variant: "destructive",
+          });
+          setUploading(false);
+          setUploadProgress(0);
         }
       });
       
       xhr.addEventListener("error", () => {
-        throw new Error("Network error occurred");
+        // Handle error with toast instead of throwing an exception
+        toast({
+          title: "Upload failed",
+          description: "Network error occurred. Please try again.",
+          variant: "destructive",
+        });
+        setUploading(false);
+        setUploadProgress(0);
       });
       
       xhr.open("POST", `/api/notes/${noteId}/attachments`);
