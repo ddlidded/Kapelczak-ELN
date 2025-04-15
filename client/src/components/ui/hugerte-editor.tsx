@@ -56,32 +56,38 @@ export function HugeRTEEditor({
               const formData = new FormData();
               formData.append('file', blobInfo.blob(), blobInfo.filename());
               
-              // Create a fake noteId if none is specified - this will be replaced with proper context
-              // when we implement the real note context awareness
-              const noteId = window.currentNoteId || 1;
-              formData.append('noteId', String(noteId));
+              // Check if we have a currentNoteId (editing an existing note)
+              const noteId = window.currentNoteId;
               
-              // Use the fetch API to upload the image
-              fetch('/api/attachments', {
-                method: 'POST',
-                body: formData,
-              })
-                .then(response => {
-                  if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                  }
-                  return response.json();
+              // If we have a noteId, post to the specific note attachment endpoint
+              if (noteId) {
+                formData.append('noteId', String(noteId));
+                // Use the fetch API to upload the image
+                fetch('/api/attachments', {
+                  method: 'POST',
+                  body: formData,
                 })
-                .then(data => {
-                  // Return the image URL for the editor to use
-                  if (data.fileData) {
-                    // If we have base64 data, use it directly
-                    resolve(`data:${data.fileType};base64,${data.fileData}`);
-                  } else if (data.filePath) {
-                    // Otherwise use the file path
-                    resolve(data.filePath);
-                  } else {
-                    // Fallback to using a data URL
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                    // Return the image URL for the editor to use
+                    if (data.fileData) {
+                      // If we have base64 data, use it directly
+                      resolve(`data:${data.fileType};base64,${data.fileData}`);
+                    } else if (data.filePath) {
+                      // Otherwise use the file path
+                      resolve(data.filePath);
+                    } else {
+                      throw new Error('No file data or path returned');
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error uploading image:', error);
+                    // Fallback to using a data URL for the current session
                     const reader = new FileReader();
                     reader.onload = () => {
                       resolve(reader.result as string);
@@ -90,20 +96,21 @@ export function HugeRTEEditor({
                       reject(reader.error);
                     };
                     reader.readAsDataURL(blobInfo.blob());
-                  }
-                })
-                .catch(error => {
-                  console.error('Error uploading image:', error);
-                  // Fallback to using a data URL
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    resolve(reader.result as string);
-                  };
-                  reader.onerror = () => {
-                    reject(reader.error);
-                  };
-                  reader.readAsDataURL(blobInfo.blob());
-                });
+                  });
+              } else {
+                // If we don't have a noteId (new note being created), 
+                // just return a data URL for now - the image will be saved properly
+                // when the note is created and the editor content is saved
+                console.log('No noteId available, using temporary image data URL');
+                const reader = new FileReader();
+                reader.onload = () => {
+                  resolve(reader.result as string);
+                };
+                reader.onerror = () => {
+                  reject(reader.error);
+                };
+                reader.readAsDataURL(blobInfo.blob());
+              }
             });
           },
         }}
