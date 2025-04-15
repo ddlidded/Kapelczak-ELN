@@ -44,6 +44,7 @@ export interface IStorage {
   getAttachment(id: number): Promise<Attachment | undefined>;
   listAttachmentsByNote(noteId: number): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
+  updateAttachment(id: number, attachment: Partial<InsertAttachment>): Promise<Attachment | undefined>;
   deleteAttachment(id: number): Promise<boolean>;
   
   // Project collaborator operations
@@ -365,6 +366,15 @@ export class DatabaseStorage implements IStorage {
     return attachment;
   }
 
+  async updateAttachment(id: number, attachmentUpdate: Partial<InsertAttachment>): Promise<Attachment | undefined> {
+    const [updatedAttachment] = await db
+      .update(attachments)
+      .set(attachmentUpdate)
+      .where(eq(attachments.id, id))
+      .returning();
+    return updatedAttachment || undefined;
+  }
+
   async deleteAttachment(id: number): Promise<boolean> {
     const result = await db.delete(attachments)
       .where(eq(attachments.id, id));
@@ -683,6 +693,19 @@ export class MemStorage implements IStorage {
     const attachment = { ...insertAttachment, id, createdAt };
     this.attachments.set(id, attachment);
     return attachment;
+  }
+
+  async updateAttachment(id: number, attachmentUpdate: Partial<InsertAttachment>): Promise<Attachment | undefined> {
+    const existingAttachment = this.attachments.get(id);
+    if (!existingAttachment) return undefined;
+    
+    const updatedAttachment = {
+      ...existingAttachment,
+      ...attachmentUpdate
+    };
+    
+    this.attachments.set(id, updatedAttachment);
+    return updatedAttachment;
   }
   
   async deleteAttachment(id: number): Promise<boolean> {
