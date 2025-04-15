@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,11 +8,13 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarUploader } from '@/components/users/AvatarUploader';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/mock-auth';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Loader2, Save } from 'lucide-react';
 
 const profileFormSchema = z.object({
@@ -243,11 +244,19 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="flex flex-col items-center space-y-4">
-                        <Avatar className="h-32 w-32">
-                          <AvatarImage src={profileForm.watch('avatarUrl') || undefined} alt={profileForm.watch('displayName')} />
-                          <AvatarFallback className="text-3xl">{profileForm.watch('displayName').split(' ').map(word => word[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        <p className="text-sm text-muted-foreground">Avatar Preview</p>
+                        {user && (
+                          <AvatarUploader 
+                            userId={user.id} 
+                            currentAvatarUrl={user.avatarUrl || null}
+                            displayName={user.displayName}
+                            onUploadComplete={(avatarUrl) => {
+                              // Update the form field with the new avatar URL
+                              profileForm.setValue('avatarUrl', avatarUrl);
+                              // Invalidate the auth query to update the user in the app
+                              queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
                     

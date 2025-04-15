@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Loader2, ImagePlus } from 'lucide-react';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useState, useRef, ChangeEvent } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Loader2, Upload, X, Camera } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AvatarUploaderProps {
   userId: number;
@@ -20,196 +19,175 @@ export function AvatarUploader({
   displayName,
   onUploadComplete 
 }: AvatarUploaderProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      
-      // Check if file is an image
-      if (!selectedFile.type.startsWith('image/')) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select an image file",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Check if file is too large (2MB limit)
-      if (selectedFile.size > 2 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Image must be less than 2MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setFile(selectedFile);
-      
-      // Create a preview URL
-      const objectUrl = URL.createObjectURL(selectedFile);
-      setPreviewUrl(objectUrl);
-      
-      // Clean up the object URL when component unmounts
-      return () => URL.revokeObjectURL(objectUrl);
-    }
-  };
+  // Generate avatar initials from display name
+  const initials = displayName
+    .split(' ')
+    .map(word => word[0])
+    .join('');
 
-  const uploadAvatar = async () => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a JPEG, PNG, GIF, or WebP image.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    setUploading(true);
-    setUploadProgress(0);
-    
+    // Create a preview URL
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload the file
     try {
-      // Create FormData object to send the file
+      setIsUploading(true);
+      
+      // Create FormData for file upload
       const formData = new FormData();
       formData.append('avatar', file);
-      
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + 5;
-          return newProgress > 90 ? 90 : newProgress;
-        });
-      }, 100);
-      
-      // Upload the file
+
+      // Use the fetch API directly for multipart/form-data
       const response = await fetch(`/api/users/${userId}/avatar`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
-      
-      clearInterval(progressInterval);
-      
+
       if (!response.ok) {
-        throw new Error('Failed to upload avatar');
+        throw new Error(`Upload failed: ${response.statusText}`);
       }
-      
-      setUploadProgress(100);
-      
+
       const data = await response.json();
       
-      // Update the user with the new avatar URL
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      
-      toast({
-        title: "Avatar uploaded",
-        description: "Your avatar has been updated successfully",
-      });
-      
-      // Pass the avatar URL back to the parent component
+      // Call the callback with the new avatar URL
       onUploadComplete(data.avatarUrl);
       
-      // Reset the file input
+      toast({
+        title: "Avatar updated",
+        description: "Your profile picture has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      // Revert preview to previous avatar
+      setPreviewUrl(currentAvatarUrl);
+      
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "There was an error uploading your avatar.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      // Clear the input value to allow re-uploading the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      
-      // Clear the selected file
-      setFile(null);
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        title: "Upload failed",
-        description: "There was an error uploading your avatar",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
     }
   };
 
-  const removeFile = () => {
-    setFile(null);
-    setPreviewUrl(currentAvatarUrl);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleRemoveAvatar = async () => {
+    if (!currentAvatarUrl) return;
+    
+    try {
+      setIsUploading(true);
+      
+      await apiRequest('PATCH', `/api/users/${userId}`, {
+        avatarUrl: null
+      });
+      
+      setPreviewUrl(null);
+      onUploadComplete('');
+      
+      toast({
+        title: "Avatar removed",
+        description: "Your profile picture has been removed.",
+      });
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      toast({
+        title: "Failed to remove avatar",
+        description: "There was an error removing your profile picture.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Avatar preview */}
-      <div className="flex flex-col items-center space-y-4">
-        <Avatar className="h-32 w-32">
-          <AvatarImage src={previewUrl || undefined} alt={displayName} />
-          <AvatarFallback className="text-3xl">{displayName.split(' ').map(word => word[0]).join('')}</AvatarFallback>
-        </Avatar>
-        
-        {/* Hidden file input */}
-        <Input
+    <div className="flex flex-col items-center gap-3">
+      <Avatar className="h-32 w-32 border-2 border-primary/10">
+        <AvatarImage src={previewUrl || undefined} alt={displayName} />
+        <AvatarFallback className="text-3xl bg-primary/5">{initials}</AvatarFallback>
+      </Avatar>
+      
+      <div className="flex gap-2">
+        <input
           type="file"
+          id="avatar-upload"
           ref={fileInputRef}
-          className="hidden"
+          className="sr-only"
+          accept="image/jpeg,image/png,image/gif,image/webp"
           onChange={handleFileChange}
-          accept="image/*"
+          disabled={isUploading}
         />
-        
-        {/* File selection button */}
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            <ImagePlus className="mr-2 h-4 w-4" />
-            {previewUrl !== currentAvatarUrl ? 'Change Image' : 'Select Image'}
-          </Button>
-          
-          {file && (
+        <Label
+          htmlFor="avatar-upload"
+          className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+        >
+          {isUploading ? (
             <>
-              <Button
-                type="button"
-                onClick={uploadAvatar}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10"
-                onClick={removeFile}
-                disabled={uploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Camera className="mr-2 h-4 w-4" />
+              Change Avatar
             </>
           )}
-        </div>
+        </Label>
+        
+        {previewUrl && (
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleRemoveAvatar}
+            disabled={isUploading || !previewUrl}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Remove Avatar</span>
+          </Button>
+        )}
       </div>
       
-      {/* Upload progress */}
-      {uploading && (
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Uploading...</span>
-            <span>{uploadProgress}%</span>
-          </div>
-          <Progress value={uploadProgress} />
-        </div>
-      )}
+      <p className="text-sm text-muted-foreground">
+        Upload a profile picture in JPEG, PNG, GIF or WebP format (max 5MB).
+      </p>
     </div>
   );
 }
