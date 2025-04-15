@@ -47,54 +47,59 @@ export function FileUploader({ noteId, onUploadComplete }: FileUploaderProps) {
     setUploadProgress(0);
     
     try {
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append("files", file);
-      });
-      
-      const xhr = new XMLHttpRequest();
-      
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(percentComplete);
-        }
-      });
-      
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          toast({
-            title: "Files uploaded",
-            description: `Successfully uploaded ${files.length} file(s)`,
-          });
-          setFiles([]);
-          onUploadComplete();
-        } else {
+      // For each file, create a separate FormData and upload
+      // This will allow us to better track progress and report success/failures
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(percentComplete);
+          }
+        });
+        
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            toast({
+              title: "File uploaded",
+              description: `Successfully uploaded ${file.name}`,
+            });
+          } else {
+            // Handle error with toast instead of throwing an exception
+            toast({
+              title: "Upload failed",
+              description: `Failed to upload ${file.name}: ${xhr.status}`,
+              variant: "destructive",
+            });
+          }
+        });
+        
+        xhr.addEventListener("error", () => {
           // Handle error with toast instead of throwing an exception
           toast({
             title: "Upload failed",
-            description: `Server responded with status: ${xhr.status}`,
+            description: `Network error occurred uploading ${file.name}`,
             variant: "destructive",
           });
-          setUploading(false);
-          setUploadProgress(0);
-        }
-      });
-      
-      xhr.addEventListener("error", () => {
-        // Handle error with toast instead of throwing an exception
-        toast({
-          title: "Upload failed",
-          description: "Network error occurred. Please try again.",
-          variant: "destructive",
         });
-        setUploading(false);
-        setUploadProgress(0);
-      });
+        
+        // Return a promise that resolves when the upload is complete
+        await new Promise<void>((resolve) => {
+          xhr.addEventListener("loadend", () => {
+            resolve();
+          });
+          
+          xhr.open("POST", `/api/notes/${noteId}/attachments`);
+          xhr.send(formData);
+        });
+      }
       
-      xhr.open("POST", `/api/notes/${noteId}/attachments`);
-      xhr.send(formData);
-      
+      setFiles([]);
+      onUploadComplete();
     } catch (error) {
       console.error("Upload error:", error);
       toast({

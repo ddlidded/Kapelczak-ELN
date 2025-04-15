@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // Note attachment upload endpoint - supports multiple files
-  app.post("/api/notes/:noteId/attachments", apiErrorHandler(async (req: Request, res: Response) => {
+  app.post("/api/notes/:noteId/attachments", upload.single("file"), apiErrorHandler(async (req: MulterRequest, res: Response) => {
     const noteId = parseInt(req.params.noteId);
     const note = await storage.getNote(noteId);
     
@@ -407,22 +407,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Note not found" });
     }
     
-    // Create mock attachments since we don't have real file upload yet
-    // In a real implementation, we would process the files from req.files
-    const mockAttachment = {
-      fileName: "sample-file.jpg",
-      fileSize: 1024,
-      fileType: "image/jpeg",
-      fileData: "",  // In a real implementation, this would be the base64 encoded file content
-      filePath: "https://picsum.photos/seed/" + Math.floor(Math.random() * 1000) + "/400/300",
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    
+    // Get the uploaded file details
+    const file = req.file;
+    
+    // Create the file data
+    const fileData = {
+      fileName: file.originalname,
+      fileSize: file.size,
+      fileType: file.mimetype,
+      fileData: file.buffer.toString("base64"),
       noteId
     };
     
     // Store the attachment in the database
-    await storage.createAttachment(mockAttachment);
+    const attachment = await storage.createAttachment(fileData);
     
-    // Invalidate the note cache so the attachment appears immediately
-    res.status(200).json({ message: "Upload successful" });
+    // Return the created attachment
+    res.status(201).json(attachment);
   }));
 
   app.get("/api/attachments/note/:noteId", apiErrorHandler(async (req: Request, res: Response) => {
@@ -457,6 +462,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.setHeader("Content-Length", buffer.length);
     
     res.send(buffer);
+  }));
+
+  app.patch("/api/attachments/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const attachmentId = parseInt(req.params.id);
+    const attachment = await storage.getAttachment(attachmentId);
+    
+    if (!attachment) {
+      return res.status(404).json({ message: "Attachment not found" });
+    }
+    
+    // Only allow updating the fileName field
+    const { fileName } = req.body;
+    
+    // Update the attachment
+    const updatedAttachment = await storage.updateAttachment(attachmentId, { fileName });
+    
+    if (!updatedAttachment) {
+      return res.status(404).json({ message: "Failed to update attachment" });
+    }
+    
+    res.json(updatedAttachment);
   }));
 
   app.delete("/api/attachments/:id", apiErrorHandler(async (req: Request, res: Response) => {

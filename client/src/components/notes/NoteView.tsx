@@ -71,7 +71,10 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isDeleteAttachmentDialogOpen, setIsDeleteAttachmentDialogOpen] = useState(false);
+  const [isRenameAttachmentDialogOpen, setIsRenameAttachmentDialogOpen] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [newFileName, setNewFileName] = useState("");
 
   const handleDelete = async () => {
     try {
@@ -258,12 +261,43 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
       <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
         <DialogContent className="sm:max-w-[900px]">
           <DialogHeader>
-            <DialogTitle>{selectedAttachment?.fileName || selectedAttachment?.name}</DialogTitle>
+            <div className="flex justify-between items-center">
+              <DialogTitle>{selectedAttachment?.fileName || selectedAttachment?.name}</DialogTitle>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => {
+                    if (selectedAttachment) {
+                      setNewFileName(selectedAttachment.fileName || "");
+                      setIsAttachmentDialogOpen(false);
+                      setIsRenameAttachmentDialogOpen(true);
+                    }
+                  }}>
+                    <FileBadge className="mr-2 h-4 w-4" />
+                    Rename File
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setIsAttachmentDialogOpen(false);
+                    setIsDeleteAttachmentDialogOpen(true);
+                  }}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete File
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </DialogHeader>
           <div className="mt-4 flex justify-center">
             {selectedAttachment?.fileType.startsWith('image/') ? (
               <img 
-                src={selectedAttachment.filePath} 
+                src={selectedAttachment.fileData ? 
+                  `data:${selectedAttachment.fileType};base64,${selectedAttachment.fileData}` : 
+                  (selectedAttachment.filePath || '')
+                }
                 alt={selectedAttachment?.fileName || selectedAttachment?.name}
                 className="max-h-[70vh] max-w-full object-contain"
               />
@@ -297,6 +331,110 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
                 if (onEdit) onEdit();
               }} 
             />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Attachment Dialog */}
+      <Dialog open={isDeleteAttachmentDialogOpen} onOpenChange={setIsDeleteAttachmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete File</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this file? This action cannot be undone.</p>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteAttachmentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={async () => {
+                if (!selectedAttachment) return;
+                
+                try {
+                  await apiRequest('DELETE', `/api/attachments/${selectedAttachment.id}`);
+                  
+                  // Invalidate queries to refetch data
+                  queryClient.invalidateQueries({ queryKey: ['/api/notes', note.id] });
+                  
+                  toast({
+                    title: "File deleted",
+                    description: "The file has been deleted successfully.",
+                  });
+                  
+                  setIsDeleteAttachmentDialogOpen(false);
+                  
+                  // Trigger a refresh
+                  if (onEdit) onEdit();
+                } catch (error) {
+                  console.error("Error deleting file:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to delete file. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Attachment Dialog */}
+      <Dialog open={isRenameAttachmentDialogOpen} onOpenChange={setIsRenameAttachmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename File</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="fileName">File Name</Label>
+            <Input 
+              id="fileName" 
+              value={newFileName} 
+              onChange={(e) => setNewFileName(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <div className="flex justify-end space-x-2 mt-2">
+            <Button variant="outline" onClick={() => setIsRenameAttachmentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!selectedAttachment || !newFileName.trim()) return;
+                
+                try {
+                  // Update the file name with a PATCH request
+                  await apiRequest('PATCH', `/api/attachments/${selectedAttachment.id}`, {
+                    fileName: newFileName.trim()
+                  });
+                  
+                  // Invalidate queries to refetch data
+                  queryClient.invalidateQueries({ queryKey: ['/api/notes', note.id] });
+                  
+                  toast({
+                    title: "File renamed",
+                    description: "The file has been renamed successfully."
+                  });
+                  
+                  setIsRenameAttachmentDialogOpen(false);
+                  
+                  // Trigger a refresh
+                  if (onEdit) onEdit();
+                } catch (error) {
+                  console.error("Error renaming file:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to rename file. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Save
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
