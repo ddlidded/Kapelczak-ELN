@@ -122,11 +122,11 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
   return (
     <>
       <Card className="mb-4">
-        <CardHeader className="pb-2">
+        <CardHeader className={isDetailPage ? "pb-2" : "pb-2"}>
           <div className="flex justify-between items-start">
             <div>
               {isDetailPage ? (
-                <CardTitle className="text-xl">{note.title}</CardTitle>
+                <CardTitle className="text-2xl font-bold">{note.title}</CardTitle>
               ) : (
                 <Link href={`/notes/${note.id}`}>
                   <CardTitle className="text-xl text-primary hover:underline cursor-pointer flex items-center">
@@ -135,15 +135,17 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
                   </CardTitle>
                 </Link>
               )}
-              <div className="text-sm text-muted-foreground flex items-center mt-1">
-                <CalendarDays className="mr-1 h-3 w-3" />
-                {formatDate(note.updatedAt || note.createdAt)}
-                {note.experiment && (
-                  <Badge variant="outline" className="ml-2">
-                    {note.experiment.name}
-                  </Badge>
-                )}
-              </div>
+              {!isDetailPage && (
+                <div className="text-sm text-muted-foreground flex items-center mt-1">
+                  <CalendarDays className="mr-1 h-3 w-3" />
+                  {formatDate(note.updatedAt || note.createdAt)}
+                  {note.experiment && (
+                    <Badge variant="outline" className="ml-2">
+                      {note.experiment.name}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

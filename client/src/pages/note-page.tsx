@@ -56,7 +56,7 @@ export default function NotePage() {
 
   return (
     <MainLayout>
-      <div className="container max-w-5xl py-6">
+      <div className="container max-w-4xl mx-auto py-6 px-4">
         <div className="mb-6">
           {note?.projectId && (
             <Link href={`/projects/${note.projectId}`}>

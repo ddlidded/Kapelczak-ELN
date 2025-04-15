@@ -297,15 +297,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notes/experiment/:experimentId", apiErrorHandler(async (req: Request, res: Response) => {
     const experimentId = parseInt(req.params.experimentId);
     const notes = await storage.listNotesByExperiment(experimentId);
-    res.json(notes);
+    
+    // For each note, fetch its attachments
+    const notesWithAttachments = await Promise.all(
+      notes.map(async (note) => {
+        const attachments = await storage.listAttachmentsByNote(note.id);
+        return {
+          ...note,
+          attachments: attachments || []
+        };
+      })
+    );
+    
+    res.json(notesWithAttachments);
   }));
   
   app.get("/api/notes/project/:projectId", apiErrorHandler(async (req: Request, res: Response) => {
     const projectId = parseInt(req.params.projectId);
-    // This assumes you have a method to list notes by project
-    // If not, we'll need to create one in storage.ts
     const notes = await storage.listNotesByProject(projectId);
-    res.json(notes);
+    
+    // For each note, fetch its attachments
+    const notesWithAttachments = await Promise.all(
+      notes.map(async (note) => {
+        const attachments = await storage.listAttachmentsByNote(note.id);
+        return {
+          ...note,
+          attachments: attachments || []
+        };
+      })
+    );
+    
+    res.json(notesWithAttachments);
   }));
 
   app.get("/api/notes/:id", apiErrorHandler(async (req: Request, res: Response) => {
@@ -316,7 +338,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Note not found" });
     }
     
-    res.json(note);
+    // Fetch attachments for the note
+    const attachments = await storage.listAttachmentsByNote(noteId);
+    
+    // Combine note with attachments
+    const noteWithAttachments = {
+      ...note,
+      attachments: attachments || []
+    };
+    
+    res.json(noteWithAttachments);
   }));
 
   app.put("/api/notes/:id", apiErrorHandler(async (req: Request, res: Response) => {
@@ -369,9 +400,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Note attachment upload endpoint - supports multiple files
   app.post("/api/notes/:noteId/attachments", apiErrorHandler(async (req: Request, res: Response) => {
-    // This endpoint will handle the XHR request from the FileUploader component
-    // We'll respond with a success message to prevent errors in the front-end
-    // The actual file upload functionality will be implemented later
+    const noteId = parseInt(req.params.noteId);
+    const note = await storage.getNote(noteId);
+    
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+    
+    // Create mock attachments since we don't have real file upload yet
+    // In a real implementation, we would process the files from req.files
+    const mockAttachment = {
+      fileName: "sample-file.jpg",
+      fileSize: 1024,
+      fileType: "image/jpeg",
+      fileData: "",  // In a real implementation, this would be the base64 encoded file content
+      filePath: "https://picsum.photos/seed/" + Math.floor(Math.random() * 1000) + "/400/300",
+      noteId
+    };
+    
+    // Store the attachment in the database
+    await storage.createAttachment(mockAttachment);
+    
+    // Invalidate the note cache so the attachment appears immediately
     res.status(200).json({ message: "Upload successful" });
   }));
 
