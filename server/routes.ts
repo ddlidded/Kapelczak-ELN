@@ -45,6 +45,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register endpoint
   app.post("/api/auth/register", apiErrorHandler(async (req: Request, res: Response) => {
+    // Get authorization token from header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Unauthorized. Only administrators can register new users." });
+    }
+    
+    const authToken = authHeader.split(' ')[1];
+    
+    // Get user ID from token
+    const userId = parseInt(authToken.split('-')[2]);
+    
+    if (isNaN(userId)) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    
+    // Get the user making the request
+    const requestingUser = await storage.getUser(userId);
+    
+    if (!requestingUser) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Check if the user is an admin
+    if (!requestingUser.isAdmin) {
+      return res.status(403).json({ message: "Permission denied. Only administrators can register new users." });
+    }
+    
+    // Now process the registration request
     const existingUser = await storage.getUserByUsername(req.body.username);
     if (existingUser) {
       return res.status(400).json({ message: "Username already exists" });
@@ -68,14 +97,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     // Generate a token (simplified)
-    const token = "jwt-token-" + user.id;
+    const userToken = "jwt-token-" + user.id;
     
     // Don't return password in the response
     const { password: _, ...userWithoutPassword } = user;
     
     res.status(201).json({ 
       user: userWithoutPassword,
-      token,
+      token: userToken,
       message: "Registration successful" 
     });
   }));
@@ -103,14 +132,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // For admin user with demo password, we allow special access
-      const token = "jwt-token-" + user.id;
+      const adminToken = "jwt-token-" + user.id;
       
       // Don't return password in response
       const { password: _, ...userWithoutPassword } = user;
       
       return res.json({ 
         user: userWithoutPassword, 
-        token,
+        token: adminToken,
         message: "Login successful" 
       });
     }
@@ -125,14 +154,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Generate token (simplified)
-    const token = "jwt-token-" + user.id;
+    const loginToken = "jwt-token-" + user.id;
     
     // Don't return password in response
     const { password: _, ...userWithoutPassword } = user;
     
     res.json({ 
       user: userWithoutPassword, 
-      token,
+      token: loginToken,
       message: "Login successful"
     });
   }));
@@ -145,10 +174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const token = authHeader.split(' ')[1];
+    const meToken = authHeader.split(' ')[1];
     
     // Verify token (simplified)
-    const userId = parseInt(token.split('-')[2]); // Extract ID from token
+    const userId = parseInt(meToken.split('-')[2]); // Extract ID from token
     
     if (isNaN(userId)) {
       return res.status(401).json({ message: "Invalid token" });
@@ -183,10 +212,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const token = authHeader.split(' ')[1];
+    const changePasswordToken = authHeader.split(' ')[1];
     
     // Verify token and get user ID
-    const userId = parseInt(token.split('-')[2]); // Extract ID from token
+    const userId = parseInt(changePasswordToken.split('-')[2]); // Extract ID from token
     
     if (isNaN(userId)) {
       return res.status(401).json({ message: "Invalid token" });

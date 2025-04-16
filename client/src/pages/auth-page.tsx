@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/use-auth";
-import { LoginData, RegisterData } from "@/lib/types";
+import { LoginData } from "@/lib/types";
 import kapelczakLogo from "../assets/kapelczak-logo.png";
 
 // UI Components
@@ -21,26 +21,17 @@ import {
   FormMessage
 } from "@/components/ui/form";
 
-// Validation schemas
+// Validation schema
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(1, "Password is required"),
 });
 
-const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(4, "Password must be at least 4 characters"),
-  displayName: z.string().optional(),
-});
-
 type LoginFormData = z.infer<typeof loginSchema>;
-type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, login, register, isLoading } = useAuth();
+  const { user, login, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   // Redirect if already logged in
@@ -56,17 +47,6 @@ export default function AuthPage() {
     defaultValues: {
       username: "",
       password: "",
-    },
-  });
-
-  // Register form
-  const registerForm = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-      displayName: "",
     },
   });
 
@@ -88,25 +68,7 @@ export default function AuthPage() {
     }
   };
 
-  // Handle registration submission
-  const handleRegister = async (data: RegisterFormData) => {
-    setIsSubmitting(true);
-    try {
-      const registerData: RegisterData = {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        displayName: data.displayName,
-      };
-      
-      const success = await register(registerData);
-      if (success) {
-        setLocation("/");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
 
   // Show loading spinner while checking authentication state
   if (isLoading) {
@@ -138,13 +100,11 @@ export default function AuthPage() {
 
           <Tabs 
             defaultValue="login" 
-            value={activeTab} 
-            onValueChange={setActiveTab}
+            value="login" 
             className="space-y-6"
           >
-            <TabsList className="grid grid-cols-2 w-full">
+            <TabsList className="grid w-full">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
 
             {/* Login Tab Content */}
@@ -196,88 +156,6 @@ export default function AuthPage() {
               <div className="mt-4 text-center text-sm text-gray-500">
                 <p>Default admin account: <span className="font-mono">admin / demo</span></p>
               </div>
-            </TabsContent>
-
-            {/* Register Tab Content */}
-            <TabsContent value="register" className="space-y-4">
-              <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
-                  <FormField
-                    control={registerForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Choose a username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={registerForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="email" 
-                            placeholder="Enter your email address" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={registerForm.control}
-                    name="displayName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Display Name (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="How should we address you?" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={registerForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Create a secure password" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Creating account..." : "Create Account"}
-                  </Button>
-                </form>
-              </Form>
             </TabsContent>
           </Tabs>
         </Card>
