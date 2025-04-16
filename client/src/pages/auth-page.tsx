@@ -39,7 +39,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, login, register } = useAuth();
+  const { user, login, register, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   // Redirect if already logged in
@@ -106,6 +106,15 @@ export default function AuthPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading spinner while checking authentication state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
