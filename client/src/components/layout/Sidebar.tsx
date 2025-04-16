@@ -15,7 +15,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema } from "@shared/schema";
 import { z } from "zod";
-import { useAuth } from "@/hooks/mock-auth";
+import { useAuth } from "@/hooks/use-auth";
+import { LogOut, Settings, User } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -43,7 +51,7 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
     defaultValues: {
       name: "",
       description: "",
-      ownerId: user?.id || 1
+      userId: user?.id || 1
     }
   });
 
@@ -59,11 +67,22 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
     }
   };
 
+  const { logout } = useAuth();
+  
   const containerClasses = cn(
     "bg-white w-64 border-r border-gray-200 h-full flex-shrink-0 overflow-y-auto flex flex-col",
     "fixed inset-y-0 left-0 z-50 md:static md:z-0 transition-transform duration-300 ease-in-out transform",
     isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
   );
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      console.log("User logged out successfully");
+    } catch (error) {
+      console.error("Failed to log out:", error);
+    }
+  };
 
   return (
     <>
@@ -181,16 +200,45 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
         </nav>
 
         <div className="mt-auto p-4 border-t border-gray-200">
-          <div className="flex items-center">
-            <AvatarWithFallback 
-              name={user?.displayName || user?.username || 'User'} 
-              className="h-8 w-8 border border-gray-300" 
-            />
-            <div className="ml-2">
-              <p className="text-sm font-medium">{user?.displayName || user?.username}</p>
-              <p className="text-xs text-gray-500">{user?.role || 'User'}</p>
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center justify-between p-1 w-full hover:bg-gray-100 rounded-md">
+                <div className="flex items-center">
+                  <AvatarWithFallback 
+                    name={user?.displayName || user?.username || 'User'} 
+                    className="h-8 w-8 border border-gray-300 mr-2" 
+                  />
+                  <div className="text-left">
+                    <p className="text-sm font-medium truncate max-w-[150px]">{user?.displayName || user?.username}</p>
+                    <p className="text-xs text-gray-500">{user?.role || 'User'}</p>
+                  </div>
+                </div>
+                <i className="fas fa-chevron-down text-gray-400 text-xs"></i>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="flex items-center cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="flex items-center text-red-600 focus:text-red-600 cursor-pointer"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 

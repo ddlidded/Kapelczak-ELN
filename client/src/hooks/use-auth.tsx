@@ -1,257 +1,234 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
-import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
-import { User, LoginData, RegisterData } from "@/lib/types";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { User, LoginData, RegisterData } from "@/lib/types";
+import { useLocation } from "wouter";
 
-// Auth context type
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  login: (data: LoginData) => Promise<boolean>;
-  register: (data: RegisterData) => Promise<boolean>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  login: (credentials: LoginData) => Promise<boolean>;
+  register: (userData: RegisterData) => Promise<boolean>;
+  logout: () => Promise<boolean>;
 }
 
-// Create auth context
+const LOCAL_STORAGE_USER_KEY = "kapelczak_user";
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Auth provider component
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
-  // Helper for stable user sessions
-  const saveUserToLocalStorage = (user: User) => {
-    localStorage.setItem('currentUser', JSON.stringify(user));
-  };
-  
-  const getUserFromLocalStorage = (): User | null => {
-    const savedUser = localStorage.getItem('currentUser');
-    return savedUser ? JSON.parse(savedUser) : null;
-  };
-  
-  const clearUserFromLocalStorage = () => {
-    localStorage.removeItem('currentUser');
-  };
-  
-  // Function to fetch the current user
-  const fetchCurrentUser = async () => {
-    try {
-      setIsLoading(true);
+  // On mount, check if there's a user stored in localStorage
+  useEffect(() => {
+    const fetchUser = async () => {
       console.log("⏳ Fetching user data...");
+      setIsLoading(true);
       
-      // First check if we have a user in localStorage
-      const savedUser = getUserFromLocalStorage();
-      if (savedUser) {
-        console.log("✅ User data restored from local storage");
-        
-        // Verify this user still exists by fetching latest data
-        try {
-          const verifyResponse = await apiRequest('GET', `/api/users/${savedUser.id}`);
-          if (verifyResponse.ok) {
-            const userData = await verifyResponse.json();
-            console.log("✅ User data verified and refreshed");
-            setUser(userData);
-            saveUserToLocalStorage(userData);
-            return;
+      try {
+        // Check localStorage first
+        const storedUser = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          console.log("✅ User data restored from local storage");
+          setUser(userData);
+
+          // Verify with the server
+          try {
+            const token = localStorage.getItem("auth_token");
+            if (token) {
+              const response = await fetch("/api/auth/me", {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              });
+              
+              if (response.ok) {
+                const serverUser = await response.json();
+                console.log("✅ User data verified and refreshed");
+                setUser(serverUser);
+              } else {
+                // Token invalid, clear everything
+                localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                localStorage.removeItem("auth_token");
+                setUser(null);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to verify user with server:", e);
+            // Continue with localStorage data
           }
-        } catch (verifyError) {
-          console.warn("⚠️ Could not verify saved user:", verifyError);
-          // Continue with other methods
+        } else {
+          setUser(null);
         }
+      } catch (err) {
+        console.error("Error fetching user:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // Login function
+  const login = async (credentials: LoginData): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to login");
+      }
+
+      const data = await response.json();
+      const { user, token } = data;
+      
+      if (!user || !token) {
+        throw new Error("Invalid response from server");
       }
       
-      // Try to get user from the API auth endpoint
-      try {
-        const response = await apiRequest('GET', '/api/auth/me');
-        
-        if (response.ok) {
-          const userData = await response.json();
-          console.log("✅ User data fetched from /api/auth/me");
-          setUser(userData);
-          saveUserToLocalStorage(userData);
-          return;
-        }
-      } catch (authError) {
-        console.warn("⚠️ Auth endpoint failed:", authError);
-        // Continue with the fallback
-      }
+      // Store token and user
+      localStorage.setItem("auth_token", token);
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(user));
       
-      // As a fallback, try to get user 1 from the users API (for development)
-      try {
-        console.log("🔄 Attempting fallback to get default admin user");
-        const fallbackResponse = await apiRequest('GET', '/api/users/1');
-        if (fallbackResponse.ok) {
-          const userData = await fallbackResponse.json();
-          console.log("✅ Default admin user fetched");
-          setUser(userData);
-          saveUserToLocalStorage(userData);
-          return;
-        }
-      } catch (fallbackError) {
-        console.warn('❌ Failed to fetch default user:', fallbackError);
-      }
+      setUser(user);
       
-      // If we get here, no user is authenticated
-      setUser(null);
-      clearUserFromLocalStorage();
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
       
+      return true;
     } catch (err) {
-      console.error('❌ Failed to fetch user:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error'));
-      setUser(null);
-      clearUserFromLocalStorage();
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(new Error(errorMessage));
+      
+      toast({
+        title: "Login Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to refresh user data (called after updates)
-  const refreshUser = async () => {
-    // If we already have a user with an ID, try to get the latest data directly
-    if (user && user.id) {
-      try {
-        console.log("🔄 Refreshing user data for ID:", user.id);
-        const response = await apiRequest('GET', `/api/users/${user.id}`);
-        
-        if (response.ok) {
-          const userData = await response.json();
-          console.log("✅ User refreshed successfully");
-          setUser(userData);
-          saveUserToLocalStorage(userData);
-          return;
-        }
-      } catch (error) {
-        console.error("❌ Error refreshing user:", error);
-      }
-    }
-    
-    // Fall back to the full fetch logic if direct refresh fails
-    await fetchCurrentUser();
-  };
-  
-  // Login function
-  const login = async (loginData: LoginData): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      
-      const response = await apiRequest('POST', '/api/auth/login', loginData);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-      
-      setUser(data.user);
-      saveUserToLocalStorage(data.user);
-      
-      toast({
-        title: "Login successful",
-        description: "Welcome back to Kapelczak Notes!",
-      });
-      
-      return true;
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err instanceof Error ? err : new Error('Unknown login error'));
-      
-      toast({
-        title: "Login failed",
-        description: err instanceof Error ? err.message : "Invalid credentials",
-        variant: "destructive",
-      });
-      
-      return false;
-    } finally {
-      setIsLoading(false);
-      // Invalidate all queries to refresh data
-      queryClient.invalidateQueries();
-    }
-  };
-  
   // Register function
-  const register = async (registerData: RegisterData): Promise<boolean> => {
+  const register = async (userData: RegisterData): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
-      
-      const response = await apiRequest('POST', '/api/auth/register', registerData);
-      const data = await response.json();
-      
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to register");
+      }
+
+      const data = await response.json();
+      const { user, token } = data;
+      
+      if (!user || !token) {
+        throw new Error("Invalid response from server");
       }
       
-      setUser(data.user);
-      saveUserToLocalStorage(data.user);
+      // Store token and user
+      localStorage.setItem("auth_token", token);
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(user));
+      
+      setUser(user);
       
       toast({
-        title: "Registration successful",
-        description: "Welcome to Kapelczak Notes!",
+        title: "Registration Successful",
+        description: "Your account has been created.",
       });
       
       return true;
     } catch (err) {
-      console.error('Registration error:', err);
-      setError(err instanceof Error ? err : new Error('Unknown registration error'));
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(new Error(errorMessage));
       
       toast({
-        title: "Registration failed",
-        description: err instanceof Error ? err.message : "Could not create account",
+        title: "Registration Failed",
+        description: errorMessage,
         variant: "destructive",
       });
       
       return false;
     } finally {
       setIsLoading(false);
-      // Invalidate all queries to refresh data
-      queryClient.invalidateQueries();
     }
   };
-  
+
   // Logout function
-  const logout = async (): Promise<void> => {
+  const logout = async (): Promise<boolean> => {
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
+      // Call logout API
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      });
       
-      await apiRequest('POST', '/api/auth/logout');
+      // Clear local storage
+      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      localStorage.removeItem("auth_token");
       
+      // Clear state
       setUser(null);
-      clearUserFromLocalStorage();
+      
+      // Redirect to login
+      setLocation("/auth");
       
       toast({
-        title: "Logged out",
+        title: "Logged Out",
         description: "You have been successfully logged out.",
       });
       
-      // Clear all cached data on logout
-      queryClient.clear();
+      return true;
     } catch (err) {
-      console.error('Logout error:', err);
-      
-      // Even if the API call fails, we still want to log out the user locally
-      setUser(null);
-      clearUserFromLocalStorage();
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(new Error(errorMessage));
       
       toast({
-        title: "Logout",
-        description: "You have been logged out.",
+        title: "Logout Failed",
+        description: errorMessage,
+        variant: "destructive",
       });
       
-      queryClient.clear();
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Fetch user on initial load
-  useEffect(() => {
-    fetchCurrentUser();
-  }, []);
 
   return (
     <AuthContext.Provider
@@ -262,7 +239,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
-        refreshUser
       }}
     >
       {children}
@@ -270,7 +246,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Auth hook
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

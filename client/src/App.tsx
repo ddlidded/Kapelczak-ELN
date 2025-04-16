@@ -30,12 +30,15 @@ function ProtectedRoute({
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   
+  // Force redirect to auth page if not logged in
   useEffect(() => {
     if (!isLoading && !user) {
+      console.log("No authenticated user, redirecting to auth page");
       setLocation("/auth");
     }
   }, [user, isLoading, setLocation]);
   
+  // Show loading spinner while checking auth status
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -44,8 +47,14 @@ function ProtectedRoute({
     );
   }
   
-  if (!user) return null;
+  // If no user and not loading, don't render anything (will redirect)
+  if (!user) {
+    console.log("Protected route: No user, rendering null");
+    return null;
+  }
   
+  // User is authenticated, render the component
+  console.log("Protected route: User authenticated, rendering component");
   return (
     <Layout>
       <Component />
@@ -55,7 +64,8 @@ function ProtectedRoute({
 
 // Router with authentication
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   
   useEffect(() => {
     // Add Font Awesome CSS dynamically
@@ -70,50 +80,64 @@ function AppRoutes() {
     };
   }, []);
 
+  // If on auth page and loading or already logged in, show loading or redirect
+  if (location === '/auth') {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      );
+    }
+    
+    if (user) {
+      // If already logged in on auth page, render dashboard with redirect
+      return (
+        <MainLayout>
+          <Dashboard />
+        </MainLayout>
+      );
+    }
+    
+    // Not logged in and on auth page, show auth page
+    return <AuthPage />;
+  }
+  
+  // For all other routes, check authentication
+  if (!user && !isLoading) {
+    console.log("User not authenticated, redirecting to auth page");
+    return <AuthPage />;
+  }
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // User is authenticated, render the routes
   return (
-    <Switch>
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/">
-        <ProtectedRoute component={Dashboard} />
-      </Route>
-      <Route path="/projects/:id">
-        {(params) => (
-          user ? (
-            <MainLayout>
-              <ProjectView />
-            </MainLayout>
-          ) : (
-            <AuthPage />
-          )
-        )}
-      </Route>
-      <Route path="/notes/:noteId">
-        {(params) => (
-          user ? <NotePage /> : <AuthPage />
-        )}
-      </Route>
-      <Route path="/search">
-        <ProtectedRoute component={SearchPage} />
-      </Route>
-      <Route path="/users">
-        <ProtectedRoute component={UserManagement} />
-      </Route>
-      <Route path="/profile">
-        <ProtectedRoute component={ProfilePage} />
-      </Route>
-      <Route path="/settings">
-        <ProtectedRoute component={SettingsPage} />
-      </Route>
-      <Route path="/reports">
-        <ProtectedRoute component={ReportsPage} />
-      </Route>
-      <Route path="/graphs">
-        <ProtectedRoute component={GraphGenerator} />
-      </Route>
-      <Route>
-        <NotFound />
-      </Route>
-    </Switch>
+    <MainLayout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        
+        <Route path="/projects/:id">
+          {params => <ProjectView />}
+        </Route>
+        
+        <Route path="/notes/:noteId" component={NotePage} />
+        <Route path="/search" component={SearchPage} />
+        <Route path="/users" component={UserManagement} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route path="/reports" component={ReportsPage} />
+        <Route path="/graphs" component={GraphGenerator} />
+        
+        <Route component={NotFound} />
+      </Switch>
+    </MainLayout>
   );
 }
 
