@@ -83,6 +83,13 @@ export class DatabaseStorage implements IStorage {
       lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
       bio: users.bio,
+      // S3 Storage settings
+      s3Enabled: users.s3Enabled,
+      s3Endpoint: users.s3Endpoint,
+      s3Region: users.s3Region,
+      s3Bucket: users.s3Bucket,
+      s3AccessKey: users.s3AccessKey,
+      s3SecretKey: users.s3SecretKey,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users).where(eq(users.id, id));
@@ -105,6 +112,13 @@ export class DatabaseStorage implements IStorage {
       lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
       bio: users.bio,
+      // S3 Storage settings
+      s3Enabled: users.s3Enabled,
+      s3Endpoint: users.s3Endpoint,
+      s3Region: users.s3Region,
+      s3Bucket: users.s3Bucket,
+      s3AccessKey: users.s3AccessKey,
+      s3SecretKey: users.s3SecretKey,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users).where(eq(users.username, username));
@@ -127,6 +141,13 @@ export class DatabaseStorage implements IStorage {
       lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
       bio: users.bio,
+      // S3 Storage settings
+      s3Enabled: users.s3Enabled,
+      s3Endpoint: users.s3Endpoint,
+      s3Region: users.s3Region,
+      s3Bucket: users.s3Bucket,
+      s3AccessKey: users.s3AccessKey,
+      s3SecretKey: users.s3SecretKey,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users).where(eq(users.email, email));
@@ -149,6 +170,13 @@ export class DatabaseStorage implements IStorage {
       lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
       bio: users.bio,
+      // S3 Storage settings
+      s3Enabled: users.s3Enabled,
+      s3Endpoint: users.s3Endpoint,
+      s3Region: users.s3Region,
+      s3Bucket: users.s3Bucket,
+      s3AccessKey: users.s3AccessKey,
+      s3SecretKey: users.s3SecretKey,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users).where(eq(users.resetPasswordToken, token));
@@ -174,6 +202,13 @@ export class DatabaseStorage implements IStorage {
         lastLogin: users.lastLogin,
         avatarUrl: users.avatarUrl,
         bio: users.bio,
+        // S3 Storage settings
+        s3Enabled: users.s3Enabled,
+        s3Endpoint: users.s3Endpoint,
+        s3Region: users.s3Region,
+        s3Bucket: users.s3Bucket,
+        s3AccessKey: users.s3AccessKey,
+        s3SecretKey: users.s3SecretKey,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt
       });
@@ -202,6 +237,12 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateUser(id: number, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    console.log("Updating user with data:", {
+      ...userUpdate,
+      password: userUpdate.password ? "[REDACTED]" : undefined,
+      s3SecretKey: userUpdate.s3SecretKey ? "[REDACTED]" : undefined
+    });
+    
     const [updatedUser] = await db
       .update(users)
       .set(userUpdate)
@@ -221,9 +262,23 @@ export class DatabaseStorage implements IStorage {
         lastLogin: users.lastLogin,
         avatarUrl: users.avatarUrl,
         bio: users.bio,
+        // S3 Storage settings
+        s3Enabled: users.s3Enabled,
+        s3Endpoint: users.s3Endpoint,
+        s3Region: users.s3Region,
+        s3Bucket: users.s3Bucket,
+        s3AccessKey: users.s3AccessKey,
+        s3SecretKey: users.s3SecretKey,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt
       });
+    
+    if (updatedUser) {
+      console.log("User updated successfully, ID:", updatedUser.id);
+    } else {
+      console.error("Failed to update user with ID:", id);
+    }
+    
     return updatedUser || undefined;
   }
 
