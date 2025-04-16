@@ -38,7 +38,15 @@ const extendedProjectSchema = insertProjectSchema.extend({
 export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ['/api/projects/user', user?.id],
@@ -67,22 +75,11 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
     }
   };
 
-  const { logout } = useAuth();
-  
   const containerClasses = cn(
     "bg-white w-64 border-r border-gray-200 h-full flex-shrink-0 overflow-y-auto flex flex-col",
     "fixed inset-y-0 left-0 z-50 md:static md:z-0 transition-transform duration-300 ease-in-out transform",
     isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
   );
-  
-  const handleLogout = async () => {
-    try {
-      await logout();
-      console.log("User logged out successfully");
-    } catch (error) {
-      console.error("Failed to log out:", error);
-    }
-  };
 
   return (
     <>

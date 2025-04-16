@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/use-auth";
 import { LoginData, RegisterData } from "@/lib/types";
+import kapelczakLogo from "../assets/kapelczak-logo.png";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,7 @@ export default function AuthPage() {
           <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
               <img 
-                src="/src/assets/kapelczak-logo.png" 
+                src={kapelczakLogo} 
                 alt="Kapelczak Logo" 
                 className="h-24 mx-auto" 
               />
