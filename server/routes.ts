@@ -8,10 +8,12 @@ import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
 import { sendPasswordResetEmail, sendPdfReport } from "./email";
 import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
+import { getS3Config, uploadFileToS3, getFileFromS3, deleteFileFromS3 } from "./s3";
 
 // Custom type for multer with file
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
+  user?: any; // Allow user property from auth
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1009,18 +1011,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!noteId) {
       return res.status(400).json({ message: "noteId is required" });
     }
-    
+
     const file = req.file;
-    const validatedData = insertAttachmentSchema.parse({
-      fileName: file.originalname,
-      fileSize: file.size,
-      fileType: file.mimetype,
-      fileData: file.buffer.toString("base64"),
-      noteId: parseInt(noteId),
-    });
     
-    const attachment = await storage.createAttachment(validatedData);
-    res.status(201).json(attachment);
+    try {
+      // Get the user making the request
+      const userId = req.user?.id || 1; // Default to admin user if not authenticated
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if S3 storage is enabled for the user
+      const s3Config = await getS3Config(user);
+      
+      if (user.s3Enabled && s3Config) {
+        console.log(`Using S3 storage for file upload: ${file.originalname}`);
+        
+        // Upload file to S3
+        const filePath = await uploadFileToS3(
+          s3Config,
+          file.buffer,
+          file.originalname,
+          file.mimetype
+        );
+        
+        // Store reference in database but not the actual file data
+        const validatedData = insertAttachmentSchema.parse({
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          fileData: '', // Empty as we're using S3
+          filePath: filePath, // Store the S3 path
+          noteId: parseInt(noteId),
+        });
+        
+        const attachment = await storage.createAttachment(validatedData);
+        console.log(`File uploaded to S3: ${filePath}`);
+        res.status(201).json(attachment);
+      } else {
+        // Fall back to database storage
+        console.log(`Using database storage for file upload: ${file.originalname}`);
+        const validatedData = insertAttachmentSchema.parse({
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          fileData: file.buffer.toString("base64"),
+          filePath: null,
+          noteId: parseInt(noteId),
+        });
+        
+        const attachment = await storage.createAttachment(validatedData);
+        res.status(201).json(attachment);
+      }
+    } catch (error) {
+      console.error("Error handling file upload:", error);
+      throw error;
+    }
   }));
   
   // Note attachment upload endpoint - supports multiple files
@@ -1039,20 +1087,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get the uploaded file details
     const file = req.file;
     
-    // Create the file data
-    const fileData = {
-      fileName: file.originalname,
-      fileSize: file.size,
-      fileType: file.mimetype,
-      fileData: file.buffer.toString("base64"),
-      noteId
-    };
-    
-    // Store the attachment in the database
-    const attachment = await storage.createAttachment(fileData);
-    
-    // Return the created attachment
-    res.status(201).json(attachment);
+    try {
+      // Get the user making the request
+      const userId = req.user?.id || 1; // Default to admin user if not authenticated
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if S3 storage is enabled for the user
+      const s3Config = await getS3Config(user);
+      
+      if (user.s3Enabled && s3Config) {
+        console.log(`Using S3 storage for file upload via note endpoint: ${file.originalname}`);
+        
+        // Upload file to S3
+        const filePath = await uploadFileToS3(
+          s3Config,
+          file.buffer,
+          file.originalname,
+          file.mimetype
+        );
+        
+        // Store reference in database but not the actual file data
+        const validatedData = insertAttachmentSchema.parse({
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          fileData: '', // Empty as we're using S3
+          filePath: filePath, // Store the S3 path
+          noteId
+        });
+        
+        const attachment = await storage.createAttachment(validatedData);
+        console.log(`File uploaded to S3 via note endpoint: ${filePath}`);
+        res.status(201).json(attachment);
+      } else {
+        // Fall back to database storage
+        console.log(`Using database storage for file upload: ${file.originalname}`);
+        const validatedData = insertAttachmentSchema.parse({
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          fileData: file.buffer.toString("base64"),
+          filePath: null,
+          noteId
+        });
+        
+        const attachment = await storage.createAttachment(validatedData);
+        res.status(201).json(attachment);
+      }
+    } catch (error) {
+      console.error("Error handling file upload via note endpoint:", error);
+      throw error;
+    }
   }));
 
   app.get("/api/attachments/note/:noteId", apiErrorHandler(async (req: Request, res: Response) => {
@@ -1080,13 +1169,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Attachment not found" });
     }
     
-    const buffer = Buffer.from(attachment.fileData, "base64");
-    
-    res.setHeader("Content-Type", attachment.fileType);
-    res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
-    res.setHeader("Content-Length", buffer.length);
-    
-    res.send(buffer);
+    try {
+      // Check if attachment is stored in S3
+      if (attachment.filePath) {
+        console.log(`Fetching file from S3: ${attachment.filePath}`);
+        // Get the current user
+        const userId = req.user?.id || 1; // Default to admin user if not authenticated
+        const user = await storage.getUser(userId);
+        
+        if (!user || !user.s3Enabled) {
+          return res.status(500).json({ message: "S3 storage is not enabled" });
+        }
+        
+        // Get S3 configuration
+        const s3Config = await getS3Config(user);
+        
+        if (!s3Config) {
+          return res.status(500).json({ message: "S3 configuration not available" });
+        }
+        
+        try {
+          // Get file from S3
+          const fileBuffer = await getFileFromS3(s3Config, attachment.filePath);
+          
+          // Set response headers
+          res.setHeader("Content-Type", attachment.fileType);
+          res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
+          res.setHeader("Content-Length", fileBuffer.length);
+          
+          // Send the file buffer
+          return res.send(fileBuffer);
+        } catch (error) {
+          console.error("Error retrieving file from S3:", error);
+          return res.status(500).json({ message: "Failed to download file from S3" });
+        }
+      } else {
+        // File is stored in the database
+        console.log(`Serving file from database storage: ${attachment.fileName}`);
+        const buffer = Buffer.from(attachment.fileData, "base64");
+        
+        res.setHeader("Content-Type", attachment.fileType);
+        res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
+        res.setHeader("Content-Length", buffer.length);
+        
+        res.send(buffer);
+      }
+    } catch (error) {
+      console.error("Error serving attachment:", error);
+      res.status(500).json({ message: "Failed to serve file" });
+    }
   }));
 
   app.patch("/api/attachments/:id", apiErrorHandler(async (req: Request, res: Response) => {
@@ -1112,13 +1243,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/attachments/:id", apiErrorHandler(async (req: Request, res: Response) => {
     const attachmentId = parseInt(req.params.id);
-    const success = await storage.deleteAttachment(attachmentId);
+    const attachment = await storage.getAttachment(attachmentId);
     
-    if (!success) {
+    if (!attachment) {
       return res.status(404).json({ message: "Attachment not found" });
     }
     
-    res.status(204).end();
+    try {
+      // If the file is stored in S3, delete it from there first
+      if (attachment.filePath) {
+        console.log(`Deleting file from S3: ${attachment.filePath}`);
+        // Get the current user
+        const userId = req.user?.id || 1; // Default to admin user if not authenticated
+        const user = await storage.getUser(userId);
+        
+        if (user && user.s3Enabled) {
+          // Get S3 configuration
+          const s3Config = await getS3Config(user);
+          
+          if (s3Config) {
+            try {
+              // Delete the file from S3
+              await deleteFileFromS3(s3Config, attachment.filePath);
+              console.log(`Successfully deleted file from S3: ${attachment.filePath}`);
+            } catch (error) {
+              console.error(`Failed to delete file from S3: ${attachment.filePath}`, error);
+              // Continue with database deletion even if S3 deletion fails
+            }
+          }
+        }
+      }
+      
+      // Now delete the attachment record from the database
+      const success = await storage.deleteAttachment(attachmentId);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete attachment from database" });
+      }
+      
+      console.log(`Successfully deleted attachment with ID: ${attachmentId}`);
+      res.status(204).end();
+    } catch (error) {
+      console.error(`Error deleting attachment: ${attachmentId}`, error);
+      res.status(500).json({ message: "An error occurred while deleting the attachment" });
+    }
   }));
 
   // Project collaborator routes
