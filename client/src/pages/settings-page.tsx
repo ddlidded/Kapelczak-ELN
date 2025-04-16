@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Loader2, Save, Cloud, Database } from 'lucide-react';
+import { Loader2, Save, Cloud, Database, CheckCircle2, XCircle } from 'lucide-react';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, {
@@ -92,6 +92,8 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
