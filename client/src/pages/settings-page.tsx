@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Cloud, Database } from 'lucide-react';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, {
@@ -59,6 +59,17 @@ const notificationsFormSchema = z.object({
 
 type NotificationsFormValues = z.infer<typeof notificationsFormSchema>;
 
+const storageFormSchema = z.object({
+  s3Enabled: z.boolean().default(false),
+  s3Endpoint: z.string().url("Please enter a valid URL").nullable().optional(),
+  s3Region: z.string().nullable().optional(),
+  s3Bucket: z.string().nullable().optional(),
+  s3AccessKey: z.string().nullable().optional(),
+  s3SecretKey: z.string().nullable().optional(),
+});
+
+type StorageFormValues = z.infer<typeof storageFormSchema>;
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { user, refreshUser } = useAuth();
@@ -90,6 +101,18 @@ export default function SettingsPage() {
       projectUpdates: true,
       experimentUpdates: true,
       newComments: true,
+    },
+  });
+  
+  const storageForm = useForm<StorageFormValues>({
+    resolver: zodResolver(storageFormSchema),
+    defaultValues: {
+      s3Enabled: user?.s3Enabled || false,
+      s3Endpoint: user?.s3Endpoint || "",
+      s3Region: user?.s3Region || "",
+      s3Bucket: user?.s3Bucket || "",
+      s3AccessKey: user?.s3AccessKey || "",
+      s3SecretKey: user?.s3SecretKey || "",
     },
   });
 
@@ -233,10 +256,11 @@ export default function SettingsPage() {
         </div>
         <Separator />
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="storage">Storage</TabsTrigger>
           </TabsList>
           
           {/* Profile Tab */}

@@ -44,6 +44,13 @@ export const insertUserSchema = z.object({
   lastLogin: z.date().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
   bio: z.string().nullable().optional(),
+  // S3 storage settings
+  s3Enabled: z.boolean().optional(),
+  s3Endpoint: z.string().nullable().optional(),
+  s3Region: z.string().nullable().optional(),
+  s3Bucket: z.string().nullable().optional(),
+  s3AccessKey: z.string().nullable().optional(),
+  s3SecretKey: z.string().nullable().optional(),
 });
 
 // Projects table
