@@ -266,7 +266,7 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -274,15 +274,16 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: -5,
+                offset: 0,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
+                  dy: 15
                 }
               }}
               tick={{ fontSize: 12 }}
-              tickMargin={10}
+              tickMargin={15}
             />
             <YAxis 
               label={{ 
@@ -300,7 +301,7 @@ export default function GraphGenerator() {
               tickMargin={10}
             />
             <Tooltip />
-            {options.showLegend && <Legend />}
+            {options.showLegend && <Legend verticalAlign="bottom" height={36} />}
             <Line 
               type="monotone" 
               dataKey="y" 
@@ -317,7 +318,7 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -325,15 +326,16 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: -5,
+                offset: 0,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
+                  dy: 15
                 }
               }}
               tick={{ fontSize: 12 }}
-              tickMargin={10}
+              tickMargin={15}
             />
             <YAxis 
               label={{ 
@@ -351,7 +353,7 @@ export default function GraphGenerator() {
               tickMargin={10}
             />
             <Tooltip />
-            {options.showLegend && <Legend />}
+            {options.showLegend && <Legend verticalAlign="bottom" height={36} />}
             <Bar 
               dataKey="y" 
               fill={options.color} 
@@ -365,7 +367,7 @@ export default function GraphGenerator() {
           <ScatterChart
             width={500}
             height={300}
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -375,15 +377,16 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: -5,
+                offset: 0,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
+                  dy: 15
                 }
               }}
               tick={{ fontSize: 12 }}
-              tickMargin={10}
+              tickMargin={15}
             />
             <YAxis 
               dataKey="y" 
@@ -405,7 +408,7 @@ export default function GraphGenerator() {
             />
             <ZAxis range={[60, 60]} />
             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-            {options.showLegend && <Legend />}
+            {options.showLegend && <Legend verticalAlign="bottom" height={36} />}
             <Scatter 
               name={options.title} 
               data={data} 
@@ -596,28 +599,15 @@ export default function GraphGenerator() {
                   Preview of your generated graph
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex justify-center items-center min-h-[400px]">
+              <CardContent className="flex justify-center items-center min-h-[400px] pb-6">
                 <div ref={graphRef} className="bg-white p-4 rounded-lg">
                   <ResponsiveContainer width={550} height={350}>
                     {renderGraph()}
                   </ResponsiveContainer>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button
-                  variant="outline"
-                  onClick={downloadGraph}
-                  disabled={isGenerating}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" />
-                  )}
-                  Download Graph
-                </Button>
-                
-                <div className="flex flex-col space-y-2 w-full">
+              <CardFooter className="flex flex-col space-y-4">
+                <div className="grid grid-cols-2 gap-4 w-full">
                   <div className="space-y-1">
                     <Label htmlFor="project-select">Project</Label>
                     <Select 
@@ -664,11 +654,27 @@ export default function GraphGenerator() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                
+                <div className="flex w-full justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={downloadGraph}
+                    disabled={isGenerating}
+                    className="w-32"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Download
+                  </Button>
                   
                   <Button
                     onClick={addGraphToNote}
                     disabled={!selectedNote || isGenerating}
-                    className="w-full mt-2"
+                    className="ml-auto"
                   >
                     {isGenerating ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
