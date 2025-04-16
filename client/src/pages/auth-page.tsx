@@ -122,6 +122,13 @@ export default function AuthPage() {
       <div className="w-full lg:w-1/2 p-6 flex items-center justify-center">
         <Card className="w-full max-w-md p-8 shadow-xl bg-white">
           <div className="text-center mb-6">
+            <div className="flex justify-center mb-4">
+              <img 
+                src="/src/assets/kapelczak-logo.png" 
+                alt="Kapelczak Logo" 
+                className="h-24 mx-auto" 
+              />
+            </div>
             <h1 className="text-3xl font-bold text-gray-800">Kapelczak Notes</h1>
             <p className="mt-2 text-gray-600">
               Advanced laboratory documentation platform

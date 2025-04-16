@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (credentials: LoginData) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => Promise<boolean>;
+  refreshUser: () => Promise<void>;
 }
 
 const LOCAL_STORAGE_USER_KEY = "kapelczak_user";
@@ -230,6 +231,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Refresh user data
+  const refreshUser = async (): Promise<void> => {
+    console.log("⏳ Refreshing user data...");
+    try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        console.log("❌ No auth token found, cannot refresh user");
+        return;
+      }
+      
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const serverUser = await response.json();
+        console.log("✅ User data refreshed from server");
+        
+        // Update local storage with the latest user data
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(serverUser));
+        
+        // Update state
+        setUser(serverUser);
+      } else {
+        console.log("❌ Failed to refresh user data: ", response.status);
+      }
+    } catch (err) {
+      console.error("Error refreshing user data:", err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -239,6 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshUser,
       }}
     >
       {children}
