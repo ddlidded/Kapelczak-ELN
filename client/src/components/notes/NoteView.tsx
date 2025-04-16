@@ -296,9 +296,13 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
           <div className="mt-4 flex justify-center">
             {selectedAttachment?.fileType.startsWith('image/') ? (
               <img 
-                src={selectedAttachment.fileData ? 
-                  `data:${selectedAttachment.fileType};base64,${selectedAttachment.fileData}` : 
-                  (selectedAttachment.filePath || '')
+                src={
+                  // Always use the download endpoint for files
+                  selectedAttachment.id ? 
+                  `/api/attachments/${selectedAttachment.id}/download` : 
+                  (selectedAttachment.fileData ? 
+                    `data:${selectedAttachment.fileType};base64,${selectedAttachment.fileData}` : 
+                    '/placeholder-image.png')
                 }
                 alt={selectedAttachment?.fileName || selectedAttachment?.name}
                 className="max-h-[70vh] max-w-full object-contain"
@@ -309,7 +313,11 @@ export default function NoteView({ note, experiments, onEdit, onDelete }: NoteVi
                 <p>This file cannot be previewed.</p>
                 <Button 
                   className="mt-4"
-                  onClick={() => window.open(selectedAttachment?.filePath, '_blank')}
+                  onClick={() => {
+                    if (selectedAttachment?.id) {
+                      window.open(`/api/attachments/${selectedAttachment.id}/download`, '_blank');
+                    }
+                  }}
                 >
                   Download File
                 </Button>
