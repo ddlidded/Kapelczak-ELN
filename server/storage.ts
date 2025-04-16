@@ -647,6 +647,19 @@ export class DatabaseStorage implements IStorage {
     
     return (result.rowCount || 0) > 0;
   }
+  
+  async updateReport(id: number, reportUpdate: Partial<InsertReport>): Promise<Report | undefined> {
+    const [report] = await db
+      .update(reports)
+      .set({
+        ...reportUpdate,
+        updatedAt: new Date()
+      })
+      .where(eq(reports.id, id))
+      .returning();
+    
+    return report;
+  }
 }
 
 // Memory Implementation (for reference)
@@ -1039,6 +1052,20 @@ export class MemStorage implements IStorage {
 
   async deleteReport(id: number): Promise<boolean> {
     return this.reports.delete(id);
+  }
+  
+  async updateReport(id: number, reportUpdate: Partial<InsertReport>): Promise<Report | undefined> {
+    const existingReport = this.reports.get(id);
+    if (!existingReport) return undefined;
+    
+    const updatedReport = {
+      ...existingReport,
+      ...reportUpdate,
+      updatedAt: new Date()
+    };
+    
+    this.reports.set(id, updatedReport);
+    return updatedReport;
   }
 }
 

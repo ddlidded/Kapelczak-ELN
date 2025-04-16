@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema, insertReportSchema } from "@shared/schema";
+import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
@@ -1438,6 +1439,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Report operations
+  // Get all reports for a user
+  app.get("/api/reports/user/:userId", apiErrorHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    const reports = await storage.getReportsByUser(userId);
+    res.json(reports);
+  }));
+  
+  // Get all reports for a project
+  app.get("/api/reports/project/:projectId", apiErrorHandler(async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    if (isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+    
+    const reports = await storage.getReportsByProject(projectId);
+    res.json(reports);
+  }));
+  
+  // Get a specific report
+  app.get("/api/reports/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const reportId = parseInt(req.params.id);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+    
+    const report = await storage.getReport(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+    
+    res.json(report);
+  }));
+  
+  // Create a new report
+  app.post("/api/reports", apiErrorHandler(async (req: MulterRequest, res: Response) => {
+    try {
+      const reportData = insertReportSchema.parse(req.body);
+      const report = await storage.createReport(reportData);
+      
+      // If S3 is configured and we have a fileData for this report
+      // Save the file to S3 in a "reports" folder
+      if (report.fileData && req.body.s3Enabled) {
+        try {
+          const s3Config = req.body.s3Config || {};
+          const fileKey = `reports/${report.fileName}`;
+          
+          // Use the S3 helper to upload the file
+          const uploadResult = await uploadFileToS3(
+            report.fileData,
+            fileKey,
+            report.fileType || 'application/pdf',
+            s3Config
+          );
+          
+          if (uploadResult) {
+            // Update the report with the S3 filePath
+            await storage.updateReport(report.id, {
+              filePath: fileKey,
+              fileData: null // Clear the file data since it's now in S3
+            });
+            
+            console.log(`Report ${report.id} saved to S3: ${fileKey}`);
+          }
+        } catch (error) {
+          console.error('Error saving report to S3:', error);
+          // Continue anyway, the report data is still saved in the database
+        }
+      }
+      
+      res.status(201).json(report);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: validationError.details 
+        });
+      }
+      
+      throw error;
+    }
+  }));
+  
+  // Delete a report
+  app.delete("/api/reports/:id", apiErrorHandler(async (req: MulterRequest, res: Response) => {
+    const reportId = parseInt(req.params.id);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+    
+    // Get the report to check for S3 file
+    const report = await storage.getReport(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+    
+    // If the report has a filePath (S3 path) and S3 is configured
+    if (report.filePath && req.body.s3Enabled) {
+      try {
+        const s3Config = req.body.s3Config || {};
+        
+        // Use the S3 helper to delete the file
+        await deleteFileFromS3(report.filePath, s3Config);
+        console.log(`Deleted report file from S3: ${report.filePath}`);
+      } catch (error) {
+        console.error('Error deleting report from S3:', error);
+        // Continue with deletion anyway
+      }
+    }
+    
+    // Delete the report record
+    const deleted = await storage.deleteReport(reportId);
+    if (!deleted) {
+      return res.status(500).json({ message: "Failed to delete report" });
+    }
+    
+    res.status(200).json({ message: "Report deleted successfully" });
+  }));
+  
+  // Send a report via email
+  app.post("/api/reports/:id/send", apiErrorHandler(async (req: Request, res: Response) => {
+    const reportId = parseInt(req.params.id);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+    
+    const { recipientEmail, emailSubject, emailBody } = req.body;
+    if (!recipientEmail) {
+      return res.status(400).json({ message: "Recipient email is required" });
+    }
+    
+    // Get the report
+    const report = await storage.getReport(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+    
+    // Get the file data - either from the database or from S3
+    let fileData = report.fileData;
+    
+    // If the report is stored in S3, retrieve it
+    if (report.filePath && !fileData && req.body.s3Enabled) {
+      try {
+        const s3Config = req.body.s3Config || {};
+        
+        // Use the S3 helper to get the file
+        const s3File = await getFileFromS3(report.filePath, s3Config);
+        if (s3File) {
+          fileData = s3File.toString('base64');
+        }
+      } catch (error) {
+        console.error('Error retrieving report from S3:', error);
+        return res.status(500).json({ message: "Failed to retrieve report file from S3" });
+      }
+    }
+    
+    if (!fileData) {
+      return res.status(404).json({ message: "Report file data not found" });
+    }
+    
+    // Send the email with the PDF attachment
+    try {
+      const emailResult = await sendPdfReport(
+        recipientEmail,
+        emailSubject || `Lab Report: ${report.title}`,
+        emailBody || `Please find attached the lab report "${report.title}".`,
+        report.fileName,
+        fileData,
+        report.fileType || 'application/pdf'
+      );
+      
+      if (!emailResult) {
+        return res.status(500).json({ message: "Failed to send email" });
+      }
+      
+      res.status(200).json({ message: "Report sent successfully" });
+    } catch (error) {
+      console.error('Error sending report email:', error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  }));
+
   const httpServer = createServer(app);
+  
+  // Configure WebSocket server
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Handle WebSocket connections
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    
+    ws.on('message', (message) => {
+      try {
+        console.log('Received:', message.toString());
+        // Echo back for now
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(message.toString());
+        }
+      } catch (error) {
+        console.error('WebSocket error:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
+  });
+  
   return httpServer;
 }
