@@ -172,6 +172,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ message: "Logged out successfully" });
   });
 
+  // Change password endpoint
+  app.post("/api/auth/change-password", apiErrorHandler(async (req: Request, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Get authentication token
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // Verify token and get user ID
+    const userId = parseInt(token.split('-')[2]); // Extract ID from token
+    
+    if (isNaN(userId)) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    
+    // Get the user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+    
+    // Update the password
+    const updatedUser = await storage.updateUser(userId, {
+      password: newPassword
+    });
+    
+    if (!updatedUser) {
+      return res.status(500).json({ message: "Failed to update password" });
+    }
+    
+    res.status(200).json({ message: "Password updated successfully" });
+  }));
+
   // User routes
   app.post("/api/users", apiErrorHandler(async (req: Request, res: Response) => {
     const validatedData = insertUserSchema.parse(req.body);

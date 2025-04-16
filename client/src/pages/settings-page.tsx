@@ -34,14 +34,14 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const securityFormSchema = z.object({
-  currentPassword: z.string().min(8, {
-    message: "Current password must be at least 8 characters.",
+  currentPassword: z.string().min(1, {
+    message: "Current password is required.",
   }),
-  newPassword: z.string().min(8, {
-    message: "New password must be at least 8 characters.",
+  newPassword: z.string().min(1, {
+    message: "New password is required.",
   }),
-  confirmPassword: z.string().min(8, {
-    message: "Confirm password must be at least 8 characters.",
+  confirmPassword: z.string().min(1, {
+    message: "Confirm password is required.",
   }),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                             <Input type="password" placeholder="••••••••" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Password must be at least 8 characters long.
+                            Choose a strong, secure password.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
