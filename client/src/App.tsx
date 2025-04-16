@@ -12,6 +12,7 @@ import ReportsPage from "@/pages/reports-page";
 import GraphGenerator from "@/pages/graph-generator";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
+import ResetPasswordPage from "@/pages/reset-password-page";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import MainLayout from "@/components/layout/MainLayout";
@@ -79,6 +80,11 @@ function AppRoutes() {
       document.head.removeChild(link);
     };
   }, []);
+
+  // Handle password reset page - accessible without authentication
+  if (location.startsWith('/reset-password')) {
+    return <ResetPasswordPage />;
+  }
 
   // If on auth page and loading or already logged in, show loading or redirect
   if (location === '/auth') {

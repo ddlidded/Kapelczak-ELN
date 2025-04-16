@@ -220,11 +220,9 @@ export default function ResetPasswordPage() {
                 The password reset link is invalid or has expired.
               </p>
               <Link href="/auth">
-                <a className="inline-block">
-                  <Button>
-                    Return to Login
-                  </Button>
-                </a>
+                <Button>
+                  Return to Login
+                </Button>
               </Link>
             </div>
           )}

@@ -289,12 +289,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
   
+  // Verify reset token (used to check validity before showing reset form)
+  app.get("/api/auth/reset-password", apiErrorHandler(async (req: Request, res: Response) => {
+    const token = req.query.token as string;
+    
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+    
+    try {
+      // Parse token to get userId and timestamp
+      const tokenParts = token.split('-');
+      const tokenTimestamp = parseInt(tokenParts[1]);
+      const userId = parseInt(tokenParts[2]);
+      
+      if (isNaN(userId) || isNaN(tokenTimestamp)) {
+        return res.status(400).json({ message: "Invalid token format" });
+      }
+      
+      // Check if token is expired (1 hour)
+      if (Date.now() - tokenTimestamp > 3600000) {
+        return res.status(400).json({ message: "Token has expired" });
+      }
+      
+      // Get user by reset token
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+      
+      // Check if token is still valid (not expired in DB)
+      if (user.resetPasswordExpires && new Date(user.resetPasswordExpires) < new Date()) {
+        return res.status(400).json({ message: "Password reset token has expired" });
+      }
+      
+      res.status(200).json({ message: "Token is valid", username: user.username });
+    } catch (error) {
+      console.error('Error verifying reset token:', error);
+      res.status(500).json({ message: "An error occurred while processing your request" });
+    }
+  }));
+
   // Reset password with token
   app.post("/api/auth/reset-password", apiErrorHandler(async (req: Request, res: Response) => {
-    const { token, newPassword } = req.body;
+    const { token, password } = req.body;
     
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: "Token and new password are required" });
+    if (!token || !password) {
+      return res.status(400).json({ message: "Token and password are required" });
     }
     
     try {
@@ -326,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update user's password and clear the reset token
       const updatedUser = await storage.updateUser(user.id, {
-        password: newPassword,
+        password,
         resetPasswordToken: null,
         resetPasswordExpires: null
       });
