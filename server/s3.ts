@@ -97,7 +97,31 @@ export async function getFileFromS3(config: S3Config, filePath: string): Promise
     const client = await getS3Client(config);
     
     // Extract key from filePath
-    const key = filePath.split('/').slice(3).join('/'); // Skip protocol, domain, bucket
+    let key;
+    try {
+      // Handle URLs properly by creating a URL object
+      const url = new URL(filePath);
+      
+      // The path starts with a slash followed by the bucket name, so we need
+      // to remove the leading slash and the bucket name
+      const pathParts = url.pathname.split('/');
+      
+      // Skip the first empty part (from leading slash) and bucket name
+      key = pathParts.slice(2).join('/');
+      
+      console.log(`Extracted key from path ${url.pathname}: ${key}`);
+    } catch (e) {
+      // If URL parsing fails, fall back to the previous method
+      key = filePath.split('/').slice(3).join('/');
+      console.log(`Fallback key extraction: ${key}`);
+    }
+    
+    if (!key) {
+      console.error('Failed to extract a valid key from file path:', filePath);
+      throw new Error('Invalid file path');
+    }
+    
+    console.log(`Getting file from S3 - Bucket: ${config.bucket}, Key: ${key}`);
     
     const command = new GetObjectCommand({
       Bucket: config.bucket,
@@ -117,7 +141,10 @@ export async function getFileFromS3(config: S3Config, filePath: string): Promise
     return new Promise((resolve, reject) => {
       stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
       stream.on('error', (err) => reject(err));
-      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('end', () => {
+        console.log(`Successfully retrieved file from S3: ${key}, size: ${chunks.reduce((total, buf) => total + buf.length, 0)} bytes`);
+        resolve(Buffer.concat(chunks));
+      });
     });
   } catch (error) {
     console.error('Error retrieving file from S3:', error);
@@ -130,7 +157,31 @@ export async function deleteFileFromS3(config: S3Config, filePath: string): Prom
     const client = await getS3Client(config);
     
     // Extract key from filePath
-    const key = filePath.split('/').slice(3).join('/'); // Skip protocol, domain, bucket
+    let key;
+    try {
+      // Handle URLs properly by creating a URL object
+      const url = new URL(filePath);
+      
+      // The path starts with a slash followed by the bucket name, so we need
+      // to remove the leading slash and the bucket name
+      const pathParts = url.pathname.split('/');
+      
+      // Skip the first empty part (from leading slash) and bucket name
+      key = pathParts.slice(2).join('/');
+      
+      console.log(`Extracted key from path ${url.pathname}: ${key}`);
+    } catch (e) {
+      // If URL parsing fails, fall back to the previous method
+      key = filePath.split('/').slice(3).join('/');
+      console.log(`Fallback key extraction: ${key}`);
+    }
+    
+    if (!key) {
+      console.error('Failed to extract a valid key from file path:', filePath);
+      return false;
+    }
+    
+    console.log(`Deleting file from S3 - Bucket: ${config.bucket}, Key: ${key}`);
     
     const command = new DeleteObjectCommand({
       Bucket: config.bucket,
@@ -138,6 +189,7 @@ export async function deleteFileFromS3(config: S3Config, filePath: string): Prom
     });
     
     await client.send(command);
+    console.log(`Successfully deleted file from S3: ${key}`);
     return true;
   } catch (error) {
     console.error('Error deleting file from S3:', error);
