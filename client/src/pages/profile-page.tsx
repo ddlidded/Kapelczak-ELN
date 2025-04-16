@@ -33,16 +33,23 @@ interface Note {
 export default function ProfilePage() {
   const { user } = useAuth();
   
-  const { data: recentNotes } = useQuery<Note[]>({
-    queryKey: ['/api/users', user?.id, 'notes'],
+  // Fetch all notes to calculate user's total notes count
+  const { data: allNotes } = useQuery<Note[]>({
+    queryKey: ['/api/notes'],
     queryFn: async () => {
       if (!user) return [];
-      const res = await apiRequest('GET', `/api/users/${user.id}/notes?limit=5`);
+      const res = await apiRequest('GET', `/api/notes`);
       return await res.json();
     },
     enabled: !!user,
     initialData: [],
   });
+  
+  // Filter notes by user's authorId for recent notes
+  const userNotes = allNotes?.filter(note => note.authorId === user?.id) || [];
+  const recentNotes = userNotes.sort((a, b) => 
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  ).slice(0, 5);
   
   const { data: projects } = useQuery<Project[]>({
     queryKey: ['/api/projects/user', user?.id],
