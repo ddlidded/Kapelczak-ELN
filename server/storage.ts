@@ -578,6 +578,7 @@ export class MemStorage implements IStorage {
     // Add default user
     this.createUser({
       username: "sarah.chen",
+      email: "sarah.chen@example.com",
       password: "password123",
       displayName: "Dr. Sarah Chen",
       role: "Principal Investigator"
@@ -593,10 +594,36 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.username === username);
   }
   
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.email === email);
+  }
+  
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.resetPasswordToken === token);
+  }
+  
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userId++;
     const createdAt = new Date();
-    const user = { ...insertUser, id, createdAt };
+    const updatedAt = new Date(); // Adding required updatedAt field
+    
+    // Set default values for nullable fields if they're not provided
+    const user = { 
+      ...insertUser, 
+      id, 
+      createdAt,
+      updatedAt,
+      role: insertUser.role || 'Researcher',
+      isAdmin: insertUser.isAdmin === undefined ? false : insertUser.isAdmin,
+      isVerified: insertUser.isVerified === undefined ? false : insertUser.isVerified,
+      verificationToken: insertUser.verificationToken || null,
+      resetPasswordToken: insertUser.resetPasswordToken || null,
+      resetPasswordExpires: insertUser.resetPasswordExpires || null,
+      lastLogin: insertUser.lastLogin || null,
+      avatarUrl: insertUser.avatarUrl || null,
+      bio: insertUser.bio || null,
+    };
+    
     this.users.set(id, user);
     return user;
   }

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { LoginData } from "@/lib/types";
 import kapelczakLogo from "../assets/kapelczak-logo.png";
 
@@ -21,18 +23,25 @@ import {
   FormMessage
 } from "@/components/ui/form";
 
-// Validation schema
+// Validation schemas
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(1, "Password is required"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
 type LoginFormData = z.infer<typeof loginSchema>;
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"login" | "forgot-password">("login");
   const { user, login, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -41,12 +50,28 @@ export default function AuthPage() {
     }
   }, [user, setLocation]);
 
+  // Get URL parameters to check if we should show the forgot password tab
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('forgot') === 'true') {
+      setActiveTab('forgot-password');
+    }
+  }, []);
+
   // Login form
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
       password: "",
+    },
+  });
+  
+  // Forgot password form
+  const forgotPasswordForm = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
     },
   });
 
@@ -67,7 +92,42 @@ export default function AuthPage() {
       setIsSubmitting(false);
     }
   };
-
+  
+  // Handle forgot password submission
+  const handleForgotPassword = async (data: ForgotPasswordFormData) => {
+    setIsSubmitting(true);
+    try {
+      const response = await apiRequest("POST", "/api/auth/forgot-password", {
+        email: data.email
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Password reset link sent",
+          description: "If your email is registered, you will receive a password reset link shortly.",
+          variant: "default",
+        });
+        forgotPasswordForm.reset();
+        setActiveTab("login");
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.message || "An error occurred while sending the password reset link.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
 
   // Show loading spinner while checking authentication state
@@ -99,12 +159,14 @@ export default function AuthPage() {
           </div>
 
           <Tabs 
-            defaultValue="login" 
-            value="login" 
+            defaultValue={activeTab} 
+            value={activeTab} 
+            onValueChange={(value) => setActiveTab(value as "login" | "forgot-password")}
             className="space-y-6"
           >
-            <TabsList className="grid w-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="forgot-password">Forgot Password</TabsTrigger>
             </TabsList>
 
             {/* Login Tab Content */}
@@ -155,6 +217,54 @@ export default function AuthPage() {
 
               <div className="mt-4 text-center text-sm text-gray-500">
                 <p>Default admin account: <span className="font-mono">admin / demo</span></p>
+              </div>
+            </TabsContent>
+            
+            {/* Forgot Password Tab Content */}
+            <TabsContent value="forgot-password" className="space-y-4">
+              <Form {...forgotPasswordForm}>
+                <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPassword)} className="space-y-4">
+                  <FormField
+                    control={forgotPasswordForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email" 
+                            placeholder="Enter your email address" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Sending..." : "Send Reset Link"}
+                  </Button>
+                  
+                  <div className="text-center mt-2">
+                    <Button 
+                      variant="link" 
+                      onClick={() => setActiveTab("login")}
+                      type="button"
+                      className="text-indigo-600 hover:text-indigo-800"
+                    >
+                      Back to login
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+              
+              <div className="mt-4 text-center text-sm text-gray-500">
+                <p>Enter the email associated with your account to receive a password reset link.</p>
               </div>
             </TabsContent>
           </Tabs>
