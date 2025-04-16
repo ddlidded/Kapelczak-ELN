@@ -635,6 +635,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { password, ...userWithoutPassword } = updatedUser;
     res.json(userWithoutPassword);
   }));
+  
+  // User storage settings endpoint
+  app.patch("/api/users/:id/storage", apiErrorHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.id);
+    let user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Extract S3 storage settings from request body
+    const { 
+      s3Enabled, 
+      s3Endpoint, 
+      s3Region, 
+      s3Bucket, 
+      s3AccessKey, 
+      s3SecretKey 
+    } = req.body;
+    
+    // Validate storage settings
+    if (s3Enabled) {
+      // If S3 is enabled, verify required fields
+      if (!s3Endpoint || !s3Bucket || !s3AccessKey || !s3SecretKey) {
+        return res.status(400).json({ 
+          message: "Missing required S3 configuration values"
+        });
+      }
+      
+      // Validate endpoint is a valid URL
+      try {
+        new URL(s3Endpoint);
+      } catch (error) {
+        return res.status(400).json({ 
+          message: "Invalid S3 endpoint URL" 
+        });
+      }
+    }
+    
+    // Update user with storage settings
+    console.log("Updating user storage settings:", {
+      s3Enabled,
+      ...(s3Enabled ? {
+        s3Endpoint,
+        s3Region,
+        s3Bucket,
+        // Don't log sensitive credentials
+        s3AccessKey: s3AccessKey ? "[REDACTED]" : null,
+        s3SecretKey: s3SecretKey ? "[REDACTED]" : null
+      } : {})
+    });
+    
+    const storageSettings = {
+      s3Enabled,
+      ...(s3Enabled ? {
+        s3Endpoint,
+        s3Region,
+        s3Bucket,
+        s3AccessKey,
+        s3SecretKey
+      } : {
+        // If disabled, clear all S3 settings
+        s3Endpoint: null,
+        s3Region: null,
+        s3Bucket: null,
+        s3AccessKey: null,
+        s3SecretKey: null
+      })
+    };
+    
+    const updatedUser = await storage.updateUser(userId, storageSettings);
+    
+    if (!updatedUser) {
+      return res.status(500).json({ message: "Failed to update storage settings" });
+    }
+    
+    // Return the updated user without sensitive data
+    const { password, s3SecretKey: omitSecretKey, ...userWithoutSensitiveData } = updatedUser;
+    res.json(userWithoutSensitiveData);
+  }));
 
   // Project routes
   app.post("/api/projects", apiErrorHandler(async (req: Request, res: Response) => {

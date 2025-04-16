@@ -66,7 +66,25 @@ const storageFormSchema = z.object({
   s3Bucket: z.string().nullable().optional(),
   s3AccessKey: z.string().nullable().optional(),
   s3SecretKey: z.string().nullable().optional(),
-});
+}).refine(
+  (data) => {
+    // If S3 is enabled, check that all required fields are provided
+    if (data.s3Enabled) {
+      return Boolean(
+        data.s3Endpoint && 
+        data.s3Bucket && 
+        data.s3AccessKey && 
+        data.s3SecretKey
+      );
+    }
+    // If S3 is disabled, no validation needed
+    return true;
+  },
+  {
+    message: "All S3 fields are required when S3 storage is enabled",
+    path: ["s3Enabled"],
+  }
+);
 
 type StorageFormValues = z.infer<typeof storageFormSchema>;
 
