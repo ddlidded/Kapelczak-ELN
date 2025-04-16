@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import CKEditorWrapper from "./CKEditorWrapper";
 import "./ckeditor-styles.css";
+import "./types"; // Import the global types
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +89,7 @@ export default function NoteEditor({
         content: note.content,
       });
       
-      // Set current note ID for image uploads in HugeRTE editor
+      // Set current note ID for image uploads in CKEditor
       window.currentNoteId = note.id;
     } else {
       form.reset({
@@ -173,7 +174,7 @@ export default function NoteEditor({
     }
   };
 
-  // Handle content change from the Tiptap editor
+  // Handle content change from the CKEditor
   const handleContentChange = (html: string) => {
     form.setValue("content", html, { shouldValidate: true });
   };
@@ -250,10 +251,11 @@ export default function NoteEditor({
                   <FormLabel>Content</FormLabel>
                   <FormControl>
                     <div className="flex-1 overflow-y-auto">
-                      <HugeRTEEditor
-                        content={field.value}
+                      <CKEditorWrapper
+                        initialValue={field.value}
                         onChange={handleContentChange}
                         placeholder="Write your research notes here..."
+                        noteId={note?.id || null}
                       />
                     </div>
                   </FormControl>

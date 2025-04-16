@@ -2,14 +2,8 @@ import { useState, useEffect } from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { useToast } from '@/hooks/use-toast';
+import './types'; // Import the global type definitions
 
-// Extend the window interface for our global properties
-declare global {
-  interface Window {
-    handleCKEditorImageUpload: (file: File) => Promise<{default: string}>;
-    currentNoteId?: number;
-  }
-}
 
 interface CKEditorWrapperProps {
   initialValue: string;
