@@ -111,6 +111,17 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
                   Search
                 </Link>
               </li>
+              <li>
+                <Link href="/reports" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/reports" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-file-pdf w-5 mr-2"></i>
+                  Reports
+                </Link>
+              </li>
             </ul>
           </div>
 
