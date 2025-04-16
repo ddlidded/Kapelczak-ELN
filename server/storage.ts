@@ -740,6 +740,7 @@ export class MemStorage implements IStorage {
   private attachments: Map<number, Attachment>;
   private projectCollaborators: Map<number, ProjectCollaborator>;
   private reports: Map<number, Report>;
+  private calendarEvents: Map<number, CalendarEvent>;
   
   private userId: number;
   private projectId: number;
@@ -748,6 +749,7 @@ export class MemStorage implements IStorage {
   private attachmentId: number;
   private collaboratorId: number;
   private reportId: number;
+  private calendarEventId: number;
   
   constructor() {
     this.users = new Map();
@@ -757,6 +759,7 @@ export class MemStorage implements IStorage {
     this.attachments = new Map();
     this.projectCollaborators = new Map();
     this.reports = new Map();
+    this.calendarEvents = new Map();
     
     this.userId = 1;
     this.projectId = 1;
@@ -765,6 +768,7 @@ export class MemStorage implements IStorage {
     this.attachmentId = 1;
     this.collaboratorId = 1;
     this.reportId = 1;
+    this.calendarEventId = 1;
     
     // Add default user
     this.createUser({
@@ -1135,6 +1139,56 @@ export class MemStorage implements IStorage {
     
     this.reports.set(id, updatedReport);
     return updatedReport;
+  }
+
+  // Calendar event operations
+  async getCalendarEvent(id: number): Promise<CalendarEvent | undefined> {
+    return this.calendarEvents.get(id);
+  }
+  
+  async getCalendarEventsByDateRange(startDate: Date, endDate: Date): Promise<CalendarEvent[]> {
+    return Array.from(this.calendarEvents.values()).filter(event => {
+      return event.startDate >= startDate && event.endDate <= endDate;
+    }).sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  }
+  
+  async getCalendarEventsByUser(userId: number): Promise<CalendarEvent[]> {
+    return Array.from(this.calendarEvents.values())
+      .filter(event => event.creatorId === userId)
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  }
+  
+  async getCalendarEventsByProject(projectId: number): Promise<CalendarEvent[]> {
+    return Array.from(this.calendarEvents.values())
+      .filter(event => event.projectId === projectId)
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  }
+  
+  async createCalendarEvent(insertEvent: InsertCalendarEvent): Promise<CalendarEvent> {
+    const id = this.calendarEventId++;
+    const createdAt = new Date();
+    const updatedAt = createdAt;
+    const event = { ...insertEvent, id, createdAt, updatedAt };
+    this.calendarEvents.set(id, event);
+    return event;
+  }
+  
+  async updateCalendarEvent(id: number, eventUpdate: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined> {
+    const existingEvent = this.calendarEvents.get(id);
+    if (!existingEvent) return undefined;
+    
+    const updatedEvent = {
+      ...existingEvent,
+      ...eventUpdate,
+      updatedAt: new Date()
+    };
+    
+    this.calendarEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+  
+  async deleteCalendarEvent(id: number): Promise<boolean> {
+    return this.calendarEvents.delete(id);
   }
 }
 

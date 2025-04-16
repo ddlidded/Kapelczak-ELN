@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema, insertReportSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema, insertReportSchema, insertCalendarEventSchema } from "@shared/schema";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
