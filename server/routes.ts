@@ -214,26 +214,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const changePasswordToken = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1];
+    
+    console.log("🔑 Received token for password change:", token);
     
     // Verify token and get user ID
-    const userId = parseInt(changePasswordToken.split('-')[2]); // Extract ID from token
+    // The token format is "jwt-token-{userId}"
+    let userId: number;
     
-    if (isNaN(userId)) {
-      return res.status(401).json({ message: "Invalid token" });
+    try {
+      // Extract userId from the token
+      if (token.startsWith('jwt-token-')) {
+        userId = parseInt(token.replace('jwt-token-', ''));
+      } else {
+        // Try to extract from the last part of the token as fallback
+        const parts = token.split('-');
+        userId = parseInt(parts[parts.length - 1]);
+      }
+      
+      console.log("👤 Extracted userId from token:", userId);
+      
+      if (isNaN(userId)) {
+        throw new Error("Invalid user ID in token");
+      }
+    } catch (error) {
+      console.error("❌ Token validation error:", error);
+      return res.status(401).json({ message: "Invalid authentication token" });
     }
     
     // Get the user
     const user = await storage.getUser(userId);
     
     if (!user) {
+      console.error("❌ User not found with ID:", userId);
       return res.status(401).json({ message: "User not found" });
     }
     
+    console.log("✅ User found, verifying password");
+    
     // Verify current password
     if (user.password !== currentPassword) {
+      console.error("❌ Incorrect password for user:", userId);
       return res.status(400).json({ message: "Current password is incorrect" });
     }
+    
+    console.log("⏳ Updating password for user:", userId);
     
     // Update the password
     const updatedUser = await storage.updateUser(userId, {
@@ -241,9 +266,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     if (!updatedUser) {
+      console.error("❌ Failed to update password for user:", userId);
       return res.status(500).json({ message: "Failed to update password" });
     }
     
+    console.log("✅ Password updated successfully for user:", userId);
     res.status(200).json({ message: "Password updated successfully" });
   }));
   

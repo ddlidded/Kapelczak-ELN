@@ -28,12 +28,21 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
+    // Format "from" as "Kapelczak Notes <email>" for better deliverability
+    // This helps with SMTP provider restrictions on plain email addresses
+    const from = process.env.SMTP_USER ? 
+      `"Kapelczak Notes" <${process.env.SMTP_USER}>` : 
+      "Kapelczak Notes <noreply@kapelczak.com>";
+    
+    console.log(`📧 Sending email using: ${from}`);
+    
     const mailOptions = {
-      from: process.env.SMTP_USER,
+      from,
       ...options
     };
     
     await transporter.sendMail(mailOptions);
+    console.log(`✉️ Email sent successfully to: ${options.to}`);
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -46,8 +55,19 @@ export async function sendPasswordResetEmail(
   resetToken: string, 
   username: string
 ): Promise<boolean> {
-  // Build the reset URL using the current domain (for local and production environments)
-  const resetUrl = `/reset-password?token=${resetToken}`;
+  // Build the reset URL using the current domain
+  // Use the server's hostname or IP to create a full URL
+  const host = process.env.SERVER_HOST || 'localhost';
+  const port = process.env.SERVER_PORT || '5000';
+  const protocol = host === 'localhost' ? 'http' : 'https';
+  
+  // In production, Replit will provide the correct hostname via environment variables
+  const baseUrl = host === 'localhost' ? `${protocol}://${host}:${port}` : `${protocol}://${host}`;
+  
+  // Create the full reset URL
+  const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
+  
+  console.log(`🔄 Generated reset password URL: ${resetUrl}`);
   
   const subject = 'Kapelczak Notes - Password Reset';
   const html = `
@@ -60,6 +80,8 @@ export async function sendPasswordResetEmail(
       </div>
       <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
       <p>This link will expire in 1 hour.</p>
+      <p>Alternatively, if the button doesn't work, copy and paste this URL into your browser:</p>
+      <p>${resetUrl}</p>
       <p>Best regards,<br/>Kapelczak Notes Team</p>
     </div>
   `;
