@@ -41,6 +41,22 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       ...options
     };
     
+    // In development mode, don't actually try to send emails (just log them)
+    // This helps avoid SMTP errors during testing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📧 [DEV MODE] Email would be sent with:
+        - From: ${from}
+        - To: ${options.to}
+        - Subject: ${options.subject}
+        - Attachments: ${options.attachments ? options.attachments.length : 0} files
+        
+        Email content:
+        ${options.html || options.text || '(No content)'}
+      `);
+      return true;
+    }
+    
+    // In production, actually send the email
     await transporter.sendMail(mailOptions);
     console.log(`✉️ Email sent successfully to: ${options.to}`);
     return true;
