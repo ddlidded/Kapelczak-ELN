@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/mock-auth';
@@ -218,6 +218,20 @@ export default function GraphGenerator() {
 
   // Render graph based on type and options
   const renderGraph = () => {
+    // Default fallback graph to ensure we always return a ReactElement
+    const fallbackGraph = (
+      <LineChart
+        width={500}
+        height={300}
+        data={data}
+        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+      >
+        <XAxis dataKey="x" />
+        <YAxis />
+        <Line type="monotone" dataKey="y" stroke="#cccccc" />
+      </LineChart>
+    );
+    
     switch (options.graphType) {
       case 'line':
         return (
@@ -305,12 +319,12 @@ export default function GraphGenerator() {
         );
         
       default:
-        return null;
+        return fallbackGraph;
     }
   };
 
   // Filter notes by user
-  const userNotes = allNotes.filter(note => note.authorId === user?.id);
+  const userNotes = allNotes.filter((note: any) => note.authorId === user?.id);
 
   return (
     <div className="container py-10 px-4 sm:px-6 lg:px-8">
@@ -506,7 +520,7 @@ export default function GraphGenerator() {
                       {isLoadingNotes ? (
                         <SelectItem value="loading" disabled>Loading notes...</SelectItem>
                       ) : userNotes.length > 0 ? (
-                        userNotes.map((note) => (
+                        userNotes.map((note: any) => (
                           <SelectItem key={note.id} value={note.id.toString()}>
                             {note.title}
                           </SelectItem>

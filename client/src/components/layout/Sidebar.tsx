@@ -122,6 +122,17 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
                   Reports
                 </Link>
               </li>
+              <li>
+                <Link href="/graphs" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/graphs" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-chart-line w-5 mr-2"></i>
+                  Graph Generator
+                </Link>
+              </li>
             </ul>
           </div>
 

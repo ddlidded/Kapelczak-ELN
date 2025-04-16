@@ -7,6 +7,7 @@ import UserManagement from "@/pages/user-management";
 import ProfilePage from "@/pages/profile-page";
 import SettingsPage from "@/pages/settings-page";
 import ReportsPage from "@/pages/reports-page";
+import GraphGenerator from "@/pages/graph-generator";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/mock-auth";
 import MainLayout from "@/components/layout/MainLayout";
@@ -49,6 +50,11 @@ function Router() {
       <Route path="/reports" component={() => (
           <MainLayout>
             <ReportsPage />
+          </MainLayout>
+        )} />
+      <Route path="/graphs" component={() => (
+          <MainLayout>
+            <GraphGenerator />
           </MainLayout>
         )} />
       <Route>
