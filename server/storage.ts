@@ -231,6 +231,13 @@ export class DatabaseStorage implements IStorage {
       lastLogin: users.lastLogin,
       avatarUrl: users.avatarUrl,
       bio: users.bio,
+      // S3 Storage settings
+      s3Enabled: users.s3Enabled,
+      s3Endpoint: users.s3Endpoint,
+      s3Region: users.s3Region,
+      s3Bucket: users.s3Bucket,
+      s3AccessKey: users.s3AccessKey,
+      s3SecretKey: users.s3SecretKey,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users);
