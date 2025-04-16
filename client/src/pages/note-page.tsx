@@ -1,7 +1,6 @@
 import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, ArrowLeft, CalendarDays, User, Beaker, ClipboardList } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout';
 import NoteView from '@/components/notes/NoteView';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -55,7 +54,6 @@ export default function NotePage() {
   const isLoading = isNoteLoading || areExperimentsLoading;
 
   return (
-    <MainLayout>
       <div className="container max-w-4xl mx-auto py-6 px-4">
         <div className="mb-6">
           {note?.projectId && (
@@ -164,6 +162,5 @@ export default function NotePage() {
           </Alert>
         )}
       </div>
-    </MainLayout>
   );
 }
