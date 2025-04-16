@@ -149,6 +149,17 @@ export default function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
                   Graph Generator
                 </Link>
               </li>
+              <li>
+                <Link href="/calendar" className={cn(
+                  "flex items-center px-2 py-2 text-sm rounded-md",
+                  location === "/calendar" 
+                    ? "text-primary bg-blue-50 font-medium" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}>
+                  <i className="fas fa-calendar-alt w-5 mr-2"></i>
+                  Calendar
+                </Link>
+              </li>
             </ul>
           </div>
 

@@ -10,6 +10,7 @@ import ProfilePage from "@/pages/profile-page";
 import SettingsPage from "@/pages/settings-page";
 import ReportsPage from "@/pages/reports-page";
 import GraphGenerator from "@/pages/graph-generator";
+import CalendarPage from "@/pages/calendar-page";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
@@ -140,6 +141,7 @@ function AppRoutes() {
         <Route path="/settings" component={SettingsPage} />
         <Route path="/reports" component={ReportsPage} />
         <Route path="/graphs" component={GraphGenerator} />
+        <Route path="/calendar" component={CalendarPage} />
         
         <Route component={NotFound} />
       </Switch>
