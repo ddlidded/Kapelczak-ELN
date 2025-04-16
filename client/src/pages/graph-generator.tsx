@@ -266,15 +266,38 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
               dataKey="x" 
-              label={{ value: options.xLabel, position: 'insideBottomRight', offset: -5 }}
+              label={{ 
+                value: options.xLabel,
+                position: 'insideBottom',
+                offset: -5,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <YAxis 
-              label={{ value: options.yLabel, angle: -90, position: 'insideLeft' }}
+              label={{ 
+                value: options.yLabel,
+                angle: -90,
+                position: 'insideLeft',
+                offset: 0,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <Tooltip />
             {options.showLegend && <Legend />}
@@ -294,15 +317,38 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
               dataKey="x" 
-              label={{ value: options.xLabel, position: 'insideBottomRight', offset: -5 }}
+              label={{ 
+                value: options.xLabel,
+                position: 'insideBottom',
+                offset: -5,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <YAxis 
-              label={{ value: options.yLabel, angle: -90, position: 'insideLeft' }}
+              label={{ 
+                value: options.yLabel,
+                angle: -90,
+                position: 'insideLeft',
+                offset: 0,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <Tooltip />
             {options.showLegend && <Legend />}
@@ -319,20 +365,43 @@ export default function GraphGenerator() {
           <ScatterChart
             width={500}
             height={300}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
               dataKey="x" 
               type="number" 
               name={options.xLabel}
-              label={{ value: options.xLabel, position: 'insideBottomRight', offset: -5 }}
+              label={{ 
+                value: options.xLabel,
+                position: 'insideBottom',
+                offset: -5,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <YAxis 
               dataKey="y" 
               type="number" 
               name={options.yLabel}
-              label={{ value: options.yLabel, angle: -90, position: 'insideLeft' }}
+              label={{ 
+                value: options.yLabel,
+                angle: -90,
+                position: 'insideLeft',
+                offset: 0,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '12px',
+                  fill: '#666',
+                }
+              }}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
             />
             <ZAxis range={[60, 60]} />
             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
