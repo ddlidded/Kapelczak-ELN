@@ -28,6 +28,7 @@ interface Note {
   updatedAt: string;
   projectId: number;
   experimentId: number | null;
+  authorId: number;
 }
 
 export default function ProfilePage() {
@@ -129,7 +130,7 @@ export default function ProfilePage() {
                   <span className="text-xs text-muted-foreground">Projects</span>
                 </div>
                 <div className="flex flex-col items-center p-3 border rounded-lg">
-                  <span className="text-2xl font-bold">{recentNotes?.length || 0}</span>
+                  <span className="text-2xl font-bold">{userNotes?.length || 0}</span>
                   <span className="text-xs text-muted-foreground">Notes</span>
                 </div>
               </div>

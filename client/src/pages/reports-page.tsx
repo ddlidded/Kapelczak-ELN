@@ -200,7 +200,7 @@ export default function ReportsPage() {
       // Set font
       doc.setFont(reportOptions.fontFamily);
       
-      // Add logo
+      // Add logo with proper auto-sizing
       try {
         // Try to load and add the logo image (base64 encoded)
         const img = new Image();
@@ -209,9 +209,29 @@ export default function ReportsPage() {
           img.onload = resolve;
         });
         
-        // Calculate logo position (top right)
+        // Calculate logo position (top right) with proper aspect ratio
         const pageWidth = doc.internal.pageSize.getWidth();
-        doc.addImage(img, 'PNG', pageWidth - 60, 10, 50, 20);
+        const maxLogoWidth = 50; // maximum width in mm
+        const maxLogoHeight = 20; // maximum height in mm
+        
+        // Calculate aspect ratio
+        const aspectRatio = img.width / img.height;
+        
+        // Determine dimensions based on aspect ratio constraints
+        let logoWidth, logoHeight;
+        
+        if (aspectRatio > maxLogoWidth / maxLogoHeight) {
+          // Width constrained
+          logoWidth = maxLogoWidth;
+          logoHeight = logoWidth / aspectRatio;
+        } else {
+          // Height constrained
+          logoHeight = maxLogoHeight;
+          logoWidth = logoHeight * aspectRatio;
+        }
+        
+        // Position logo at top right with proper dimensions
+        doc.addImage(img, 'PNG', pageWidth - logoWidth - 10, 10, logoWidth, logoHeight);
       } catch (error) {
         console.error('Error adding logo:', error);
       }
@@ -303,7 +323,7 @@ export default function ReportsPage() {
           yPos += 7;
         }
         
-        // Process note content (strip HTML tags for text)
+        // Process note content for text
         let content = note.content.replace(/<[^>]*>/g, ' ');
         
         // Add note content
@@ -321,6 +341,91 @@ export default function ReportsPage() {
         
         doc.text(textLines, 14, yPos);
         yPos += (textLines.length * 5) + 10;
+        
+        // Extract and include images if option is enabled
+        if (reportOptions.includeImages) {
+          // Use a temporary DOM element to parse HTML content
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = note.content;
+          
+          // Find all images in the note content
+          const images = tempDiv.querySelectorAll('img');
+          
+          if (images.length > 0) {
+            // Add a small heading for images section
+            doc.setFontSize(11);
+            doc.setTextColor(reportOptions.accentColor);
+            doc.text('Note Images:', 14, yPos);
+            yPos += 7;
+            
+            // Process each image
+            for (let i = 0; i < images.length; i++) {
+              const imgElement = images[i];
+              const imgSrc = imgElement.src;
+              
+              if (imgSrc) {
+                try {
+                  // Load image for PDF
+                  const imgObj = new Image();
+                  imgObj.src = imgSrc;
+                  
+                  // Wait for image to load
+                  await new Promise((resolve) => {
+                    imgObj.onload = resolve;
+                    imgObj.onerror = resolve; // Continue even if image fails to load
+                  });
+                  
+                  // Check if we need a new page
+                  if (yPos > doc.internal.pageSize.getHeight() - 60) {
+                    doc.addPage();
+                    yPos = 20;
+                  }
+                  
+                  // Calculate dimensions with max width constraints
+                  const pageWidth = doc.internal.pageSize.getWidth();
+                  const maxImgWidth = pageWidth - 28; // Maximum width in mm (page width minus margins)
+                  const maxImgHeight = 70; // Maximum height in mm
+                  
+                  // Calculate aspect ratio
+                  const aspectRatio = imgObj.width / imgObj.height;
+                  
+                  // Determine dimensions based on aspect ratio constraints
+                  let imgWidth, imgHeight;
+                  
+                  if (aspectRatio > maxImgWidth / maxImgHeight) {
+                    // Width constrained
+                    imgWidth = maxImgWidth;
+                    imgHeight = imgWidth / aspectRatio;
+                  } else {
+                    // Height constrained
+                    imgHeight = maxImgHeight;
+                    imgWidth = imgHeight * aspectRatio;
+                  }
+                  
+                  // Add image to PDF centered on page
+                  const xPosition = 14 + (maxImgWidth - imgWidth) / 2;
+                  doc.addImage(imgObj, 'JPEG', xPosition, yPos, imgWidth, imgHeight);
+                  yPos += imgHeight + 10;
+                  
+                  // Add caption if alt text is available
+                  if (imgElement.alt) {
+                    doc.setFontSize(9);
+                    doc.setTextColor('#666666');
+                    doc.text(imgElement.alt, pageWidth / 2, yPos, { align: 'center' });
+                    yPos += 7;
+                  }
+                } catch (error) {
+                  console.error('Error adding embedded image:', error);
+                  // Add error message to PDF
+                  doc.setFontSize(9);
+                  doc.setTextColor('#FF0000');
+                  doc.text(`[Image could not be loaded]`, 14, yPos);
+                  yPos += 7;
+                }
+              }
+            }
+          }
+        }
         
         // Add a separator line between notes
         doc.setDrawColor(reportOptions.accentColor);
