@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/mock-auth';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'wouter';
 import { 
   Card, 
   CardContent, 
@@ -174,7 +175,7 @@ export default function ReportsPage() {
 
   // Generate PDF report
   const generatePdfReport = async () => {
-    if (selectedNotes.length === 0) {
+    if (selectedNotes.length === 0 && notes.length > 0) {
       toast({
         title: 'No notes selected',
         description: 'Please select at least one note to include in the report.',
@@ -182,6 +183,9 @@ export default function ReportsPage() {
       });
       return;
     }
+    
+    // If there are no notes at all, generate a report without notes
+    const generateEmptyReport = selectedNotes.length === 0 && notes.length === 0;
 
     setIsGenerating(true);
 
@@ -439,21 +443,28 @@ export default function ReportsPage() {
               )}
               
               {/* Note Selection */}
-              {selectedProject && notes.length > 0 && (
+              {selectedProject && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Notes</Label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSelectAllNotes}
-                    >
-                      {selectedNotes.length === notes.length ? 'Deselect All' : 'Select All'}
-                    </Button>
+                    {notes.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSelectAllNotes}
+                      >
+                        {selectedNotes.length === notes.length ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    )}
                   </div>
                   <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto">
                     {notes.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No notes available</p>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">No notes available for this selection.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Please <Link href={`/projects/${selectedProject}`} className="text-primary hover:underline">add some notes</Link> to the project first.
+                        </p>
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {notes.map((note) => (
@@ -830,7 +841,7 @@ export default function ReportsPage() {
               </Button>
               <Button
                 onClick={generatePdfReport}
-                disabled={isGenerating || selectedNotes.length === 0}
+                disabled={isGenerating}
               >
                 {isGenerating ? (
                   <>
