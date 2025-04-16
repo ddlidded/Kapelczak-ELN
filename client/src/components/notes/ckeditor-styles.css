@@ -1,0 +1,102 @@
+/* CKEditor Customization */
+.ckeditor-wrapper {
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.ckeditor-wrapper .ck-editor__editable {
+  min-height: 300px;
+  max-height: 600px;
+  border-radius: 0 0 0.375rem 0.375rem !important;
+  padding: 0.75rem 1rem !important;
+  color: var(--foreground);
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+}
+
+.ckeditor-wrapper .ck-editor__editable:focus {
+  border-color: var(--primary) !important;
+}
+
+.ckeditor-wrapper .ck-toolbar {
+  border-radius: 0.375rem 0.375rem 0 0 !important;
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+}
+
+.ckeditor-wrapper .ck-toolbar button {
+  border-radius: 0.25rem !important;
+}
+
+.ckeditor-wrapper .ck-toolbar button:hover {
+  background-color: var(--accent) !important;
+}
+
+.ckeditor-wrapper .ck-toolbar button.ck-on {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+/* Content Styling */
+.ckeditor-wrapper .ck-content p {
+  margin-bottom: 1em;
+}
+
+.ckeditor-wrapper .ck-content ul,
+.ckeditor-wrapper .ck-content ol {
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.ckeditor-wrapper .ck-content h1,
+.ckeditor-wrapper .ck-content h2,
+.ckeditor-wrapper .ck-content h3,
+.ckeditor-wrapper .ck-content h4,
+.ckeditor-wrapper .ck-content h5,
+.ckeditor-wrapper .ck-content h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.ckeditor-wrapper .ck-content h1 {
+  font-size: 1.5em;
+}
+
+.ckeditor-wrapper .ck-content h2 {
+  font-size: 1.3em;
+}
+
+.ckeditor-wrapper .ck-content h3 {
+  font-size: 1.2em;
+}
+
+.ckeditor-wrapper .ck-content blockquote {
+  margin-left: 1.5em;
+  border-left: 4px solid var(--muted);
+  padding-left: 1em;
+  font-style: italic;
+  margin-bottom: 1em;
+}
+
+.ckeditor-wrapper .ck-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ckeditor-wrapper .ck-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.ckeditor-wrapper .ck-content table td,
+.ckeditor-wrapper .ck-content table th {
+  border: 1px solid var(--border);
+  padding: 0.5em;
+}
+
+.ckeditor-wrapper .ck-content table th {
+  background-color: var(--muted);
+  font-weight: 600;
+}

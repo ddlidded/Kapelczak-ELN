@@ -378,9 +378,9 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="container py-10">
+    <div className="container mx-auto max-w-7xl py-10 px-4 sm:px-6 lg:px-8">
       <div className="space-y-6">
-        <div>
+        <div className="flex flex-col space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground">
             Generate and export laboratory reports from your notes and experiments.
@@ -389,7 +389,7 @@ export default function ReportsPage() {
         
         <Separator />
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Selection Panel */}
           <Card className="col-span-1">
             <CardHeader>
