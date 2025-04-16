@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,6 +29,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Trash2 } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 const extendedExperimentSchema = insertExperimentSchema.extend({
@@ -37,11 +46,14 @@ const extendedExperimentSchema = insertExperimentSchema.extend({
 });
 
 export default function ProjectView() {
-  const { id } = useParams();
-  const projectId = parseInt(id);
+  const { id } = useParams<{ id: string }>();
+  const projectId = parseInt(id || "0");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   
   const [isCreateExperimentOpen, setIsCreateExperimentOpen] = useState(false);
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
+  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = useState(false);
   const [selectedExperimentId, setSelectedExperimentId] = useState<number | null>(null);
   
   // Get project details
@@ -87,6 +99,40 @@ export default function ProjectView() {
   const handleExperimentSelect = (experimentId: number) => {
     setSelectedExperimentId(experimentId);
     setIsCreateNoteOpen(true);
+  };
+  
+  const handleExperimentDelete = async (experimentId: number) => {
+    try {
+      await apiRequest('DELETE', `/api/experiments/${experimentId}`, undefined);
+      queryClient.invalidateQueries({ queryKey: ['/api/experiments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/experiments/project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+    } catch (error) {
+      console.error("Failed to delete experiment:", error);
+    }
+  };
+  
+  const handleProjectDelete = async () => {
+    try {
+      await apiRequest('DELETE', `/api/projects/${projectId}`, undefined);
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects/user'] });
+      
+      toast({
+        title: "Project deleted",
+        description: "The project and all its contents have been deleted.",
+      });
+      
+      // Redirect to dashboard
+      setLocation('/');
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete project. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   const closeNoteEditor = () => {
@@ -165,6 +211,28 @@ export default function ProjectView() {
           </p>
         </div>
         <div className="flex space-x-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <i className="fas fa-ellipsis-v"></i>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {}}>
+                <i className="fas fa-edit mr-2"></i> Edit Project
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>
+                <i className="fas fa-user-plus mr-2"></i> Manage Collaborators
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={() => setIsDeleteProjectOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Project
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline">
             <i className="fas fa-share-alt mr-2"></i>
             Share
@@ -210,7 +278,7 @@ export default function ProjectView() {
                 key={experiment.id} 
                 experiment={experiment}
                 onEdit={() => {}} 
-                onDelete={() => {}}
+                onDelete={handleExperimentDelete}
                 onSelect={handleExperimentSelect}
               />
             ))}
@@ -301,6 +369,45 @@ export default function ProjectView() {
           preSelectedExperimentId={selectedExperimentId || undefined}
         />
       )}
+      
+      {/* Delete Project Dialog */}
+      <Dialog open={isDeleteProjectOpen} onOpenChange={setIsDeleteProjectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="mb-2">
+              Are you sure you want to delete <strong>{project?.name}</strong>?
+            </p>
+            <p className="text-muted-foreground text-sm">
+              This will permanently delete the project and all its contents including:
+            </p>
+            <ul className="list-disc list-inside mt-2 text-sm text-muted-foreground">
+              <li>{experimentCount} experiment{experimentCount !== 1 ? 's' : ''}</li>
+              <li>All notes associated with this project</li>
+              <li>All attachments and files</li>
+            </ul>
+            <p className="mt-3 text-red-600 text-sm font-medium">
+              This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteProjectOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleProjectDelete}
+            >
+              Delete Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
