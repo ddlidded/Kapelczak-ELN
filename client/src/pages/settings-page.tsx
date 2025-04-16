@@ -244,6 +244,61 @@ export default function SettingsPage() {
       setIsUpdating(false);
     }
   }
+  
+  async function onStorageSubmit(data: StorageFormValues) {
+    setIsUpdating(true);
+    try {
+      console.log("⏳ Updating storage settings with data:", data);
+      
+      // Prepare data - only include fields that are needed if S3 is enabled
+      const storageData: Partial<StorageFormValues> = {
+        s3Enabled: data.s3Enabled
+      };
+      
+      // Include other S3 fields only if S3 is enabled
+      if (data.s3Enabled) {
+        storageData.s3Endpoint = data.s3Endpoint;
+        storageData.s3Region = data.s3Region;
+        storageData.s3Bucket = data.s3Bucket;
+        storageData.s3AccessKey = data.s3AccessKey;
+        storageData.s3SecretKey = data.s3SecretKey;
+      }
+      
+      console.log("📤 Sending storage update request");
+      
+      const response = await apiRequest('PATCH', `/api/users/${user?.id}/storage`, storageData);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Server error:", response.status, errorText);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
+      
+      console.log("✅ Storage settings updated successfully");
+      
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      // Explicitly refresh the user data
+      if (user) {
+        await refreshUser();
+      }
+      
+      toast({
+        title: "Storage settings updated",
+        description: "Your storage settings have been updated successfully.",
+      });
+    } catch (error) {
+      console.error('❌ Error updating storage settings:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your storage settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  }
 
   return (
     <div className="container py-10">
@@ -563,6 +618,175 @@ export default function SettingsPage() {
                         <>
                           <Save className="mr-2 h-4 w-4" />
                           Save Preferences
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Storage Tab */}
+          <TabsContent value="storage" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Storage Settings</CardTitle>
+                <CardDescription>
+                  Configure external storage options for file attachments.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...storageForm}>
+                  <form onSubmit={storageForm.handleSubmit(onStorageSubmit)} className="space-y-8">
+                    <FormField
+                      control={storageForm.control}
+                      name="s3Enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between p-4 border rounded-lg">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Enable S3 Compatible Storage</FormLabel>
+                            <FormDescription>
+                              Store file attachments in S3 compatible storage instead of the database.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {storageForm.watch("s3Enabled") && (
+                      <div className="space-y-6 border rounded-lg p-4">
+                        <div className="flex items-center">
+                          <Cloud className="h-6 w-6 mr-2 text-primary" />
+                          <h3 className="text-lg font-medium">S3 Storage Configuration</h3>
+                        </div>
+                        
+                        <FormField
+                          control={storageForm.control}
+                          name="s3Endpoint"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>S3 Endpoint URL</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="https://s3.amazonaws.com" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The URL of your S3 compatible storage service.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={storageForm.control}
+                          name="s3Region"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Region</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="us-east-1" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The AWS region or region code for your S3 service.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={storageForm.control}
+                          name="s3Bucket"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bucket Name</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="my-kapelczak-files" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The name of the S3 bucket to store files in.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={storageForm.control}
+                            name="s3AccessKey"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Access Key</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="AKIAIOSFODNN7EXAMPLE" 
+                                    {...field} 
+                                    value={field.value || ''}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Your S3 access key ID.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={storageForm.control}
+                            name="s3SecretKey"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Secret Key</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="password"
+                                    placeholder="••••••••••••••••••••••••••"
+                                    {...field} 
+                                    value={field.value || ''}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Your S3 secret access key.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    <Button type="submit" disabled={isUpdating} className="w-full sm:w-auto">
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Storage Settings
                         </>
                       )}
                     </Button>

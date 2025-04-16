@@ -12,6 +12,13 @@ export interface User {
   updatedAt?: string;
   avatarUrl?: string | null;
   bio?: string | null;
+  // S3 storage settings
+  s3Enabled?: boolean;
+  s3Endpoint?: string | null;
+  s3Region?: string | null;
+  s3Bucket?: string | null;
+  s3AccessKey?: string | null;
+  s3SecretKey?: string | null;
 }
 
 // Login data type
