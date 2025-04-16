@@ -87,12 +87,24 @@ export default function ProjectView() {
   const handleCreateExperiment = async (data: ExperimentFormData) => {
     try {
       await apiRequest('POST', '/api/experiments', data);
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments/project', projectId] });
+      
+      // Invalidate all potentially affected queries
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: "Experiment created",
+        description: "Your new experiment has been created successfully.",
+      });
+      
       setIsCreateExperimentOpen(false);
       form.reset();
     } catch (error) {
       console.error("Failed to create experiment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create experiment. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -104,19 +116,30 @@ export default function ProjectView() {
   const handleExperimentDelete = async (experimentId: number) => {
     try {
       await apiRequest('DELETE', `/api/experiments/${experimentId}`, undefined);
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments/project', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+      
+      // Invalidate all potentially affected queries
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: "Experiment deleted",
+        description: "The experiment and all its notes have been deleted.",
+      });
     } catch (error) {
       console.error("Failed to delete experiment:", error);
+      toast({
+        title: "Error", 
+        description: "Failed to delete experiment. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
   const handleProjectDelete = async () => {
     try {
       await apiRequest('DELETE', `/api/projects/${projectId}`, undefined);
-      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/projects/user'] });
+      
+      // Invalidate all potentially affected queries
+      queryClient.invalidateQueries();
       
       toast({
         title: "Project deleted",
@@ -277,7 +300,10 @@ export default function ProjectView() {
               <ExperimentCard 
                 key={experiment.id} 
                 experiment={experiment}
-                onEdit={() => {}} 
+                onEdit={(experiment) => toast({
+                  title: "Edit experiment",
+                  description: `Use the dropdown menu to edit experiment "${experiment.name}"`,
+                })} 
                 onDelete={handleExperimentDelete}
                 onSelect={handleExperimentSelect}
               />

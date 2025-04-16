@@ -70,9 +70,10 @@ export default function ExperimentCard({ experiment, onEdit, onDelete, onSelect 
   const handleEdit = async (data: ExperimentFormData) => {
     try {
       await apiRequest('PUT', `/api/experiments/${experiment.id}`, data);
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments/project', experiment.projectId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments', experiment.id] });
+      
+      // Invalidate all potentially affected queries
+      queryClient.invalidateQueries();
+      
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Failed to update experiment:", error);
@@ -82,8 +83,10 @@ export default function ExperimentCard({ experiment, onEdit, onDelete, onSelect 
   const handleDelete = async () => {
     try {
       await apiRequest('DELETE', `/api/experiments/${experiment.id}`, undefined);
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/experiments/project', experiment.projectId] });
+      
+      // Invalidate all potentially affected queries
+      queryClient.invalidateQueries();
+      
       if (onDelete) onDelete(experiment.id);
       setIsDeleteDialogOpen(false);
     } catch (error) {
