@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useAuth } from '@/hooks/mock-auth';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,13 +78,28 @@ export default function GraphGenerator() {
     enabled: !!user,
   });
 
-  // Fetch notes for all projects
+  // Fetch all user's project notes
   const { data: allNotes = [], isLoading: isLoadingNotes } = useQuery({
-    queryKey: ['/api/notes'],
+    queryKey: ['/api/notes/user', user?.id],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/notes');
-      return await res.json();
+      if (!user) return [];
+      
+      // First get all user projects
+      const projectsRes = await apiRequest('GET', `/api/projects/user/${user.id}`);
+      const userProjects = await projectsRes.json();
+      
+      // Then get notes for each project
+      const allProjectNotes = await Promise.all(
+        userProjects.map(async (project: any) => {
+          const notesRes = await apiRequest('GET', `/api/notes/project/${project.id}`);
+          return await notesRes.json();
+        })
+      );
+      
+      // Flatten the array of arrays into a single array of notes
+      return allProjectNotes.flat();
     },
+    enabled: !!user
   });
 
   // Initialize data input on component mount
@@ -323,8 +338,17 @@ export default function GraphGenerator() {
     }
   };
 
-  // Filter notes by user
-  const userNotes = allNotes.filter((note: any) => note.authorId === user?.id);
+  // All notes we get should already be the user's notes
+  const userNotes = allNotes;
+  
+  // Log notes for debugging
+  useEffect(() => {
+    if (userNotes.length > 0) {
+      console.log("📝 User notes available for graph generator:", userNotes);
+    } else if (!isLoadingNotes) {
+      console.log("📝 No user notes found for graph generator");
+    }
+  }, [userNotes, isLoadingNotes]);
 
   return (
     <div className="container py-10 px-4 sm:px-6 lg:px-8">
