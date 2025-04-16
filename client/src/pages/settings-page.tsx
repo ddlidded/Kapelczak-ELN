@@ -265,6 +265,82 @@ export default function SettingsPage() {
     }
   }
   
+  async function testS3Connection() {
+    setIsTesting(true);
+    setTestResult(null);
+    
+    try {
+      console.log("⏳ Testing S3 connection...");
+      
+      // Get the current form values
+      const { s3Endpoint, s3Region, s3Bucket, s3AccessKey, s3SecretKey } = storageForm.getValues();
+      
+      // Validate required fields
+      if (!s3Endpoint || !s3Bucket || !s3AccessKey || !s3SecretKey) {
+        throw new Error("Please fill in all required S3 fields before testing");
+      }
+      
+      const testData = {
+        s3Endpoint,
+        s3Region: s3Region || 'us-east-1', // Use default if not provided
+        s3Bucket,
+        s3AccessKey,
+        s3SecretKey
+      };
+      
+      console.log("📤 Sending S3 connection test request");
+      
+      const response = await apiRequest(
+        'POST', 
+        `/api/users/${user?.id}/storage/test`, 
+        testData
+      );
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        console.log("✅ S3 connection test successful");
+        setTestResult({
+          success: true,
+          message: result.message || "Connection successful!"
+        });
+        
+        toast({
+          title: "Connection successful",
+          description: result.message || "Your S3 connection was tested successfully.",
+        });
+      } else {
+        console.error("❌ S3 connection test failed:", result);
+        setTestResult({
+          success: false,
+          message: result.message || "Connection failed"
+        });
+        
+        toast({
+          title: "Connection failed",
+          description: result.message || "Failed to connect to S3 storage. Check your settings.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error testing S3 connection:', error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      
+      setTestResult({
+        success: false,
+        message: errorMessage
+      });
+      
+      toast({
+        title: "Test failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  }
+  
   async function onStorageSubmit(data: StorageFormValues) {
     setIsUpdating(true);
     try {
@@ -682,10 +758,44 @@ export default function SettingsPage() {
                     
                     {storageForm.watch("s3Enabled") && (
                       <div className="space-y-6 border rounded-lg p-4">
-                        <div className="flex items-center">
-                          <Cloud className="h-6 w-6 mr-2 text-primary" />
-                          <h3 className="text-lg font-medium">S3 Storage Configuration</h3>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Cloud className="h-6 w-6 mr-2 text-primary" />
+                            <h3 className="text-lg font-medium">S3 Storage Configuration</h3>
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => testS3Connection()} 
+                            disabled={isTesting}
+                            className="px-4"
+                          >
+                            {isTesting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Testing...
+                              </>
+                            ) : (
+                              <>
+                                Test Connection
+                              </>
+                            )}
+                          </Button>
                         </div>
+                        
+                        {testResult && (
+                          <div className={`p-4 rounded-md flex items-center ${
+                            testResult.success ? 'bg-green-50 text-green-800 border border-green-200' 
+                            : 'bg-red-50 text-red-800 border border-red-200'
+                          }`}>
+                            {testResult.success ? (
+                              <CheckCircle2 className="h-5 w-5 mr-2 text-green-600" />
+                            ) : (
+                              <XCircle className="h-5 w-5 mr-2 text-red-600" />
+                            )}
+                            <span>{testResult.message}</span>
+                          </div>
+                        )}
                         
                         <FormField
                           control={storageForm.control}

@@ -643,9 +643,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { s3Endpoint, s3Region, s3Bucket, s3AccessKey, s3SecretKey } = req.body;
     
     try {
+      console.log("Testing S3 connection with:", {
+        endpoint: s3Endpoint,
+        region: s3Region,
+        bucket: s3Bucket,
+        // Redact sensitive credentials in logs
+        accessKey: s3AccessKey ? "[REDACTED]" : null,
+        secretKey: s3SecretKey ? "[REDACTED]" : null
+      });
+      
       // Configure the S3 client
       const s3Client = new S3Client({
-        region: s3Region,
+        region: s3Region || 'us-east-1', // Default to us-east-1 if not provided
         endpoint: s3Endpoint,
         credentials: {
           accessKeyId: s3AccessKey,
@@ -655,19 +664,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Test connection by listing buckets
+      console.log("Attempting to list buckets...");
       const command = new ListBucketsCommand({});
       const response = await s3Client.send(command);
+      
+      console.log(`Successfully listed ${response.Buckets?.length || 0} buckets`);
       
       // Check if the specified bucket exists
       const bucketExists = response.Buckets?.some(bucket => bucket.Name === s3Bucket);
       
       if (!bucketExists) {
+        console.log(`Bucket '${s3Bucket}' not found among available buckets`);
         return res.status(404).json({ 
           success: false, 
-          message: `Connection successful, but bucket '${s3Bucket}' not found.` 
+          message: `Connection successful, but bucket '${s3Bucket}' not found. Available buckets: ${response.Buckets?.map(b => b.Name).join(', ') || 'none'}` 
         });
       }
       
+      console.log(`Bucket '${s3Bucket}' found and accessible`);
       return res.json({ 
         success: true, 
         message: "S3 connection successful! Bucket exists and is accessible." 
