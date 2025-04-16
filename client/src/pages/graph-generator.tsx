@@ -65,7 +65,7 @@ export default function GraphGenerator() {
   const [dataInput, setDataInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedNote, setSelectedNote] = useState<string>('');
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const graphRef = useRef<HTMLDivElement>(null);
 
   // Fetch user's projects for project selection
@@ -83,14 +83,14 @@ export default function GraphGenerator() {
   const { data: projectNotes = [], isLoading: isLoadingNotes } = useQuery({
     queryKey: ['/api/notes/project', selectedProject],
     queryFn: async () => {
-      if (!selectedProject) return [];
+      if (!selectedProject || selectedProject === 'all') return [];
       const res = await apiRequest('GET', `/api/notes/project/${selectedProject}`);
       return await res.json();
     },
-    enabled: !!selectedProject,
+    enabled: !!selectedProject && selectedProject !== 'all',
   });
 
-  // Fetch all user's notes when no project is selected
+  // Fetch all user's notes when no project is selected or 'all' is selected
   const { data: allNotes = [], isLoading: isLoadingAllNotes } = useQuery({
     queryKey: ['/api/notes/user', user?.id],
     queryFn: async () => {
@@ -111,7 +111,7 @@ export default function GraphGenerator() {
       // Flatten the array of arrays into a single array of notes
       return allProjectNotes.flat();
     },
-    enabled: !!user && !selectedProject,
+    enabled: !!user && (!selectedProject || selectedProject === 'all'),
   });
 
   // Initialize data input on component mount
@@ -420,7 +420,7 @@ export default function GraphGenerator() {
   };
 
   // Determine which notes to show based on project selection
-  const displayNotes = selectedProject ? projectNotes : allNotes;
+  const displayNotes = (selectedProject && selectedProject !== 'all') ? projectNotes : allNotes;
   
   // Reset selected note when project changes
   useEffect(() => {
@@ -629,7 +629,7 @@ export default function GraphGenerator() {
                         <SelectValue placeholder="All projects" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All projects</SelectItem>
+                        <SelectItem value="all">All projects</SelectItem>
                         {projects.map((project: any) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
                             {project.name}
