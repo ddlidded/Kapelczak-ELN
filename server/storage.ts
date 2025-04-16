@@ -612,6 +612,41 @@ export class DatabaseStorage implements IStorage {
         )
       );
   }
+  
+  // Report operations
+  async getReport(id: number): Promise<Report | undefined> {
+    const [report] = await db.select().from(reports).where(eq(reports.id, id));
+    return report || undefined;
+  }
+
+  async getReportsByUser(userId: number): Promise<Report[]> {
+    return db.select()
+      .from(reports)
+      .where(eq(reports.authorId, userId))
+      .orderBy(desc(reports.createdAt));
+  }
+
+  async getReportsByProject(projectId: number): Promise<Report[]> {
+    return db.select()
+      .from(reports)
+      .where(eq(reports.projectId, projectId))
+      .orderBy(desc(reports.createdAt));
+  }
+
+  async createReport(insertReport: InsertReport): Promise<Report> {
+    const [report] = await db
+      .insert(reports)
+      .values(insertReport)
+      .returning();
+    return report;
+  }
+
+  async deleteReport(id: number): Promise<boolean> {
+    const result = await db.delete(reports)
+      .where(eq(reports.id, id));
+    
+    return (result.rowCount || 0) > 0;
+  }
 }
 
 // Memory Implementation (for reference)
@@ -622,6 +657,7 @@ export class MemStorage implements IStorage {
   private notes: Map<number, Note>;
   private attachments: Map<number, Attachment>;
   private projectCollaborators: Map<number, ProjectCollaborator>;
+  private reports: Map<number, Report>;
   
   private userId: number;
   private projectId: number;
@@ -629,6 +665,7 @@ export class MemStorage implements IStorage {
   private noteId: number;
   private attachmentId: number;
   private collaboratorId: number;
+  private reportId: number;
   
   constructor() {
     this.users = new Map();
@@ -637,6 +674,7 @@ export class MemStorage implements IStorage {
     this.notes = new Map();
     this.attachments = new Map();
     this.projectCollaborators = new Map();
+    this.reports = new Map();
     
     this.userId = 1;
     this.projectId = 1;
@@ -644,6 +682,7 @@ export class MemStorage implements IStorage {
     this.noteId = 1;
     this.attachmentId = 1;
     this.collaboratorId = 1;
+    this.reportId = 1;
     
     // Add default user
     this.createUser({
@@ -971,6 +1010,35 @@ export class MemStorage implements IStorage {
       experiment.name.toLowerCase().includes(lowercaseQuery) || 
       (experiment.description && experiment.description.toLowerCase().includes(lowercaseQuery))
     );
+  }
+  
+  // Report operations
+  async getReport(id: number): Promise<Report | undefined> {
+    return this.reports.get(id);
+  }
+
+  async getReportsByUser(userId: number): Promise<Report[]> {
+    return Array.from(this.reports.values())
+      .filter(report => report.authorId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getReportsByProject(projectId: number): Promise<Report[]> {
+    return Array.from(this.reports.values())
+      .filter(report => report.projectId === projectId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createReport(insertReport: InsertReport): Promise<Report> {
+    const id = this.reportId++;
+    const createdAt = new Date();
+    const report = { ...insertReport, id, createdAt };
+    this.reports.set(id, report);
+    return report;
+  }
+
+  async deleteReport(id: number): Promise<boolean> {
+    return this.reports.delete(id);
   }
 }
 
