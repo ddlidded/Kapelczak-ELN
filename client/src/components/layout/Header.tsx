@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/mock-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { Settings, User } from "lucide-react";
 import logoImage from "../../assets/logo.png";
 
