@@ -239,3 +239,28 @@ export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
 
 export type ProjectCollaborator = typeof projectCollaborators.$inferSelect;
 export type InsertProjectCollaborator = z.infer<typeof insertProjectCollaboratorSchema>;
+
+// Reports table
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  fileName: text("file_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileType: text("file_type").notNull().default("application/pdf"),
+  filePath: text("file_path"), // URL for S3 storage
+  fileData: text("file_data"), // Base64 encoded data for local storage
+  title: text("title").notNull(),
+  description: text("description"),
+  projectId: integer("project_id"), // Optional relation to project
+  experimentId: integer("experiment_id"), // Optional relation to experiment
+  authorId: integer("author_id").notNull(),
+  options: json("options").notNull(), // Store report generation options
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = z.infer<typeof insertReportSchema>;

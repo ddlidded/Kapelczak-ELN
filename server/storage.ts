@@ -4,7 +4,8 @@ import {
   experiments, Experiment, InsertExperiment,
   notes, Note, InsertNote,
   attachments, Attachment, InsertAttachment,
-  projectCollaborators, ProjectCollaborator, InsertProjectCollaborator
+  projectCollaborators, ProjectCollaborator, InsertProjectCollaborator,
+  reports, Report, InsertReport
 } from "@shared/schema";
 
 // Interface for Storage operations
@@ -59,6 +60,13 @@ export interface IStorage {
   searchNotes(query: string): Promise<Note[]>;
   searchProjects(query: string): Promise<Project[]>;
   searchExperiments(query: string): Promise<Experiment[]>;
+  
+  // Report operations
+  getReport(id: number): Promise<Report | undefined>;
+  getReportsByUser(userId: number): Promise<Report[]>;
+  getReportsByProject(projectId: number): Promise<Report[]>;
+  createReport(report: InsertReport): Promise<Report>;
+  deleteReport(id: number): Promise<boolean>;
 }
 
 // Database Implementation
