@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, boolean, json, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, json, primaryKey, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -264,3 +264,32 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
+
+// Calendar events table
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  location: text("location"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  allDay: boolean("all_day").default(false).notNull(),
+  recurrence: varchar("recurrence", { length: 50 }), // daily, weekly, monthly, etc.
+  color: varchar("color", { length: 20 }).default("#4285F4"),
+  projectId: integer("project_id"), // Optional relation to project
+  experimentId: integer("experiment_id"), // Optional relation to experiment
+  creatorId: integer("creator_id").notNull(),
+  attendees: json("attendees").default([]), // Array of user ids
+  status: varchar("status", { length: 20 }).default("confirmed").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
