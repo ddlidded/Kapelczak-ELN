@@ -121,9 +121,9 @@ export default function ReportsPage() {
 
   // Fetch notes for selected experiment or project
   const { data: notes = [] } = useQuery<Note[]>({
-    queryKey: ['/api/notes', selectedExperiment ? 'experiment' : 'project', selectedExperiment || selectedProject],
+    queryKey: ['/api/notes', selectedExperiment && selectedExperiment !== 'all' ? 'experiment' : 'project', selectedExperiment === 'all' ? selectedProject : selectedExperiment || selectedProject],
     queryFn: async () => {
-      if (selectedExperiment) {
+      if (selectedExperiment && selectedExperiment !== 'all') {
         const res = await apiRequest('GET', `/api/notes/experiment/${selectedExperiment}`);
         return await res.json();
       } else if (selectedProject) {
@@ -132,12 +132,12 @@ export default function ReportsPage() {
       }
       return [];
     },
-    enabled: !!(selectedExperiment || selectedProject),
+    enabled: !!(selectedProject),
   });
 
   // Reset selected experiment when project changes
   useEffect(() => {
-    setSelectedExperiment('');
+    setSelectedExperiment('all');
     setSelectedNotes([]);
   }, [selectedProject]);
 
@@ -247,7 +247,7 @@ export default function ReportsPage() {
       const selectedNotesData = notes.filter(note => selectedNotes.includes(note.id.toString()));
       
       // Add experiment details if selected
-      if (reportOptions.includeExperimentDetails && selectedExperiment) {
+      if (reportOptions.includeExperimentDetails && selectedExperiment && selectedExperiment !== 'all') {
         const experiment = experiments.find(exp => exp.id.toString() === selectedExperiment);
         if (experiment) {
           doc.setFontSize(14);
@@ -325,7 +325,8 @@ export default function ReportsPage() {
       }
       
       // Add custom footer if provided
-      const pageCount = doc.internal.getNumberOfPages();
+      // Get the number of pages - using the pages array length for compatibility
+      const pageCount = doc.internal.pages.length - 1;
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
@@ -426,7 +427,7 @@ export default function ReportsPage() {
                       <SelectValue placeholder="All experiments" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All experiments</SelectItem>
+                      <SelectItem value="all">All experiments</SelectItem>
                       {experiments.map((experiment) => (
                         <SelectItem key={experiment.id} value={experiment.id.toString()}>
                           {experiment.name}
