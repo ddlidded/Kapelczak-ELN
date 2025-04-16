@@ -1564,15 +1564,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // Send a report via email
-  app.post("/api/reports/:id/send", apiErrorHandler(async (req: Request, res: Response) => {
+  // Download a report
+  app.get("/api/reports/:id/download", apiErrorHandler(async (req: Request, res: Response) => {
     const reportId = parseInt(req.params.id);
     if (isNaN(reportId)) {
       return res.status(400).json({ message: "Invalid report ID" });
-    }
-    
-    const { recipientEmail, emailSubject, emailBody } = req.body;
-    if (!recipientEmail) {
-      return res.status(400).json({ message: "Recipient email is required" });
     }
     
     // Get the report
@@ -1583,45 +1579,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Get the file data - either from the database or from S3
     let fileData = report.fileData;
+    let pdfBuffer: Buffer;
+    
+    // If user is authenticated, check their S3 configuration
+    const userId = req.user?.id || 1; // Default to admin user if not authenticated
+    const user = await storage.getUser(userId);
     
     // If the report is stored in S3, retrieve it
-    if (report.filePath && !fileData && req.body.s3Enabled) {
+    if (report.filePath && !fileData && user?.s3Enabled) {
       try {
-        const s3Config = req.body.s3Config || {};
+        const s3Config = await getS3Config(user);
+        
+        if (!s3Config) {
+          return res.status(500).json({ message: "S3 configuration is invalid" });
+        }
         
         // Use the S3 helper to get the file
-        const s3File = await getFileFromS3(report.filePath, s3Config);
+        const s3File = await getFileFromS3(s3Config, report.filePath);
         if (s3File) {
-          fileData = s3File.toString('base64');
+          pdfBuffer = s3File;
+        } else {
+          return res.status(404).json({ message: "Report file not found in S3" });
         }
       } catch (error) {
         console.error('Error retrieving report from S3:', error);
         return res.status(500).json({ message: "Failed to retrieve report file from S3" });
       }
+    } else if (fileData) {
+      // Convert base64 file data to buffer
+      pdfBuffer = Buffer.from(fileData, 'base64');
+    } else {
+      return res.status(404).json({ message: "Report file data not found" });
     }
     
-    if (!fileData) {
+    // Set Content-Type and Content-Disposition headers for downloading
+    res.setHeader('Content-Type', report.fileType || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${report.fileName || `report_${report.id}.pdf`}"`);
+    
+    // Send the file buffer
+    res.send(pdfBuffer);
+  }));
+  
+  // Email a report
+  app.post("/api/reports/:id/email", apiErrorHandler(async (req: Request, res: Response) => {
+    const reportId = parseInt(req.params.id);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+    
+    const { recipient, subject, message } = req.body;
+    if (!recipient) {
+      return res.status(400).json({ message: "Recipient email is required" });
+    }
+    
+    // Get the user who is sending the email
+    const userId = req.user?.id || 1; // Default to admin user if not authenticated
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Get the report
+    const report = await storage.getReport(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+    
+    // Get the file data - either from the database or from S3
+    let fileData = report.fileData;
+    let pdfBuffer: Buffer;
+    
+    // If the report is stored in S3, retrieve it
+    if (report.filePath && !fileData && user.s3Enabled) {
+      try {
+        const s3Config = await getS3Config(user);
+        
+        if (!s3Config) {
+          return res.status(500).json({ message: "S3 configuration is invalid" });
+        }
+        
+        // Use the S3 helper to get the file
+        const s3File = await getFileFromS3(s3Config, report.filePath);
+        if (s3File) {
+          pdfBuffer = s3File;
+        } else {
+          return res.status(404).json({ message: "Report file not found in S3" });
+        }
+      } catch (error) {
+        console.error('Error retrieving report from S3:', error);
+        return res.status(500).json({ message: "Failed to retrieve report file from S3" });
+      }
+    } else if (fileData) {
+      // Convert base64 file data to buffer
+      pdfBuffer = Buffer.from(fileData, 'base64');
+    } else {
       return res.status(404).json({ message: "Report file data not found" });
     }
     
     // Send the email with the PDF attachment
     try {
+      // Create a custom subject and message if provided
+      const customSubject = subject || `Lab Report: ${report.title}`;
+      const customMessage = message || `Please find attached the lab report "${report.title}".`;
+      
       const emailResult = await sendPdfReport(
-        recipientEmail,
-        emailSubject || `Lab Report: ${report.title}`,
-        emailBody || `Please find attached the lab report "${report.title}".`,
-        report.fileName,
-        fileData,
-        report.fileType || 'application/pdf'
+        recipient,
+        pdfBuffer,
+        report.fileName || `report_${report.id}.pdf`,
+        user.displayName || user.username,
+        report.title
       );
       
       if (!emailResult) {
         return res.status(500).json({ message: "Failed to send email" });
       }
       
-      res.status(200).json({ message: "Report sent successfully" });
+      res.status(200).json({ message: "Email sent successfully" });
     } catch (error) {
-      console.error('Error sending report email:', error);
+      console.error('Error sending email:', error);
       res.status(500).json({ message: "Failed to send email" });
     }
   }));
