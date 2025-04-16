@@ -215,9 +215,7 @@ export default function AuthPage() {
                 </form>
               </Form>
 
-              <div className="mt-4 text-center text-sm text-gray-500">
-                <p>Default admin account: <span className="font-mono">admin / demo</span></p>
-              </div>
+
             </TabsContent>
             
             {/* Forgot Password Tab Content */}

@@ -149,10 +149,33 @@ export default function SettingsPage() {
   async function onSecuritySubmit(data: SecurityFormValues) {
     setIsUpdating(true);
     try {
-      await apiRequest('POST', `/api/auth/change-password`, {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
+      console.log("⏳ Changing password...");
+      
+      // Get the auth token from localStorage
+      const authToken = localStorage.getItem("auth_token");
+      
+      if (!authToken) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+      
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update password");
+      }
+      
+      console.log("✅ Password updated successfully");
       
       toast({
         title: "Password updated",
@@ -165,10 +188,12 @@ export default function SettingsPage() {
         confirmPassword: "",
       });
     } catch (error) {
-      console.error('Error updating password:', error);
+      console.error('❌ Error updating password:', error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      
       toast({
         title: "Update failed",
-        description: "There was an error updating your password. Make sure your current password is correct.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

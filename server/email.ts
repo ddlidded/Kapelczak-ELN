@@ -29,7 +29,7 @@ export interface EmailOptions {
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     const mailOptions = {
-      from: `"Kapelczak Notes" <${process.env.SMTP_USER}>`,
+      from: process.env.SMTP_USER,
       ...options
     };
     
