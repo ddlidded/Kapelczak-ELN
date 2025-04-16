@@ -46,8 +46,8 @@ export async function sendPasswordResetEmail(
   resetToken: string, 
   username: string
 ): Promise<boolean> {
-  // Build the reset URL (assuming frontend is served from the same domain)
-  const resetUrl = `${process.env.APP_URL || ''}/auth/reset-password?token=${resetToken}`;
+  // Build the reset URL using the current domain (for local and production environments)
+  const resetUrl = `/reset-password?token=${resetToken}`;
   
   const subject = 'Kapelczak Notes - Password Reset';
   const html = `
