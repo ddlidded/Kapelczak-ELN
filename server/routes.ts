@@ -5,6 +5,8 @@ import multer from "multer";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import crypto from "crypto";
+import { sendPasswordResetEmail, sendPdfReport } from "./email";
 
 // Custom type for multer with file
 interface MulterRequest extends Request {
@@ -243,6 +245,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     res.status(200).json({ message: "Password updated successfully" });
+  }));
+  
+  // Forgot password request
+  app.post("/api/auth/forgot-password", apiErrorHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    
+    // Find user by email
+    const user = await storage.getUserByEmail(email);
+    
+    if (!user) {
+      // For security reasons, still return 200 even if user not found
+      return res.status(200).json({ message: "If your email is registered, you will receive a password reset link" });
+    }
+    
+    // Generate reset token (random string + timestamp + userId for expiration check)
+    const resetToken = `${crypto.randomBytes(20).toString('hex')}-${Date.now()}-${user.id}`;
+    const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
+    
+    // Update user with reset token
+    await storage.updateUser(user.id, {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetExpires
+    });
+    
+    // Send email with reset link
+    try {
+      const emailResult = await sendPasswordResetEmail(
+        user.email, 
+        resetToken, 
+        user.username
+      );
+      
+      if (!emailResult) {
+        console.error('Failed to send password reset email');
+        return res.status(500).json({ message: "Failed to send password reset email" });
+      }
+      
+      res.status(200).json({ message: "If your email is registered, you will receive a password reset link" });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      res.status(500).json({ message: "An error occurred while processing your request" });
+    }
+  }));
+  
+  // Reset password with token
+  app.post("/api/auth/reset-password", apiErrorHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token and new password are required" });
+    }
+    
+    try {
+      // Parse token to get userId and timestamp
+      const tokenParts = token.split('-');
+      const tokenTimestamp = parseInt(tokenParts[1]);
+      const userId = parseInt(tokenParts[2]);
+      
+      if (isNaN(userId) || isNaN(tokenTimestamp)) {
+        return res.status(400).json({ message: "Invalid token format" });
+      }
+      
+      // Check if token is expired (1 hour)
+      if (Date.now() - tokenTimestamp > 3600000) {
+        return res.status(400).json({ message: "Token has expired" });
+      }
+      
+      // Get user by reset token
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+      
+      // Check if token is still valid (not expired in DB)
+      if (user.resetPasswordExpires && new Date(user.resetPasswordExpires) < new Date()) {
+        return res.status(400).json({ message: "Password reset token has expired" });
+      }
+      
+      // Update user's password and clear the reset token
+      const updatedUser = await storage.updateUser(user.id, {
+        password: newPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null
+      });
+      
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update password" });
+      }
+      
+      res.status(200).json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      res.status(500).json({ message: "An error occurred while processing your request" });
+    }
   }));
 
   // User routes

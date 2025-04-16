@@ -12,6 +12,8 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   listUsers(): Promise<User[]>;
@@ -106,6 +108,50 @@ export class DatabaseStorage implements IStorage {
       createdAt: users.createdAt,
       updatedAt: users.updatedAt
     }).from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      password: users.password,
+      displayName: users.displayName,
+      role: users.role,
+      isAdmin: users.isAdmin,
+      isVerified: users.isVerified,
+      verificationToken: users.verificationToken,
+      resetPasswordToken: users.resetPasswordToken,
+      resetPasswordExpires: users.resetPasswordExpires,
+      lastLogin: users.lastLogin,
+      avatarUrl: users.avatarUrl,
+      bio: users.bio,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
+    }).from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+  
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      password: users.password,
+      displayName: users.displayName,
+      role: users.role,
+      isAdmin: users.isAdmin,
+      isVerified: users.isVerified,
+      verificationToken: users.verificationToken,
+      resetPasswordToken: users.resetPasswordToken,
+      resetPasswordExpires: users.resetPasswordExpires,
+      lastLogin: users.lastLogin,
+      avatarUrl: users.avatarUrl,
+      bio: users.bio,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
+    }).from(users).where(eq(users.resetPasswordToken, token));
     return user || undefined;
   }
 
