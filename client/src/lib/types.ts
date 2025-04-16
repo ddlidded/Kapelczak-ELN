@@ -1,61 +1,97 @@
-import { 
-  User, Project, Experiment, Note, Attachment, ProjectCollaborator 
-} from '@shared/schema';
-
-// Extended types with additional frontend information
-export interface ProjectWithStats extends Project {
-  experimentCount: number;
-  noteCount: number;
-  collaboratorCount: number;
+// User types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  password?: string;
+  displayName?: string;
+  isAdmin: boolean;
+  isVerified: boolean;
+  role?: string;
+  createdAt: string;
+  updatedAt?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
-export interface ExperimentWithStats extends Experiment {
-  noteCount: number;
-  lastUpdated: string;
+// Login data type
+export interface LoginData {
+  username: string;
+  password: string;
 }
 
-export interface NoteWithDetails extends Note {
-  experimentName: string;
-  authorName: string;
-  attachments: Attachment[];
+// Register data type
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  displayName?: string;
 }
 
-export interface UserWithProjects extends User {
-  projectCount: number;
+// Project types
+export interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface SearchResults {
-  notes: Note[];
-  projects: Project[];
-  experiments: Experiment[];
-}
-
-// Form types
+// Project form data
 export interface ProjectFormData {
   name: string;
   description?: string;
-  ownerId: number;
+  userId: number;
 }
 
+// Experiment types
+export interface Experiment {
+  id: number;
+  name: string;
+  description?: string;
+  projectId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Experiment form data
 export interface ExperimentFormData {
   name: string;
   description?: string;
   projectId: number;
 }
 
+// Note types
+export interface Note {
+  id: number;
+  title: string;
+  content: string;
+  authorId: number;
+  projectId: number;
+  experimentId?: number;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+}
+
+// Note form data
 export interface NoteFormData {
   title: string;
-  content?: string;
-  experimentId: number;
-  authorId: number;
+  content: string;
+  authorId?: number;
+  projectId: number;
+  experimentId?: number | null;
 }
 
-export interface AttachmentFormData {
-  file: File;
+// Attachment types
+export interface Attachment {
+  id: number;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  fileData?: string;
   noteId: number;
-}
-
-export interface CollaboratorFormData {
-  userId: number;
-  role: string;
+  createdAt: string;
+  updatedAt: string;
 }

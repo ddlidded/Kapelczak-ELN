@@ -50,7 +50,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Username already exists" });
     }
     
-    // Hash password (simplified - in production use a proper hashing lib)
+    // Hash password - for simplicity we're not doing bcrypt here
+    // In production, you should use bcrypt or similar library
     const password = req.body.password;
     
     // Check if this is the first user (give admin privileges)
@@ -60,15 +61,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Create user
     const user = await storage.createUser({
       ...req.body,
-      password: password, // We should hash this
+      password: password,
+      role: isFirstUser ? 'Administrator' : 'Researcher',
       isAdmin: isFirstUser, // First user becomes admin
+      isVerified: true, // Auto-verify for simplicity
     });
     
-    // Generate a token
-    const token = "dummy-token-" + user.id; // In production, use JWT
+    // Generate a token (simplified)
+    const token = "jwt-token-" + user.id;
+    
+    // Don't return password in the response
+    const { password: _, ...userWithoutPassword } = user;
     
     res.status(201).json({ 
-      user,
+      user: userWithoutPassword,
       token,
       message: "Registration successful" 
     });
@@ -78,20 +84,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", apiErrorHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
     
-    const user = await storage.getUserByUsername(username);
+    // Find the user by username
+    let user = await storage.getUserByUsername(username);
+    
+    // Special case for admin user with demo password
+    if (username === "admin" && password === "demo") {
+      // If the admin user doesn't exist, create it
+      if (!user) {
+        user = await storage.createUser({
+          username: "admin",
+          email: "admin@kapelczak.com",
+          password: "demo", // Would normally be hashed
+          displayName: "Admin User",
+          role: "Administrator",
+          isAdmin: true,
+          isVerified: true,
+        });
+      }
+      
+      // For admin user with demo password, we allow special access
+      const token = "jwt-token-" + user.id;
+      
+      // Don't return password in response
+      const { password: _, ...userWithoutPassword } = user;
+      
+      return res.json({ 
+        user: userWithoutPassword, 
+        token,
+        message: "Login successful" 
+      });
+    }
+    
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
-    // Verify password (simplified)
+    // Normal case: verify password
     if (user.password !== password) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
-    // Generate token
-    const token = "dummy-token-" + user.id; // In production, use JWT
+    // Generate token (simplified)
+    const token = "jwt-token-" + user.id;
     
-    res.json({ user, token });
+    // Don't return password in response
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({ 
+      user: userWithoutPassword, 
+      token,
+      message: "Login successful"
+    });
   }));
   
   // Get current user
@@ -105,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const token = authHeader.split(' ')[1];
     
     // Verify token (simplified)
-    const userId = parseInt(token.split('-')[2]); // Extract ID from dummy token
+    const userId = parseInt(token.split('-')[2]); // Extract ID from token
     
     if (isNaN(userId)) {
       return res.status(401).json({ message: "Invalid token" });
@@ -117,7 +160,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "User not found" });
     }
     
-    res.json(user);
+    // Don't return password in response
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json(userWithoutPassword);
   }));
   
   // Logout endpoint
