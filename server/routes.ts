@@ -7,6 +7,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
 import { sendPasswordResetEmail, sendPdfReport } from "./email";
+import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 
 // Custom type for multer with file
 interface MulterRequest extends Request {
@@ -637,6 +638,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // User storage settings endpoint
+  // Test S3 connection
+  app.post("/api/users/:id/storage/test", apiErrorHandler(async (req: Request, res: Response) => {
+    const { s3Endpoint, s3Region, s3Bucket, s3AccessKey, s3SecretKey } = req.body;
+    
+    try {
+      // Configure the S3 client
+      const s3Client = new S3Client({
+        region: s3Region,
+        endpoint: s3Endpoint,
+        credentials: {
+          accessKeyId: s3AccessKey,
+          secretAccessKey: s3SecretKey,
+        },
+        forcePathStyle: true,
+      });
+
+      // Test connection by listing buckets
+      const command = new ListBucketsCommand({});
+      const response = await s3Client.send(command);
+      
+      // Check if the specified bucket exists
+      const bucketExists = response.Buckets?.some(bucket => bucket.Name === s3Bucket);
+      
+      if (!bucketExists) {
+        return res.status(404).json({ 
+          success: false, 
+          message: `Connection successful, but bucket '${s3Bucket}' not found.` 
+        });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: "S3 connection successful! Bucket exists and is accessible." 
+      });
+    } catch (error: any) {
+      console.error("S3 connection test failed:", error);
+      return res.status(400).json({ 
+        success: false, 
+        message: `S3 connection failed: ${error.message}` 
+      });
+    }
+  }));
+
   app.patch("/api/users/:id/storage", apiErrorHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.id);
     let user = await storage.getUser(userId);
