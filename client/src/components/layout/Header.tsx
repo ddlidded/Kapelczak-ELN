@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
-import { Settings, User } from "lucide-react";
+import { Settings, User, LogOut } from "lucide-react";
 import logoImage from "../../assets/logo.png";
 
 interface HeaderProps {
@@ -22,7 +22,16 @@ interface HeaderProps {
 export default function Header({ onToggleSidebar }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [_, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Navigation to /auth is handled in the logout function
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +96,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               <DropdownMenuItem onClick={() => navigate('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                className="text-red-600 focus:text-red-600"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

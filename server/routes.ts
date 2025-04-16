@@ -118,9 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Find the user by username
     let user = await storage.getUserByUsername(username);
     
-    // Special case for admin user with demo password
+    // Special case for admin user with demo password - ONLY when the stored password is not already set
     if (username === "admin" && password === "demo") {
-      console.log("🔑 Admin login with demo password detected");
+      console.log("🔑 Admin login with demo credentials detected");
       
       // If the admin user doesn't exist, create it
       if (!user) {
@@ -134,32 +134,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isAdmin: true,
           isVerified: true,
         });
-      } else {
-        // Update the admin's password to ensure it's "demo" for tests
-        console.log("⚠️ Ensuring admin user has demo password for testing");
-        user = await storage.updateUser(user.id, {
-          password: "demo" // Update to plain demo password for consistency
-        });
         
-        if (!user) {
-          console.error("❌ Failed to update admin user password");
-          return res.status(500).json({ message: "Server error" });
-        }
+        // For newly created admin user, allow access
+        const adminToken = "jwt-token-" + user.id;
+        console.log(`✅ Admin account created - token: ${adminToken}`);
+        
+        // Don't return password in response
+        const { password: _, ...userWithoutPassword } = user;
+        
+        return res.json({ 
+          user: userWithoutPassword, 
+          token: adminToken,
+          message: "Login successful - Admin user created" 
+        });
+      } 
+      // If user exists but has the default "demo" password, allow it
+      else if (user.password === "demo") {
+        console.log("✅ Admin logging in with default demo password");
+        const adminToken = "jwt-token-" + user.id;
+        
+        // Don't return password in response
+        const { password: _, ...userWithoutPassword } = user;
+        
+        return res.json({ 
+          user: userWithoutPassword, 
+          token: adminToken,
+          message: "Login successful" 
+        });
       }
-      
-      // For admin user with demo password, we allow special access
-      const adminToken = "jwt-token-" + user.id;
-      
-      console.log(`✅ Admin auth success - token: ${adminToken}`);
-      
-      // Don't return password in response
-      const { password: _, ...userWithoutPassword } = user;
-      
-      return res.json({ 
-        user: userWithoutPassword, 
-        token: adminToken,
-        message: "Login successful" 
-      });
+      // If the password has been changed, don't override it with demo
+      else {
+        console.log("⚠️ Admin using demo password but account has a custom password");
+        console.log(`⚠️ Stored password is: '${user.password}', not accepting 'demo'`);
+        return res.status(401).json({ 
+          message: "Password has been changed. Please use your updated password."
+        });
+      }
     }
     
     if (!user) {

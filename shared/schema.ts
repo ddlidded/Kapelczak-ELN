@@ -18,6 +18,13 @@ export const users = pgTable("users", {
   lastLogin: timestamp("last_login"),
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
+  // S3 compatible storage settings
+  s3Enabled: boolean("s3_enabled").default(false),
+  s3Endpoint: text("s3_endpoint"),
+  s3Region: text("s3_region"),
+  s3Bucket: text("s3_bucket"),
+  s3AccessKey: text("s3_access_key"),
+  s3SecretKey: text("s3_secret_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
