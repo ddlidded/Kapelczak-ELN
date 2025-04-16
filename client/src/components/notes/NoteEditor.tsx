@@ -128,8 +128,14 @@ export default function NoteEditor({
       }
 
       if (note) {
-        // Update existing note
-        await apiRequest("PATCH", `/api/notes/${note.id}`, payload);
+        // Update existing note - use PUT instead of PATCH for full update
+        await apiRequest("PUT", `/api/notes/${note.id}`, payload);
+        
+        // Fetch the updated note to confirm changes are reflected
+        const response = await apiRequest("GET", `/api/notes/${note.id}`);
+        const updatedNote = await response.json();
+        console.log("Note updated successfully:", updatedNote);
+        
         toast({
           title: "Note updated",
           description: "Your note has been updated successfully.",
@@ -150,9 +156,14 @@ export default function NoteEditor({
         });
       }
 
-      // Invalidate queries to refetch data
+      // Invalidate all note-related queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notes/project', projectId] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId] });
+      
+      if (note && note.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/notes', note.id] });
+      }
       
       if (data.experimentId && data.experimentId !== "none") {
         queryClient.invalidateQueries({ 
