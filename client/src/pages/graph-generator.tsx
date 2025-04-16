@@ -200,32 +200,44 @@ export default function GraphGenerator() {
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       const formData = new FormData();
-      formData.append('file', blob, `graph_${Date.now()}.png`);
+      
+      // Use timestamp in filename for unique identification
+      const filename = `graph_${Date.now()}.png`;
+      formData.append('file', blob, filename);
 
-      // Upload the graph as an attachment
+      // Upload the graph as an attachment to the note
       const uploadResponse = await fetch(`/api/notes/${noteId}/attachments`, {
         method: 'POST',
         body: formData,
       });
       
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload graph image');
+        const errorText = await uploadResponse.text();
+        console.error("Upload error response:", errorText);
+        throw new Error(`Failed to upload graph image: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
       
       const attachment = await uploadResponse.json();
+      console.log("Attachment created:", attachment);
       
-      // Update note with the graph image
-      const imageTag = `<img src="/api/attachments/${attachment.id}/download" alt="${options.title}" />`;
+      // Update note with the graph image, using the download endpoint
+      // This works with both regular storage and S3 storage
+      const imageTag = `<img src="/api/attachments/${attachment.id}/download" alt="${options.title || 'Generated Graph'}" style="max-width: 100%;" />`;
       const updatedContent = note.content + '<p>' + imageTag + '</p>';
       
       // Save the updated note
-      await apiRequest('PUT', `/api/notes/${noteId}`, {
+      const updateResponse = await apiRequest('PUT', `/api/notes/${noteId}`, {
         ...note,
         content: updatedContent,
       });
       
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update note with graph');
+      }
+      
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/notes', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attachments/note', noteId] });
       
       toast({
         title: 'Graph Added to Note',
@@ -235,7 +247,7 @@ export default function GraphGenerator() {
       console.error('Error adding graph to note:', error);
       toast({
         title: 'Failed to Add Graph',
-        description: 'Could not add graph to the selected note. Please try again.',
+        description: error instanceof Error ? error.message : 'Could not add graph to the selected note. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -266,7 +278,7 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -274,12 +286,12 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: 0,
+                offset: -5,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
-                  dy: 15
+                  dy: 25
                 }
               }}
               tick={{ fontSize: 12 }}
@@ -318,7 +330,7 @@ export default function GraphGenerator() {
             width={500}
             height={300}
             data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -326,12 +338,12 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: 0,
+                offset: -5,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
-                  dy: 15
+                  dy: 25
                 }
               }}
               tick={{ fontSize: 12 }}
@@ -367,7 +379,7 @@ export default function GraphGenerator() {
           <ScatterChart
             width={500}
             height={300}
-            margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
           >
             {options.showGrid && <CartesianGrid strokeDasharray="3 3" />}
             <XAxis 
@@ -377,12 +389,12 @@ export default function GraphGenerator() {
               label={{ 
                 value: options.xLabel,
                 position: 'insideBottom',
-                offset: 0,
+                offset: -5,
                 style: {
                   textAnchor: 'middle',
                   fontSize: '12px',
                   fill: '#666',
-                  dy: 15
+                  dy: 25
                 }
               }}
               tick={{ fontSize: 12 }}
