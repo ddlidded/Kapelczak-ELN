@@ -1701,10 +1701,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Calendar Event Routes
+  // Get all calendar events by date range
+  app.get("/api/calendar-events", apiErrorHandler(async (req: Request, res: Response) => {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "Start date and end date are required" });
+    }
+    
+    // Validate and parse dates
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+    
+    const events = await storage.getCalendarEventsByDateRange(start, end);
+    res.json(events);
+  }));
+  
+  // Get calendar events by user
+  app.get("/api/calendar-events/user/:userId", apiErrorHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    const events = await storage.getCalendarEventsByUser(userId);
+    res.json(events);
+  }));
+  
+  // Get calendar events by project
+  app.get("/api/calendar-events/project/:projectId", apiErrorHandler(async (req: Request, res: Response) => {
+    const projectId = parseInt(req.params.projectId);
+    
+    if (!projectId || isNaN(projectId)) {
+      return res.status(400).json({ message: "Invalid project ID" });
+    }
+    
+    const events = await storage.getCalendarEventsByProject(projectId);
+    res.json(events);
+  }));
+  
+  // Get a specific calendar event
+  app.get("/api/calendar-events/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const eventId = parseInt(req.params.id);
+    
+    if (!eventId || isNaN(eventId)) {
+      return res.status(400).json({ message: "Invalid event ID" });
+    }
+    
+    const event = await storage.getCalendarEvent(eventId);
+    
+    if (!event) {
+      return res.status(404).json({ message: "Calendar event not found" });
+    }
+    
+    res.json(event);
+  }));
+  
+  // Create a new calendar event
+  app.post("/api/calendar-events", apiErrorHandler(async (req: Request, res: Response) => {
+    // Validate request body against schema
+    const validatedData = insertCalendarEventSchema.parse(req.body);
+    
+    // Ensure dates are properly formatted
+    if (typeof validatedData.startDate === 'string') {
+      validatedData.startDate = new Date(validatedData.startDate);
+    }
+    
+    if (typeof validatedData.endDate === 'string') {
+      validatedData.endDate = new Date(validatedData.endDate);
+    }
+    
+    // Check that end date is after start date
+    if (validatedData.endDate < validatedData.startDate) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
+    
+    // Set default status if not provided
+    if (!validatedData.status) {
+      validatedData.status = "Scheduled";
+    }
+    
+    // Create the calendar event
+    const event = await storage.createCalendarEvent(validatedData);
+    
+    // Broadcast to WebSocket clients
+    notifyWebSocketClients(JSON.stringify({
+      type: 'CALENDAR_EVENT_CREATED',
+      data: event
+    }));
+    
+    res.status(201).json(event);
+  }));
+  
+  // Update a calendar event
+  app.put("/api/calendar-events/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const eventId = parseInt(req.params.id);
+    
+    if (!eventId || isNaN(eventId)) {
+      return res.status(400).json({ message: "Invalid event ID" });
+    }
+    
+    // Check if event exists
+    const existingEvent = await storage.getCalendarEvent(eventId);
+    if (!existingEvent) {
+      return res.status(404).json({ message: "Calendar event not found" });
+    }
+    
+    // Parse and convert dates if present
+    const updateData: Partial<typeof req.body> = { ...req.body };
+    
+    if (updateData.startDate) {
+      updateData.startDate = new Date(updateData.startDate);
+    }
+    
+    if (updateData.endDate) {
+      updateData.endDate = new Date(updateData.endDate);
+    }
+    
+    // If both dates are provided, validate that end is after start
+    if (updateData.startDate && updateData.endDate && 
+        updateData.endDate < updateData.startDate) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
+    
+    // Update the calendar event
+    const updatedEvent = await storage.updateCalendarEvent(eventId, updateData);
+    
+    if (!updatedEvent) {
+      return res.status(500).json({ message: "Failed to update calendar event" });
+    }
+    
+    // Broadcast to WebSocket clients
+    notifyWebSocketClients(JSON.stringify({
+      type: 'CALENDAR_EVENT_UPDATED',
+      data: updatedEvent
+    }));
+    
+    res.json(updatedEvent);
+  }));
+  
+  // Delete a calendar event
+  app.delete("/api/calendar-events/:id", apiErrorHandler(async (req: Request, res: Response) => {
+    const eventId = parseInt(req.params.id);
+    
+    if (!eventId || isNaN(eventId)) {
+      return res.status(400).json({ message: "Invalid event ID" });
+    }
+    
+    // Check if event exists
+    const event = await storage.getCalendarEvent(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Calendar event not found" });
+    }
+    
+    // Delete the calendar event
+    const result = await storage.deleteCalendarEvent(eventId);
+    
+    if (!result) {
+      return res.status(500).json({ message: "Failed to delete calendar event" });
+    }
+    
+    // Broadcast to WebSocket clients
+    notifyWebSocketClients(JSON.stringify({
+      type: 'CALENDAR_EVENT_DELETED',
+      data: { id: eventId }
+    }));
+    
+    res.status(200).json({ message: "Calendar event deleted successfully" });
+  }));
+
   const httpServer = createServer(app);
   
   // Configure WebSocket server
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Function to notify all WebSocket clients
+  function notifyWebSocketClients(message: string) {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
   
   // Handle WebSocket connections
   wss.on('connection', (ws) => {
