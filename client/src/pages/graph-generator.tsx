@@ -65,9 +65,10 @@ export default function GraphGenerator() {
   const [dataInput, setDataInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedNote, setSelectedNote] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const graphRef = useRef<HTMLDivElement>(null);
 
-  // Fetch user's projects for note selection
+  // Fetch user's projects for project selection
   const { data: projects = [] } = useQuery({
     queryKey: ['/api/projects/user', user?.id],
     queryFn: async () => {
@@ -78,8 +79,19 @@ export default function GraphGenerator() {
     enabled: !!user,
   });
 
-  // Fetch all user's project notes
-  const { data: allNotes = [], isLoading: isLoadingNotes } = useQuery({
+  // Fetch notes for the selected project
+  const { data: projectNotes = [], isLoading: isLoadingNotes } = useQuery({
+    queryKey: ['/api/notes/project', selectedProject],
+    queryFn: async () => {
+      if (!selectedProject) return [];
+      const res = await apiRequest('GET', `/api/notes/project/${selectedProject}`);
+      return await res.json();
+    },
+    enabled: !!selectedProject,
+  });
+
+  // Fetch all user's notes when no project is selected
+  const { data: allNotes = [], isLoading: isLoadingAllNotes } = useQuery({
     queryKey: ['/api/notes/user', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -99,7 +111,7 @@ export default function GraphGenerator() {
       // Flatten the array of arrays into a single array of notes
       return allProjectNotes.flat();
     },
-    enabled: !!user
+    enabled: !!user && !selectedProject,
   });
 
   // Initialize data input on component mount
@@ -338,17 +350,22 @@ export default function GraphGenerator() {
     }
   };
 
-  // All notes we get should already be the user's notes
-  const userNotes = allNotes;
+  // Determine which notes to show based on project selection
+  const displayNotes = selectedProject ? projectNotes : allNotes;
+  
+  // Reset selected note when project changes
+  useEffect(() => {
+    setSelectedNote('');
+  }, [selectedProject]);
   
   // Log notes for debugging
   useEffect(() => {
-    if (userNotes.length > 0) {
-      console.log("📝 User notes available for graph generator:", userNotes);
-    } else if (!isLoadingNotes) {
-      console.log("📝 No user notes found for graph generator");
+    if (displayNotes.length > 0) {
+      console.log("📝 Notes available for graph generator:", displayNotes);
+    } else if (!isLoadingNotes && !isLoadingAllNotes) {
+      console.log("📝 No notes found for graph generator");
     }
-  }, [userNotes, isLoadingNotes]);
+  }, [displayNotes, isLoadingNotes, isLoadingAllNotes]);
 
   return (
     <div className="container py-10 px-4 sm:px-6 lg:px-8">
@@ -531,33 +548,58 @@ export default function GraphGenerator() {
                   Download Graph
                 </Button>
                 
-                <div className="flex items-center space-x-2">
-                  <Select 
-                    value={selectedNote} 
-                    onValueChange={setSelectedNote}
-                    disabled={isGenerating}
-                  >
-                    <SelectTrigger className="min-w-[200px]">
-                      <SelectValue placeholder="Select note..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingNotes ? (
-                        <SelectItem value="loading" disabled>Loading notes...</SelectItem>
-                      ) : userNotes.length > 0 ? (
-                        userNotes.map((note: any) => (
-                          <SelectItem key={note.id} value={note.id.toString()}>
-                            {note.title}
+                <div className="flex flex-col space-y-2 w-full">
+                  <div className="space-y-1">
+                    <Label htmlFor="project-select">Project</Label>
+                    <Select 
+                      value={selectedProject} 
+                      onValueChange={setSelectedProject}
+                      disabled={isGenerating}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All projects" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All projects</SelectItem>
+                        {projects.map((project: any) => (
+                          <SelectItem key={project.id} value={project.id.toString()}>
+                            {project.name}
                           </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="none" disabled>No notes available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label htmlFor="note-select">Note</Label>
+                    <Select 
+                      value={selectedNote} 
+                      onValueChange={setSelectedNote}
+                      disabled={isGenerating}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select note..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingNotes || isLoadingAllNotes ? (
+                          <SelectItem value="loading" disabled>Loading notes...</SelectItem>
+                        ) : displayNotes.length > 0 ? (
+                          displayNotes.map((note: any) => (
+                            <SelectItem key={note.id} value={note.id.toString()}>
+                              {note.title}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>No notes available</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   <Button
                     onClick={addGraphToNote}
                     disabled={!selectedNote || isGenerating}
+                    className="w-full mt-2"
                   >
                     {isGenerating ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
