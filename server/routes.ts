@@ -281,53 +281,44 @@ async function generateReportPDF(
     yPos += 5; // Less space if no author
   }
   
-  // Add logo (either provided or default) in top right
+  // Add logo BELOW the title (not in top right)
   try {
-    // Position logo in the right corner using exact dimensions to prevent distortion
+    // Position logo below the title and information
+    // This ensures the logo is visible but doesn't overlap with the title
+    
     if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
         
-        // Use the exact width and height provided to prevent distortion
-        const logoWidth = options.logoWidth || 200;
-        const logoHeight = options.logoHeight || 100;
-          
-        // Position logo at right corner
-        const logoX = pageWidth - margin - logoWidth;
-        const initialYPos = 5; // Keep the logo at the top
+        // Use reasonable dimensions that maintain the aspect ratio
+        // Original Kapelczak logo is 770x380 pixels (ratio ~2:1)
+        const logoWidth = 60; // Width in mm (reasonable size)
+        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
         
-        doc.addImage(logoData, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
         
-        // Add generation date below the logo
-        if (options.showDates !== false) {
-          doc.setFontSize(10);
-          doc.setFont(fontFamily, 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
-              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
-        }
+        // Add the logo below the title and information
+        doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        
+        // Move down after the logo
+        yPos += logoHeight + 10;
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        // Use the exact dimensions provided
-        const logoWidth = options.logoWidth || 200;
-        const logoHeight = options.logoHeight || 100;
-          
-        // Position logo at right corner
-        const logoX = pageWidth - margin - logoWidth;
-        const initialYPos = 5; // Keep the logo at the top
+        // Use reasonable dimensions that maintain the aspect ratio
+        const logoWidth = 60; // Width in mm (reasonable size)
+        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
         
-        doc.addImage(options.logo, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
         
-        // Add generation date below the logo
-        if (options.showDates !== false) {
-          doc.setFontSize(10);
-          doc.setFont(fontFamily, 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
-              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
-        }
+        // Add the logo below the title and information
+        doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        
+        // Move down after the logo
+        yPos += logoHeight + 10;
       }
     } else {
       // Use default Kapelczak logo from server assets
@@ -341,38 +332,35 @@ async function generateReportPDF(
         const logoData = fs.readFileSync(logoPath);
         const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
         
-        // Use exact dimensions of Kapelczak logo maintaining original aspect ratio (2:1)
-        // Using a fixed width that works well in the corner
-        const logoWidth = 50;
-        const logoHeight = 25; // Keep the 2:1 aspect ratio
+        // Use reasonable dimensions for the logo that maintain the 2:1 aspect ratio
+        const logoWidth = 60; // Width in mm (reasonable size)
+        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
         
-        // Position logo at right corner
-        const logoX = pageWidth - margin - logoWidth;
-        const initialYPos = 5; // Keep the logo at the top
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
         
-        // Add the default logo with exact dimensions
-        doc.addImage(logoBase64, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
-        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
+        // Add the logo below the title and information
+        doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${yPos}`);
         
-        // Add generation date below the logo
-        if (options.showDates !== false) {
-          doc.setFontSize(10);
-          doc.setFont(fontFamily, 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
-              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
-        }
+        // Move down after the logo
+        yPos += logoHeight + 10;
       } catch (err) {
         console.error('Error loading default Kapelczak logo:', err);
-        // If default logo can't be loaded, still show generation date
-        if (options.showDates !== false) {
-          doc.setFontSize(10);
-          doc.setFont(fontFamily, 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
-              pageWidth - margin, 15, { align: 'right' });
-        }
+        // If logo fails to load, don't add extra spacing
       }
+    }
+    
+    // Add generation date below the logo (centered)
+    if (options.showDates !== false) {
+      doc.setFontSize(10);
+      doc.setFont(fontFamily, 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
+          pageWidth / 2, yPos, { align: 'center' });
+      
+      // Move down after the date
+      yPos += 10;
     }
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
@@ -641,42 +629,92 @@ async function generateReportPDF(
                         format = 'JPEG';
                       }
                       
-                      // If we can get the file directly from S3
-                      if (false) { // s3Key and userId fields not in DB yet
+                      // First check if we have a filepath (S3 URL)
+                      if (attachment.filePath) {
                         try {
-                          // Get user S3 config
-                          const user = await storage.getUser(attachment.userId);
-                          if (user && user.s3Config) {
-                            // Parse S3 config
-                            const s3Config = JSON.parse(user.s3Config);
+                          console.log(`Using attachment with filePath: ${attachment.filePath}`);
+                          
+                          // Get the admin user for S3 access permissions
+                          const adminUser = await storage.getUser(1);
+                          
+                          if (adminUser && adminUser.s3Enabled) {
+                            // Get S3 config for fetching
+                            const s3Config = await getS3Config(adminUser);
                             
-                            // Try to download the file from S3
-                            const fileBuffer = await getFileFromS3(s3Config, attachment.s3Key);
-                            
-                            if (fileBuffer) {
-                              // Convert to base64
-                              const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                            if (s3Config) {
+                              // Extract the file key from the URL path
+                              // Example: https://...com/kapelczak-notes/files/12345-filename.png
+                              // We need the "files/12345-filename.png" part
+                              const url = new URL(attachment.filePath);
+                              const pathParts = url.pathname.split('/');
+                              const fileIndex = pathParts.findIndex(part => part === 'files');
+                              const s3Key = pathParts.slice(fileIndex).join('/');
                               
-                              // Add border
-                              doc.setDrawColor(200, 200, 200);
-                              doc.setFillColor(250, 250, 250);
-                              doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                              console.log(`Extracted S3 key from URL: ${s3Key}`);
                               
-                              // Add the image
-                              doc.addImage(base64Data, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
-                              console.log(`Added attachment from S3: ${attachment.fileName}`);
-                              
-                              // No need to fetch from local file
-                              return;
+                              // Try to download the file from S3
+                              try {
+                                const fileBuffer = await getFileFromS3(s3Config, s3Key);
+                                
+                                if (fileBuffer && fileBuffer.length > 0) {
+                                  // Convert to base64
+                                  const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                                  
+                                  // Add border
+                                  doc.setDrawColor(200, 200, 200);
+                                  doc.setFillColor(250, 250, 250);
+                                  doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                                  
+                                  // Add the image
+                                  doc.addImage(base64Data, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                                  console.log(`Added attachment from S3: ${attachment.fileName}`);
+                                  return;
+                                } else {
+                                  throw new Error(`Empty file buffer returned from S3`);
+                                }
+                              } catch (s3FetchErr) {
+                                console.error(`Error fetching from S3:`, s3FetchErr);
+                                
+                                // Fall back to direct URL method
+                                try {
+                                  // Try direct image URL as fallback
+                                  doc.addImage(attachment.filePath, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                                  console.log(`Added attachment from direct URL: ${attachment.fileName}`);
+                                  return;
+                                } catch (directUrlErr) {
+                                  console.error(`Error using direct URL:`, directUrlErr);
+                                  // Continue to next fallback
+                                }
+                              }
                             }
                           }
-                        } catch (s3Err) {
-                          console.error('Error getting attachment from S3:', s3Err);
-                          // Continue to try local file
+                        } catch (filePathErr) {
+                          console.error(`Error processing file path:`, filePathErr);
+                          // Continue to next fallback
                         }
                       }
                       
-                      // Try to read the file from local path
+                      // Next, try file data if available
+                      if (attachment.fileData) {
+                        try {
+                          console.log(`Using attachment fileData for: ${attachment.fileName}`);
+                          
+                          // Add border
+                          doc.setDrawColor(200, 200, 200);
+                          doc.setFillColor(250, 250, 250);
+                          doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                          
+                          // Add the image directly from file data
+                          doc.addImage(attachment.fileData, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                          console.log(`Added attachment from fileData: ${attachment.fileName}`);
+                          return;
+                        } catch (fileDataErr) {
+                          console.error(`Error using fileData:`, fileDataErr);
+                          // Continue to next fallback
+                        }
+                      }
+                      
+                      // Finally, try local file storage
                       try {
                         const fileLocalPath = `./uploads/${attachment.fileName}`;
                         if (fs.existsSync(fileLocalPath)) {
@@ -694,6 +732,8 @@ async function generateReportPDF(
                           doc.addImage(base64Data, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
                           console.log(`Added attachment from local file: ${attachment.fileName}`);
                           return;
+                        } else {
+                          console.warn(`Local file does not exist: ${fileLocalPath}`);
                         }
                       } catch (fileErr) {
                         console.error('Error getting attachment from local file:', fileErr);
