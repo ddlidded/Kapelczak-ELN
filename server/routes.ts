@@ -2303,11 +2303,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Create the calendar event
     const event = await storage.createCalendarEvent(validatedData);
     
-    // Broadcast to WebSocket clients
-    notifyWebSocketClients(JSON.stringify({
-      type: 'CALENDAR_EVENT_CREATED',
-      data: event
-    }));
+    // Broadcast to WebSocket clients with our improved notification function
+    notifyWebSocketClients('CALENDAR_EVENT_CREATED', event);
     
     res.status(201).json(event);
   }));
@@ -2350,11 +2347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to update calendar event" });
     }
     
-    // Broadcast to WebSocket clients
-    notifyWebSocketClients(JSON.stringify({
-      type: 'CALENDAR_EVENT_UPDATED',
-      data: updatedEvent
-    }));
+    // Broadcast to WebSocket clients with our improved notification function
+    notifyWebSocketClients('CALENDAR_EVENT_UPDATED', updatedEvent);
     
     res.json(updatedEvent);
   }));
@@ -2380,11 +2374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to delete calendar event" });
     }
     
-    // Broadcast to WebSocket clients
-    notifyWebSocketClients(JSON.stringify({
-      type: 'CALENDAR_EVENT_DELETED',
-      data: { id: eventId }
-    }));
+    // Broadcast to WebSocket clients with our improved notification function
+    notifyWebSocketClients('CALENDAR_EVENT_DELETED', { id: eventId });
     
     res.status(200).json({ message: "Calendar event deleted successfully" });
   }));
