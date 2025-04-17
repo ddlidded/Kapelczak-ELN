@@ -71,11 +71,11 @@ async function generateReportPDF(
   // Calculate margins and usable page dimensions
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
-  const margin = 15;
+  const margin = 20; // Increased margin for better spacing
   const contentWidth = pageWidth - (margin * 2);
   
   // Initialize position tracker
-  let yPos = margin;
+  let yPos = margin + 10; // Start with a bit more space at the top
   
   // Add logo if provided
   if (options.logo) {
@@ -83,26 +83,30 @@ async function generateReportPDF(
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
-        // Calculate logo size while preserving aspect ratio
-        const logoWidth = options.logoWidth || 40;
-        const logoHeight = options.logoHeight || 20;
+        
+        // Determine logo dimensions with better aspect ratio handling
+        let logoWidth = options.logoWidth || 40;
+        let logoHeight = options.logoHeight || 20;
+        
+        // If only one dimension is specified, calculate the other to maintain aspect ratio
+        // This would need actual image dimensions from the base64 data to be perfect
         
         // Center the logo horizontally
         const logoX = (pageWidth - logoWidth) / 2;
         
         doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 10; // Add spacing after logo
+        yPos += logoHeight + 15; // More spacing after logo
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        const logoWidth = options.logoWidth || 40;
-        const logoHeight = options.logoHeight || 20;
+        let logoWidth = options.logoWidth || 40;
+        let logoHeight = options.logoHeight || 20;
         
         // Center the logo horizontally
         const logoX = (pageWidth - logoWidth) / 2;
         
         doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 10; // Add spacing after logo
+        yPos += logoHeight + 15; // More spacing after logo
       }
     } catch (error) {
       console.error('Error adding logo to PDF:', error);
@@ -110,136 +114,200 @@ async function generateReportPDF(
     }
   }
   
-  // Add custom header if provided
+  // Add custom header if provided - with more spacing
   if (options.customHeader) {
     doc.setFontSize(10);
     doc.setFont(fontFamily, 'italic');
     doc.setTextColor(100, 100, 100);
     doc.text(options.customHeader, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    yPos += 12; // Increased spacing
   }
   
-  // Add title with primary color
+  // Add title with primary color - improved spacing and sizing
   const title = options.title || `Lab Report: ${project.name}`;
-  doc.setFontSize(24);
+  doc.setFontSize(22); // Slightly smaller for better proportion
   doc.setFont(fontFamily, 'bold');
   doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
   doc.text(title, pageWidth / 2, yPos, { align: 'center' });
-  yPos += 10;
+  yPos += 14; // Increased spacing
   
-  // Add subtitle if provided
+  // Add subtitle if provided - with better spacing
   if (options.subtitle) {
     doc.setFontSize(16);
     doc.setFont(fontFamily, 'normal');
     doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
     doc.text(options.subtitle, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+    yPos += 14; // Increased spacing
+  } else {
+    yPos += 6; // Add some space even if no subtitle
   }
   
-  // Add project info in a bordered box
+  // Add project info in a better styled bordered box
+  const boxHeight = (options.showAuthors !== false && options.author) ? 35 : 25;
   doc.setDrawColor(200, 200, 200);
-  doc.setFillColor(250, 250, 250);
-  doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, 'FD');
+  doc.setFillColor(248, 249, 250); // Lighter background
+  doc.roundedRect(margin, yPos, contentWidth, boxHeight, 4, 4, 'FD');
   
+  // Project name
   doc.setFontSize(12);
   doc.setFont(fontFamily, 'bold');
-  doc.setTextColor(80, 80, 80);
-  doc.text(`Project: ${project.name}`, margin + 5, yPos + 10);
+  doc.setTextColor(70, 70, 70);
+  doc.text(`Project: ${project.name}`, margin + 8, yPos + 10);
   
+  // Date
   if (options.showDates !== false) {
     doc.setFont(fontFamily, 'normal');
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, margin + 5, yPos + 18);
+    doc.setFontSize(11);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, margin + 8, yPos + 20);
   }
   
+  // Author
   if (options.showAuthors !== false && options.author) {
     doc.setFont(fontFamily, 'normal');
-    doc.text(`Author: ${options.author}`, margin + 5, yPos + 26);
+    doc.setFontSize(11);
+    doc.text(`Author: ${options.author}`, margin + 8, yPos + 30);
   }
   
-  yPos += 40; // Move past the project info box
+  yPos += boxHeight + 20; // Move past the info box with better spacing
   
-  // Add notes content with improved styling
+  // Add notes content with improved styling and spacing
   if (notes && notes.length > 0) {
-    doc.setFontSize(18);
+    // Notes section header
+    doc.setFontSize(16);
     doc.setFont(fontFamily, 'bold');
     doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
     doc.text('Notes', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 15;
     
-    // Process each note
+    // Draw a decorative line under the notes header
+    doc.setDrawColor(primaryColor.r, primaryColor.g, primaryColor.b, 0.5);
+    const lineWidth = 40;
+    doc.line((pageWidth - lineWidth) / 2, yPos + 4, (pageWidth + lineWidth) / 2, yPos + 4);
+    
+    yPos += 18; // Increase spacing after the header
+    
+    // Process each note with improved layout
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       
-      // Check if we need a new page
-      if (yPos > pageHeight - 50) {
+      // Check if we need a new page for this note
+      if (yPos > pageHeight - 60) {
         doc.addPage();
-        yPos = margin;
+        yPos = margin + 10;
       }
       
-      // Add note title with accent color
+      // Add note title with accent color and better spacing
       doc.setFontSize(14);
       doc.setFont(fontFamily, 'bold');
       doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
-      doc.text(note.title, margin, yPos);
+      
+      // Add a note number for clarity
+      doc.text(`Note ${i+1}: ${note.title}`, margin, yPos);
       yPos += 8;
       
-      // Add a subtle line under the title
-      doc.setDrawColor(accentColor.r, accentColor.g, accentColor.b, 0.5);
-      doc.line(margin, yPos, margin + 40, yPos);
-      yPos += 5;
+      // Add a styled line under the title
+      doc.setDrawColor(accentColor.r, accentColor.g, accentColor.b, 0.7);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, margin + 100, yPos);
+      yPos += 10; // More space after the line
       
-      // Add note content with clean HTML parsing
-      doc.setFontSize(10);
+      // Reset line width for future drawing operations
+      doc.setLineWidth(0.1);
+      
+      // Parse HTML content more carefully
+      let plainText = '';
+      try {
+        // Basic HTML tag stripping - could be improved with a proper HTML parser
+        plainText = note.content
+          .replace(/<br\s*\/?>/gi, '\n') // Replace <br> with newlines
+          .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n') // Replace paragraphs with content + double newline
+          .replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n') // Replace divs with content + newline
+          .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n') // Replace list items with bullets
+          .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n\n') // Replace headings
+          .replace(/<[^>]*>/g, '') // Remove any remaining tags
+          .replace(/&nbsp;/g, ' ') // Replace &nbsp; with spaces
+          .replace(/\n\s*\n/g, '\n\n') // Replace multiple newlines with just two
+          .trim(); // Trim whitespace
+      } catch (e) {
+        // Fallback to simple tag stripping if the more complex regex fails
+        plainText = note.content.replace(/<[^>]*>?/gm, ' ');
+      }
+      
+      // Add note content with proper styling
+      doc.setFontSize(11); // Slightly larger for better readability
       doc.setFont(fontFamily, 'normal');
-      doc.setTextColor(60, 60, 60);
+      doc.setTextColor(50, 50, 50); // Darker for better contrast
       
-      // Strip HTML tags to get plain text
-      const plainContent = note.content.replace(/<[^>]*>?/gm, ' ');
+      // Split content into lines that fit the page width
+      const textLines = doc.splitTextToSize(plainText, contentWidth);
       
-      // Extract images if includeImages is true (basic implementation)
+      // Check if we need a new page for the content
+      if (yPos + (textLines.length * 5.5) > pageHeight - 30) {
+        // If content is too long for this page, add a new page
+        doc.addPage();
+        yPos = margin + 10;
+        
+        // Add continuation note
+        doc.setFontSize(9);
+        doc.setFont(fontFamily, 'italic');
+        doc.text(`(Continued: ${note.title})`, margin, yPos);
+        yPos += 8;
+      }
+      
+      // Add the text content with improved line spacing
+      doc.text(textLines, margin, yPos);
+      
+      // Calculate how much space the text took with proper line height
+      const lineHeight = 5.5; // Slightly increased line height
+      yPos += (textLines.length * lineHeight);
+      
+      // Extract and process images if includeImages is enabled
       const images = [];
       if (options.includeImages) {
-        // Basic regex to find image tags (a more robust HTML parser would be better)
-        const imgRegex = /<img[^>]+src="([^">]+)"/g;
+        // Improved regex to find image tags with src attributes
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
         let match;
-        while (match = imgRegex.exec(note.content)) {
+        
+        // Find all images in the note content
+        while ((match = imgRegex.exec(note.content)) !== null) {
           images.push(match[1]);
+        }
+        
+        // Process each image
+        if (images.length > 0) {
+          yPos += 10; // Add space before images section
+          
+          doc.setFontSize(12);
+          doc.setFont(fontFamily, 'bold');
+          doc.text(`Images (${images.length})`, margin, yPos);
+          yPos += 8;
+          
+          // For now, we'll just list the images - actual image embedding would
+          // require fetching each image which is beyond this implementation
+          doc.setFontSize(9);
+          doc.setFont(fontFamily, 'italic');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`This note contains ${images.length} image(s) which would be displayed here.`, margin, yPos);
+          yPos += 8;
         }
       }
       
-      // Split content into lines that fit the page width
-      const textLines = doc.splitTextToSize(plainContent, contentWidth);
+      // Add space after the note
+      yPos += 10;
       
-      // Check if we need a new page
-      if (yPos + (textLines.length * 6) > pageHeight - 50) {
-        doc.addPage();
-        yPos = margin;
-      }
-      
-      // Add the text content
-      doc.text(textLines, margin, yPos);
-      yPos += (textLines.length * 6) + 5;
-      
-      // Add extracted images
-      if (options.includeImages && images.length > 0) {
-        // This would need a more robust implementation to fetch and add images
-        // For now, we'll just add a note about images
-        doc.setFontSize(9);
-        doc.setFont(fontFamily, 'italic');
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Note contains ${images.length} image(s)`, margin, yPos);
-        yPos += 5;
-      }
-      
-      // Add a divider between notes
+      // Add a divider between notes, except after the last note
       if (i < notes.length - 1) {
-        if (yPos > pageHeight - 60) {
+        // Check if we're close to the bottom of the page
+        if (yPos > pageHeight - 40) {
+          // If we're close to the bottom, start a new page instead of adding a divider
           doc.addPage();
-          yPos = margin;
+          yPos = margin + 10;
         } else {
-          doc.setDrawColor(200, 200, 200);
-          doc.line(margin, yPos + 5, pageWidth - margin, yPos + 5);
-          yPos += 15;
+          // Add a styled divider
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineDashPattern([3, 2], 0); // Dashed line
+          doc.line(margin + 20, yPos, pageWidth - margin - 20, yPos);
+          doc.setLineDashPattern([], 0); // Reset to solid line
+          yPos += 20; // More space after divider
         }
       }
     }
@@ -249,21 +317,27 @@ async function generateReportPDF(
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Add a subtle footer line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+    
+    // Footer text styling
     doc.setFontSize(9);
     doc.setFont(fontFamily, 'italic');
     doc.setTextColor(130, 130, 130);
     
     // Page numbers on the left
-    doc.text(`Page ${i} of ${pageCount}`, margin, pageHeight - 10);
+    doc.text(`Page ${i} of ${pageCount}`, margin, pageHeight - 8);
     
     // Custom footer in the center
     const footer = options.customFooter || options.footer || 'Kapelczak Notes - Laboratory Documentation System';
-    doc.text(footer, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(footer, pageWidth / 2, pageHeight - 8, { align: 'center' });
     
     // Date on the right
     if (options.showDates !== false) {
       const dateStr = new Date().toLocaleDateString();
-      doc.text(dateStr, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.text(dateStr, pageWidth - margin, pageHeight - 8, { align: 'right' });
     }
   }
   
