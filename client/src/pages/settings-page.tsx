@@ -105,6 +105,24 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   
+  // Handle case where user may be null (not logged in or data not loaded)
+  const isLoading = !user;
+
+  // If user is null or not loaded, show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold">Loading settings...</h2>
+          <p className="text-muted-foreground">Please wait while we load your settings data.</p>
+        </div>
+      </div>
+    );
+  }
+  
   const smtpForm = useForm<SmtpFormValues>({
     resolver: zodResolver(smtpFormSchema),
     defaultValues: {

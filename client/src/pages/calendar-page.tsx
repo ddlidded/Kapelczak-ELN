@@ -214,9 +214,24 @@ export default function CalendarPage() {
   // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
+      console.log("Creating calendar event with data:", {
+        ...data,
+        creatorId: user?.id,
+        // Ensure status is provided to avoid schema validation errors
+        status: data.status || 'Scheduled',
+        // Format dates properly as ISO strings
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString()
+      });
+      
       const res = await apiRequest('POST', '/api/calendar-events', {
         ...data,
         creatorId: user?.id,
+        // Ensure status is provided to avoid schema validation errors
+        status: data.status || 'Scheduled',
+        // Format dates properly as ISO strings
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString()
       });
       return await res.json();
     },
@@ -232,9 +247,10 @@ export default function CalendarPage() {
       });
     },
     onError: (error) => {
+      console.error("Failed to create calendar event:", error);
       toast({
         title: 'Error creating event',
-        description: error.message,
+        description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
     },
@@ -243,8 +259,22 @@ export default function CalendarPage() {
   // Update event mutation
   const updateEventMutation = useMutation({
     mutationFn: async (data: EventFormValues & { id: number }) => {
-      const { id, ...rest } = data;
-      const res = await apiRequest('PUT', `/api/calendar-events/${id}`, rest);
+      const { id, ...restData } = data;
+      
+      // Format the dates and ensure required fields are properly formatted
+      const formattedData = {
+        ...restData,
+        status: data.status || 'Scheduled',
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
+        // Ensure null values are properly handled
+        description: data.description || null,
+        location: data.location || null
+      };
+      
+      console.log("Updating calendar event:", id, formattedData);
+      
+      const res = await apiRequest('PUT', `/api/calendar-events/${id}`, formattedData);
       return await res.json();
     },
     onSuccess: () => {
@@ -259,9 +289,10 @@ export default function CalendarPage() {
       });
     },
     onError: (error) => {
+      console.error("Failed to update calendar event:", error);
       toast({
         title: 'Error updating event',
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: 'destructive',
       });
     },
