@@ -2318,14 +2318,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Check if SMTP is properly configured
-      if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-        console.warn('SMTP configuration missing, cannot send email');
-        return res.status(503).json({ 
-          message: "Email service not available",
-          details: "The email server is not configured properly. Please contact your administrator." 
-        });
-      }
+      // SMTP configuration is checked in the sendEmail function
+      // No need to check here as the function will handle missing configuration gracefully
       
       // Send the email with the PDF attachment
       try {
