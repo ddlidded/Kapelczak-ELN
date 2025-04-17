@@ -250,49 +250,48 @@ async function generateReportPDF(
   // Initialize position tracker
   let yPos = margin + 5; // Start with a bit more space at the top
   
-  // Add title at the top of each page
+  // Add title at the top of each page - CENTERED
   const title = options.title || `${project.name}`;
   doc.setFontSize(18);
   doc.setFont(fontFamily, 'bold');
   // Use primary color for the title text
   const titleColor = hexToRgb(options.primaryColor || '#4f46e5');
   doc.setTextColor(titleColor.r, titleColor.g, titleColor.b);
-  doc.text(title, margin, yPos);
+  
+  // Center the title
+  doc.text(title, pageWidth / 2, yPos, { align: 'center' });
   
   // Move down after title immediately
   yPos += 15;
   
-  // Add researcher and project info in a single line
+  // Add researcher and project info on separate lines
   if (options.showAuthors !== false && options.author) {
     doc.setFontSize(11);
     doc.setFont(fontFamily, 'normal');
-    doc.text(`Researcher: ${options.author} | Project: ${project.name}`, margin, yPos);
-    yPos += 15; // Add space after researcher info
+    doc.setTextColor(60, 60, 60);
+    
+    // Researcher line first
+    doc.text(`Researcher: ${options.author}`, margin, yPos);
+    yPos += 6; // Add a small space between lines
+    
+    // Project line second (below researcher)
+    doc.text(`Project: ${project.name}`, margin, yPos);
+    yPos += 15; // Add space after project info
   } else {
     yPos += 5; // Less space if no author
   }
   
-  // Add logo (either provided or default)
+  // Add logo (either provided or default) in top right
   try {
-    // For logo auto-sizing while maintaining aspect ratio - we'll use our enhanced function
-    // This ensures the logo maintains its aspect ratio and fits within constraints
-    
-    // Maximum width for the logo (30% of page width)
-    const maxLogoWidth = pageWidth * 0.3;
-    
-    // Position logo in the right corner
+    // Position logo in the right corner using exact dimensions to prevent distortion
     if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
         
-        // Create a temporary Image object to get dimensions (we'll estimate reasonable defaults)
-        const originalWidth = options.logoWidth || 200;
-        const originalHeight = options.logoHeight || 100;
-        
-        // Calculate new dimensions maintaining aspect ratio
-        const { width: logoWidth, height: logoHeight } = 
-          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
+        // Use the exact width and height provided to prevent distortion
+        const logoWidth = options.logoWidth || 200;
+        const logoHeight = options.logoHeight || 100;
           
         // Position logo at right corner
         const logoX = pageWidth - margin - logoWidth;
@@ -311,13 +310,9 @@ async function generateReportPDF(
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        // For URLs, we'll use standard dimensions but maintain aspect ratio
-        const originalWidth = options.logoWidth || 200;
-        const originalHeight = options.logoHeight || 100;
-        
-        // Calculate new dimensions maintaining aspect ratio
-        const { width: logoWidth, height: logoHeight } = 
-          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
+        // Use the exact dimensions provided
+        const logoWidth = options.logoWidth || 200;
+        const logoHeight = options.logoHeight || 100;
           
         // Position logo at right corner
         const logoX = pageWidth - margin - logoWidth;
@@ -346,20 +341,16 @@ async function generateReportPDF(
         const logoData = fs.readFileSync(logoPath);
         const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
         
-        // Kapelczak logo has known dimensions, but we'll maintain aspect ratio
-        // Original dimensions from the PNG
-        const originalWidth = 810;  // Actual width of kapelczak-logo.png
-        const originalHeight = 405; // Actual height of kapelczak-logo.png
-        
-        // Calculate new dimensions maintaining aspect ratio
-        const { width: logoWidth, height: logoHeight } = 
-          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
+        // Use exact dimensions of Kapelczak logo maintaining original aspect ratio (2:1)
+        // Using a fixed width that works well in the corner
+        const logoWidth = 50;
+        const logoHeight = 25; // Keep the 2:1 aspect ratio
         
         // Position logo at right corner
         const logoX = pageWidth - margin - logoWidth;
         const initialYPos = 5; // Keep the logo at the top
         
-        // Add the default logo
+        // Add the default logo with exact dimensions
         doc.addImage(logoBase64, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
         console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
         
@@ -624,8 +615,96 @@ async function generateReportPDF(
                   doc.text(`[External image: ${image.alt || 'No description'}]`, margin + 5, yPos + imgHeight/2);
                 }
               } else if (image.src.startsWith('/api/')) {
-                // For local API routes like attachments
-                console.log(`Local API image: ${image.src}`);
+                // For local API routes like attachments, we need to fetch the actual file
+                console.log(`Processing attachment: ${image.src}`);
+                
+                try {
+                  // Extract attachment ID from URL
+                  const attachmentIdMatch = image.src.match(/\/api\/attachments\/(\d+)\/download/);
+                  if (attachmentIdMatch && attachmentIdMatch[1]) {
+                    const attachmentId = parseInt(attachmentIdMatch[1]);
+                    
+                    // Try to get the attachment from storage
+                    const attachment = await storage.getAttachment(attachmentId);
+                    if (attachment) {
+                      console.log(`Found attachment: ${attachment.fileName}`);
+                      
+                      // Get the extension to determine format
+                      const ext = attachment.fileName.split('.').pop()?.toLowerCase();
+                      let format = 'JPEG'; // Default format
+                      
+                      if (ext === 'png') {
+                        format = 'PNG';
+                      } else if (ext === 'gif') {
+                        format = 'GIF';
+                      } else if (ext === 'jpg' || ext === 'jpeg') {
+                        format = 'JPEG';
+                      }
+                      
+                      // If we can get the file directly from S3
+                      if (attachment.s3Key && attachment.userId) {
+                        try {
+                          // Get user S3 config
+                          const user = await storage.getUser(attachment.userId);
+                          if (user && user.s3Config) {
+                            // Parse S3 config
+                            const s3Config = JSON.parse(user.s3Config);
+                            
+                            // Try to download the file from S3
+                            const fileBuffer = await getFileFromS3(s3Config, attachment.s3Key);
+                            
+                            if (fileBuffer) {
+                              // Convert to base64
+                              const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                              
+                              // Add border
+                              doc.setDrawColor(200, 200, 200);
+                              doc.setFillColor(250, 250, 250);
+                              doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                              
+                              // Add the image
+                              doc.addImage(base64Data, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                              console.log(`Added attachment from S3: ${attachment.fileName}`);
+                              
+                              // No need to fetch from local file
+                              return;
+                            }
+                          }
+                        } catch (s3Err) {
+                          console.error('Error getting attachment from S3:', s3Err);
+                          // Continue to try local file
+                        }
+                      }
+                      
+                      // Try to read the file from local path
+                      try {
+                        const fileLocalPath = `./uploads/${attachment.fileName}`;
+                        if (fs.existsSync(fileLocalPath)) {
+                          // Read the file
+                          const fileBuffer = fs.readFileSync(fileLocalPath);
+                          // Convert to base64
+                          const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                          
+                          // Add border
+                          doc.setDrawColor(200, 200, 200);
+                          doc.setFillColor(250, 250, 250);
+                          doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                          
+                          // Add the image
+                          doc.addImage(base64Data, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                          console.log(`Added attachment from local file: ${attachment.fileName}`);
+                          return;
+                        }
+                      } catch (fileErr) {
+                        console.error('Error getting attachment from local file:', fileErr);
+                      }
+                    }
+                  }
+                } catch (attachErr) {
+                  console.error('Error processing attachment:', attachErr);
+                }
+                
+                // If we get here, we couldn't load the attachment
                 // Add a placeholder with a border
                 doc.setDrawColor(200, 200, 200);
                 doc.setFillColor(245, 245, 245);
@@ -789,8 +868,96 @@ async function generateReportPDF(
                   doc.text(`[External image: ${image.alt || 'No description'}]`, rightColumnX + 5, currentYPos + imgHeight/2);
                 }
               } else if (image.src.startsWith('/api/')) {
-                // For local API routes like attachments
-                console.log(`Local API image in right column: ${image.src}`);
+                // For local API routes like attachments, we need to fetch the actual file
+                console.log(`Processing attachment in right column: ${image.src}`);
+                
+                try {
+                  // Extract attachment ID from URL
+                  const attachmentIdMatch = image.src.match(/\/api\/attachments\/(\d+)\/download/);
+                  if (attachmentIdMatch && attachmentIdMatch[1]) {
+                    const attachmentId = parseInt(attachmentIdMatch[1]);
+                    
+                    // Try to get the attachment from storage
+                    const attachment = await storage.getAttachment(attachmentId);
+                    if (attachment) {
+                      console.log(`Found attachment: ${attachment.fileName}`);
+                      
+                      // Get the extension to determine format
+                      const ext = attachment.fileName.split('.').pop()?.toLowerCase();
+                      let format = 'JPEG'; // Default format
+                      
+                      if (ext === 'png') {
+                        format = 'PNG';
+                      } else if (ext === 'gif') {
+                        format = 'GIF';
+                      } else if (ext === 'jpg' || ext === 'jpeg') {
+                        format = 'JPEG';
+                      }
+                      
+                      // If we can get the file directly from S3
+                      if (attachment.s3Key && attachment.userId) {
+                        try {
+                          // Get user S3 config
+                          const user = await storage.getUser(attachment.userId);
+                          if (user && user.s3Config) {
+                            // Parse S3 config
+                            const s3Config = JSON.parse(user.s3Config);
+                            
+                            // Try to download the file from S3
+                            const fileBuffer = await getFileFromS3(s3Config, attachment.s3Key);
+                            
+                            if (fileBuffer) {
+                              // Convert to base64
+                              const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                              
+                              // Add border
+                              doc.setDrawColor(200, 200, 200);
+                              doc.setFillColor(250, 250, 250);
+                              doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                              
+                              // Add the image
+                              doc.addImage(base64Data, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                              console.log(`Added attachment from S3 in right column: ${attachment.fileName}`);
+                              
+                              // No need to fetch from local file
+                              return;
+                            }
+                          }
+                        } catch (s3Err) {
+                          console.error('Error getting attachment from S3 in right column:', s3Err);
+                          // Continue to try local file
+                        }
+                      }
+                      
+                      // Try to read the file from local path
+                      try {
+                        const fileLocalPath = `./uploads/${attachment.fileName}`;
+                        if (fs.existsSync(fileLocalPath)) {
+                          // Read the file
+                          const fileBuffer = fs.readFileSync(fileLocalPath);
+                          // Convert to base64
+                          const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                          
+                          // Add border
+                          doc.setDrawColor(200, 200, 200);
+                          doc.setFillColor(250, 250, 250);
+                          doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                          
+                          // Add the image
+                          doc.addImage(base64Data, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                          console.log(`Added attachment from local file in right column: ${attachment.fileName}`);
+                          return;
+                        }
+                      } catch (fileErr) {
+                        console.error('Error getting attachment from local file in right column:', fileErr);
+                      }
+                    }
+                  }
+                } catch (attachErr) {
+                  console.error('Error processing attachment in right column:', attachErr);
+                }
+                
+                // If we get here, we couldn't load the attachment
                 // Add a placeholder with a border
                 doc.setDrawColor(200, 200, 200);
                 doc.setFillColor(245, 245, 245);
@@ -961,7 +1128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Now process the registration request
-    const existingUser = await storage.getUserByUsername(req.body.username);
+    // Make username lowercase to ensure case-insensitive lookup
+    const usernameToCheck = req.body.username.toLowerCase();
+    const existingUser = await storage.getUserByUsername(usernameToCheck);
+    
     if (existingUser) {
       return res.status(400).json({ message: "Username already exists" });
     }
@@ -1000,8 +1170,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", apiErrorHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
     
-    // Find the user by username
-    let user = await storage.getUserByUsername(username);
+    // Find the user by username - case insensitive
+    let user = await storage.getUserByUsername(username.toLowerCase());
     
     // Special case for admin user with demo password - ONLY when the stored password is not already set
     if (username === "admin" && password === "demo") {

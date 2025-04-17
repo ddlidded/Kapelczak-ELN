@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   s3Bucket: text("s3_bucket"),
   s3AccessKey: text("s3_access_key"),
   s3SecretKey: text("s3_secret_key"),
+  s3Config: text("s3_config"), // JSON string with all S3 config
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -51,6 +52,7 @@ export const insertUserSchema = z.object({
   s3Bucket: z.string().nullable().optional(),
   s3AccessKey: z.string().nullable().optional(),
   s3SecretKey: z.string().nullable().optional(),
+  s3Config: z.string().nullable().optional(),
 });
 
 // Projects table
@@ -115,6 +117,9 @@ export const attachments = pgTable("attachments", {
   fileData: text("file_data").notNull(), // Base64 encoded data
   filePath: text("file_path"), // Optional URL for external storage
   noteId: integer("note_id").notNull(),
+  userId: integer("user_id"), // Optional user ID for tracking ownership
+  s3Key: text("s3_key"), // S3 storage key
+  s3Bucket: text("s3_bucket"), // S3 bucket name
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
