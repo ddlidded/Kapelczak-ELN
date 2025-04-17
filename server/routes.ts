@@ -40,27 +40,95 @@ function extractImagesFromHtml(html: string) {
     try {
       // Get the src attribute
       const src = match[1];
+      const fullTag = match[0];
       
       // Skip empty sources or invalid formats
       if (!src || (!src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('/api/'))) {
         continue;
       }
       
+      // Skip SVG icons and UI elements
+      if (src.includes('assets/icons') || src.includes('/ui/') || src.includes('button-icon')) {
+        continue;
+      }
+      
       // Extract alt text using a separate regex on the full match
-      const altMatch = /alt\s*=\s*['"]([^'"]*)['"]/i.exec(match[0]);
+      const altMatch = /alt\s*=\s*['"]([^'"]*)['"]/i.exec(fullTag);
       const alt = altMatch ? altMatch[1] : '';
       
-      // Extract width if available
-      const widthMatch = /width\s*=\s*['"]?(\d+)/i.exec(match[0]);
-      const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
+      // Extract width - try multiple patterns including style
+      let width: number | undefined = undefined;
       
-      // Extract height if available
-      const heightMatch = /height\s*=\s*['"]?(\d+)/i.exec(match[0]);
-      const height = heightMatch ? parseInt(heightMatch[1], 10) : undefined;
+      // Check direct width attribute
+      const widthAttrMatch = /width\s*=\s*['"]?(\d+)/i.exec(fullTag);
+      if (widthAttrMatch) {
+        width = parseInt(widthAttrMatch[1], 10);
+      }
+      
+      // Check style attribute with width
+      if (!width) {
+        const styleMatch = /style\s*=\s*['"]([^'"]*)['"]/i.exec(fullTag);
+        if (styleMatch) {
+          const styleContent = styleMatch[1];
+          const styleWidthMatch = /width\s*:\s*(\d+)px/i.exec(styleContent);
+          if (styleWidthMatch) {
+            width = parseInt(styleWidthMatch[1], 10);
+          }
+        }
+      }
+      
+      // Extract height - try multiple patterns including style
+      let height: number | undefined = undefined;
+      
+      // Check direct height attribute
+      const heightAttrMatch = /height\s*=\s*['"]?(\d+)/i.exec(fullTag);
+      if (heightAttrMatch) {
+        height = parseInt(heightAttrMatch[1], 10);
+      }
+      
+      // Check style attribute with height
+      if (!height) {
+        const styleMatch = /style\s*=\s*['"]([^'"]*)['"]/i.exec(fullTag);
+        if (styleMatch) {
+          const styleContent = styleMatch[1];
+          const styleHeightMatch = /height\s*:\s*(\d+)px/i.exec(styleContent);
+          if (styleHeightMatch) {
+            height = parseInt(styleHeightMatch[1], 10);
+          }
+        }
+      }
+      
+      // Apply reasonable defaults for images without dimensions
+      if (!width || !height) {
+        // Check if it's a base64 image
+        if (src.startsWith('data:image')) {
+          // For data URLs, if it's a small data URL, likely an icon
+          if (src.length < 2000) {
+            width = width || 32;
+            height = height || 32;
+          } else {
+            // Likely a full image
+            width = width || 500;
+            height = height || 300;
+          }
+        } else if (src.includes('logo') || src.includes('icon') || alt.includes('icon')) {
+          // Likely a logo or icon
+          width = width || 150; 
+          height = height || 75;
+        } else {
+          // Default size for regular images
+          width = width || 600;
+          height = height || 400;
+        }
+      }
+      
+      // Enforce minimum sizes to avoid invisible images
+      width = Math.max(width, 100);
+      height = Math.max(height, 50);
       
       // Check if image source is valid
       if (src.length > 10) { // Basic validation to avoid empty/invalid sources
-        console.log(`Extracted image: ${src.substring(0, 30)}... [${alt}]`);
+        console.log(`Extracted image: ${src.substring(0, 30)}... [${width}×${height}]`);
         images.push({ src, alt, width, height });
       }
     } catch (error) {
@@ -165,21 +233,17 @@ async function generateReportPDF(
   // Initialize position tracker
   let yPos = margin + 5; // Start with a bit more space at the top
   
-  // Add title at the top of each page (similar to the provided example)
+  // Add title at the top of each page
   const title = options.title || `${project.name}`;
   doc.setFontSize(18);
   doc.setFont(fontFamily, 'bold');
-  doc.setTextColor(50, 50, 50);
+  // Use primary color for the title text
+  const titleColor = hexToRgb(options.primaryColor || '#4f46e5');
+  doc.setTextColor(titleColor.r, titleColor.g, titleColor.b);
   doc.text(title, margin, yPos);
   
-  // Add generation date on the right side
-  if (options.showDates !== false) {
-    doc.setFontSize(10);
-    doc.setFont(fontFamily, 'normal');
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - margin, yPos, { align: 'right' });
-  }
-  
-  yPos += 15; // Move down after title
+  // Move down after title immediately
+  yPos += 15;
   
   // Add researcher and project info in a single line
   if (options.showAuthors !== false && options.author) {
@@ -205,10 +269,10 @@ async function generateReportPDF(
       return { width: newWidth, height: newHeight };
     }
     
-    // Maximum width for the logo (70% of page width)
-    const maxLogoWidth = pageWidth * 0.5;
+    // Maximum width for the logo (30% of page width)
+    const maxLogoWidth = pageWidth * 0.3;
     
-    // Center the logo horizontally
+    // Position logo in the right corner
     if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
@@ -220,13 +284,22 @@ async function generateReportPDF(
         
         // Calculate new dimensions maintaining aspect ratio
         const { width: logoWidth, height: logoHeight } = 
-          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
           
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position logo at right corner
+        const logoX = pageWidth - margin - logoWidth;
+        const initialYPos = 5; // Keep the logo at the top
         
-        doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 15; // Add proper spacing after logo
+        doc.addImage(logoData, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        
+        // Add generation date below the logo
+        if (options.showDates !== false) {
+          doc.setFontSize(10);
+          doc.setFont(fontFamily, 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
+              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
+        }
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
@@ -236,13 +309,22 @@ async function generateReportPDF(
         
         // Calculate new dimensions maintaining aspect ratio
         const { width: logoWidth, height: logoHeight } = 
-          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
           
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position logo at right corner
+        const logoX = pageWidth - margin - logoWidth;
+        const initialYPos = 5; // Keep the logo at the top
         
-        doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 15; // Add proper spacing after logo
+        doc.addImage(options.logo, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        
+        // Add generation date below the logo
+        if (options.showDates !== false) {
+          doc.setFontSize(10);
+          doc.setFont(fontFamily, 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
+              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
+        }
       }
     } else {
       // Use default Kapelczak logo from server assets
@@ -263,21 +345,34 @@ async function generateReportPDF(
         
         // Calculate new dimensions maintaining aspect ratio
         const { width: logoWidth, height: logoHeight } = 
-          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+          calculateProportionalDimensions(originalWidth, originalHeight, maxLogoWidth, 50);
         
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position logo at right corner
+        const logoX = pageWidth - margin - logoWidth;
+        const initialYPos = 5; // Keep the logo at the top
         
         // Add the default logo
-        doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm`);
+        doc.addImage(logoBase64, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
         
-        // Add proper spacing after logo
-        yPos += logoHeight + 15;
+        // Add generation date below the logo
+        if (options.showDates !== false) {
+          doc.setFontSize(10);
+          doc.setFont(fontFamily, 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
+              pageWidth - margin, initialYPos + logoHeight + 5, { align: 'right' });
+        }
       } catch (err) {
         console.error('Error loading default Kapelczak logo:', err);
-        // If default logo can't be loaded, add extra spacing
-        yPos += 10;
+        // If default logo can't be loaded, still show generation date
+        if (options.showDates !== false) {
+          doc.setFontSize(10);
+          doc.setFont(fontFamily, 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
+              pageWidth - margin, 15, { align: 'right' });
+        }
       }
     }
   } catch (error) {
