@@ -143,6 +143,7 @@ function extractImagesFromHtml(html: string) {
 }
 
 // Define utility functions outside the main PDF generation function for proper TypeScript typing
+// Enhanced function to maintain aspect ratio while staying within max dimensions
 const calculateProportionalDimensions = (
   width: number | undefined, 
   height: number | undefined, 
@@ -156,15 +157,31 @@ const calculateProportionalDimensions = (
   // Calculate aspect ratio
   const aspectRatio = safeWidth / safeHeight;
   
-  // Calculate new dimensions based on max constraints
-  let newWidth = Math.min(safeWidth, maxWidth);
+  // For debugging aspect ratio calculations
+  console.log(`Calculating dimensions for ${safeWidth}x${safeHeight} (ratio: ${aspectRatio.toFixed(3)}) with max ${maxWidth}x${maxHeight}`);
+  
+  // Start with the max width and calculate the corresponding height
+  let newWidth = maxWidth;
   let newHeight = newWidth / aspectRatio;
   
-  // If height is still too large, scale based on height instead
+  // If height is too large, recalculate based on max height
   if (newHeight > maxHeight) {
     newHeight = maxHeight;
     newWidth = newHeight * aspectRatio;
   }
+  
+  // Final check to ensure we're within bounds (should never happen, but just in case)
+  if (newWidth > maxWidth) {
+    const scale = maxWidth / newWidth;
+    newWidth = maxWidth;
+    newHeight *= scale;
+  }
+  
+  // Ensure we return rounded values to avoid sub-pixel rendering issues
+  newWidth = Math.round(newWidth * 100) / 100;
+  newHeight = Math.round(newHeight * 100) / 100;
+  
+  console.log(`Final dimensions: ${newWidth}x${newHeight} (maintained ratio: ${(newWidth/newHeight).toFixed(3)})`);
   
   return { width: newWidth, height: newHeight };
 };
@@ -257,17 +274,8 @@ async function generateReportPDF(
   
   // Add logo (either provided or default)
   try {
-    // For logo auto-sizing while maintaining aspect ratio - with proper TypeScript typing
-    const calculateAspectRatio = (
-      originalWidth: number, 
-      originalHeight: number, 
-      maxWidth: number
-    ): { width: number; height: number } => {
-      const aspectRatio = originalWidth / originalHeight;
-      const newWidth = Math.min(maxWidth, originalWidth);
-      const newHeight = newWidth / aspectRatio;
-      return { width: newWidth, height: newHeight };
-    }
+    // For logo auto-sizing while maintaining aspect ratio - we'll use our enhanced function
+    // This ensures the logo maintains its aspect ratio and fits within constraints
     
     // Maximum width for the logo (30% of page width)
     const maxLogoWidth = pageWidth * 0.3;
@@ -553,21 +561,80 @@ async function generateReportPDF(
             try {
               if (image.src.startsWith('data:')) {
                 // For base64 encoded images - get the correct format
-                const format = image.src.includes('image/png') ? 'PNG' : 
-                               image.src.includes('image/gif') ? 'GIF' : 'JPEG';
-                doc.addImage(image.src, format, margin, yPos, imgWidth, imgHeight);
+                let format = 'JPEG'; // Default format
+                
+                if (image.src.includes('image/png')) {
+                  format = 'PNG';
+                } else if (image.src.includes('image/gif')) {
+                  format = 'GIF';
+                } else if (image.src.includes('image/jpeg') || image.src.includes('image/jpg')) {
+                  format = 'JPEG';
+                }
+                
+                // For very long data URLs, trim them to avoid overflow errors
+                const maxLength = 500000; // 500KB max
+                let imgData = image.src;
+                if (imgData.length > maxLength) {
+                  console.warn(`Image data too large (${imgData.length} bytes), might cause issues`);
+                }
+                
+                // Add border before image to make it stand out
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(250, 250, 250);
+                doc.rect(margin, yPos, imgWidth, imgHeight, 'FD'); // Fill and Draw
+                
+                try {
+                  // Use exact dimensions as calculated
+                  doc.addImage(imgData, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                  console.log(`Added ${format} image successfully at ${margin}×${yPos}, size: ${imgWidth}×${imgHeight}`);
+                } catch (imgErr) {
+                  console.error(`Failed to add ${format} image:`, imgErr);
+                  // Fallback to just a border and text
+                  doc.setFontSize(10);
+                  doc.setFont(fontFamily, 'italic');
+                  doc.setTextColor(100, 100, 100);
+                  doc.text(`[Image: ${image.alt || 'No description'}]`, margin + 5, yPos + imgHeight/2);
+                }
               } else if (image.src.startsWith('http')) {
                 // For URL images - try to determine format from URL or default to JPEG
-                const format = image.src.toLowerCase().endsWith('.png') ? 'PNG' :
-                               image.src.toLowerCase().endsWith('.gif') ? 'GIF' : 'JPEG';
-                doc.addImage(image.src, format, margin, yPos, imgWidth, imgHeight);
+                let format = 'JPEG'; // Default format
+                
+                if (image.src.toLowerCase().endsWith('.png')) {
+                  format = 'PNG';
+                } else if (image.src.toLowerCase().endsWith('.gif')) {
+                  format = 'GIF';
+                } else if (image.src.toLowerCase().endsWith('.jpg') || image.src.toLowerCase().endsWith('.jpeg')) {
+                  format = 'JPEG';
+                }
+                
+                // Add border before image to make it stand out
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(250, 250, 250);
+                doc.rect(margin, yPos, imgWidth, imgHeight, 'FD'); // Fill and Draw
+                
+                try {
+                  doc.addImage(image.src, format, margin, yPos, imgWidth, imgHeight, undefined, 'FAST');
+                  console.log(`Added ${format} URL image successfully`);
+                } catch (imgErr) {
+                  console.error(`Failed to add URL image:`, imgErr);
+                  // Fallback to just a border and text
+                  doc.setFontSize(10);
+                  doc.setFont(fontFamily, 'italic');
+                  doc.setTextColor(100, 100, 100);
+                  doc.text(`[External image: ${image.alt || 'No description'}]`, margin + 5, yPos + imgHeight/2);
+                }
               } else if (image.src.startsWith('/api/')) {
                 // For local API routes like attachments
-                console.log(`Skipping local API image: ${image.src}`);
+                console.log(`Local API image: ${image.src}`);
+                // Add a placeholder with a border
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin, yPos, imgWidth, imgHeight, 'FD');
+                
                 doc.setFontSize(10);
                 doc.setFont(fontFamily, 'italic');
                 doc.setTextColor(100, 100, 100);
-                doc.text(`[Attachment image: ${image.alt || 'No description'}]`, margin, yPos + 10);
+                doc.text(`[Attachment: ${image.alt || 'No description'}]`, margin + 5, yPos + imgHeight/2);
               }
               
               // Add a light border around the image for better visibility
@@ -659,21 +726,80 @@ async function generateReportPDF(
             try {
               if (image.src.startsWith('data:')) {
                 // For base64 encoded images - get the correct format
-                const format = image.src.includes('image/png') ? 'PNG' : 
-                              image.src.includes('image/gif') ? 'GIF' : 'JPEG';
-                doc.addImage(image.src, format, rightColumnX, currentYPos, imgWidth, imgHeight);
+                let format = 'JPEG'; // Default format
+                
+                if (image.src.includes('image/png')) {
+                  format = 'PNG';
+                } else if (image.src.includes('image/gif')) {
+                  format = 'GIF';
+                } else if (image.src.includes('image/jpeg') || image.src.includes('image/jpg')) {
+                  format = 'JPEG';
+                }
+                
+                // For very long data URLs, trim them to avoid overflow errors
+                const maxLength = 500000; // 500KB max
+                let imgData = image.src;
+                if (imgData.length > maxLength) {
+                  console.warn(`Right column image data too large (${imgData.length} bytes), might cause issues`);
+                }
+                
+                // Add border before image to make it stand out
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(250, 250, 250);
+                doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD'); // Fill and Draw
+                
+                try {
+                  // Use exact dimensions as calculated
+                  doc.addImage(imgData, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                  console.log(`Added ${format} right column image at ${rightColumnX}×${currentYPos}, size: ${imgWidth}×${imgHeight}`);
+                } catch (imgErr) {
+                  console.error(`Failed to add ${format} image in right column:`, imgErr);
+                  // Fallback to just a border and text
+                  doc.setFontSize(10);
+                  doc.setFont(fontFamily, 'italic');
+                  doc.setTextColor(100, 100, 100);
+                  doc.text(`[Image: ${image.alt || 'No description'}]`, rightColumnX + 5, currentYPos + imgHeight/2);
+                }
               } else if (image.src.startsWith('http')) {
-                // For URL images - determine format from URL
-                const format = image.src.toLowerCase().endsWith('.png') ? 'PNG' :
-                              image.src.toLowerCase().endsWith('.gif') ? 'GIF' : 'JPEG';
-                doc.addImage(image.src, format, rightColumnX, currentYPos, imgWidth, imgHeight);
+                // For URL images - try to determine format from URL or default to JPEG
+                let format = 'JPEG'; // Default format
+                
+                if (image.src.toLowerCase().endsWith('.png')) {
+                  format = 'PNG';
+                } else if (image.src.toLowerCase().endsWith('.gif')) {
+                  format = 'GIF';
+                } else if (image.src.toLowerCase().endsWith('.jpg') || image.src.toLowerCase().endsWith('.jpeg')) {
+                  format = 'JPEG';
+                }
+                
+                // Add border before image to make it stand out
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(250, 250, 250);
+                doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD'); // Fill and Draw
+                
+                try {
+                  doc.addImage(image.src, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                  console.log(`Added ${format} URL image in right column successfully`);
+                } catch (imgErr) {
+                  console.error(`Failed to add URL image in right column:`, imgErr);
+                  // Fallback to just a border and text
+                  doc.setFontSize(10);
+                  doc.setFont(fontFamily, 'italic');
+                  doc.setTextColor(100, 100, 100);
+                  doc.text(`[External image: ${image.alt || 'No description'}]`, rightColumnX + 5, currentYPos + imgHeight/2);
+                }
               } else if (image.src.startsWith('/api/')) {
                 // For local API routes like attachments
-                console.log(`Skipping local API image in right column: ${image.src}`);
+                console.log(`Local API image in right column: ${image.src}`);
+                // Add a placeholder with a border
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(245, 245, 245);
+                doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                
                 doc.setFontSize(10);
                 doc.setFont(fontFamily, 'italic');
                 doc.setTextColor(100, 100, 100);
-                doc.text(`[Attachment image: ${image.alt || 'No description'}]`, rightColumnX, currentYPos + 10);
+                doc.text(`[Attachment: ${image.alt || 'No description'}]`, rightColumnX + 5, currentYPos + imgHeight/2);
               }
               
               // Add a light border around the image for better visibility
