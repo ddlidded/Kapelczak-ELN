@@ -105,8 +105,14 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   
+  // Add debug logging for user state
+  useEffect(() => {
+    console.log("Settings page user state:", { user, authLoading });
+  }, [user, authLoading]);
+  
   // Handle case where user may be null (not logged in or data not loaded)
-  const isLoading = authLoading || !user;
+  // Only consider auth loading, not user presence, to avoid blank screens
+  const isLoading = authLoading;
 
   // Create a local state that ensures we have safe defaults for form values, even if user object is null initially
   const [localUserData, setLocalUserData] = useState({
