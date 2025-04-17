@@ -104,10 +104,33 @@ export default function ReportsPage() {
   } = useQuery<Report[]>({
     queryKey: ['/api/reports'],
     queryFn: async () => {
-      const res = await fetch('/api/reports');
-      if (!res.ok) throw new Error('Failed to fetch reports');
+      // Get user token for authentication
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        // If no token, user might not be authenticated yet
+        console.warn('No auth token found for reports fetch');
+        return [];
+      }
+      
+      const res = await fetch('/api/reports', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Handle unauthorized access
+          console.error('Unauthorized access to reports');
+          return [];
+        }
+        throw new Error('Failed to fetch reports');
+      }
+      
       return await res.json();
     },
+    enabled: !!user, // Only run the query if user is authenticated
   });
   
   // Fetch experiments based on selected project

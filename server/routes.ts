@@ -21,6 +21,9 @@ async function generateReportPDF(
   notes: Array<{ title: string; content: string; id: number }>, 
   options: { 
     title?: string; 
+    subtitle?: string;
+    customHeader?: string;
+    customFooter?: string;
     orientation?: string; 
     pageSize?: string;
     logo?: string;
@@ -28,6 +31,14 @@ async function generateReportPDF(
     logoHeight?: number;
     footer?: string;
     author?: string;
+    primaryColor?: string;
+    accentColor?: string;
+    fontFamily?: string;
+    includeImages?: boolean;
+    includeAttachments?: boolean;
+    includeExperimentDetails?: boolean;
+    showDates?: boolean;
+    showAuthors?: boolean;
     [key: string]: any;
   }
 ) {
@@ -40,17 +51,58 @@ async function generateReportPDF(
     format: options.pageSize || 'a4'
   });
   
-  // Add header with logo if provided
+  // Set the font family based on options
+  const fontFamily = options.fontFamily || 'helvetica';
+  
+  // Convert hex color to RGB components for jsPDF
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '#4f46e5');
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 79, g: 70, b: 229 }; // Default indigo if parsing fails
+  };
+  
+  // Set colors from options
+  const primaryColor = hexToRgb(options.primaryColor || '#4f46e5');
+  const accentColor = hexToRgb(options.accentColor || '#8b5cf6');
+  
+  // Calculate margins and usable page dimensions
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 15;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Initialize position tracker
+  let yPos = margin;
+  
+  // Add logo if provided
   if (options.logo) {
     try {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
-        doc.addImage(logoData, 'PNG', 10, 10, options.logoWidth || 40, options.logoHeight || 20);
+        // Calculate logo size while preserving aspect ratio
+        const logoWidth = options.logoWidth || 40;
+        const logoHeight = options.logoHeight || 20;
+        
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
+        
+        doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        yPos += logoHeight + 10; // Add spacing after logo
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        doc.addImage(options.logo, 'PNG', 10, 10, options.logoWidth || 40, options.logoHeight || 20);
+        const logoWidth = options.logoWidth || 40;
+        const logoHeight = options.logoHeight || 20;
+        
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
+        
+        doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        yPos += logoHeight + 10; // Add spacing after logo
       }
     } catch (error) {
       console.error('Error adding logo to PDF:', error);
@@ -58,85 +110,160 @@ async function generateReportPDF(
     }
   }
   
-  // Add title and project name
-  const title = options.title || `Lab Report: ${project.name}`;
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(title, 15, options.logo ? 40 : 20);
-  
-  // Add project info
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Project: ${project.name}`, 15, options.logo ? 50 : 30);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 15, options.logo ? 56 : 36);
-  
-  if (options.author) {
-    doc.text(`Author: ${options.author}`, 15, options.logo ? 62 : 42);
+  // Add custom header if provided
+  if (options.customHeader) {
+    doc.setFontSize(10);
+    doc.setFont(fontFamily, 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text(options.customHeader, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
   }
   
-  let yPos = options.logo ? 75 : 55;
+  // Add title with primary color
+  const title = options.title || `Lab Report: ${project.name}`;
+  doc.setFontSize(24);
+  doc.setFont(fontFamily, 'bold');
+  doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
+  doc.text(title, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 10;
   
-  // Add notes content
-  if (notes && notes.length > 0) {
+  // Add subtitle if provided
+  if (options.subtitle) {
     doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Notes', 15, yPos);
-    yPos += 10;
+    doc.setFont(fontFamily, 'normal');
+    doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+    doc.text(options.subtitle, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+  }
+  
+  // Add project info in a bordered box
+  doc.setDrawColor(200, 200, 200);
+  doc.setFillColor(250, 250, 250);
+  doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, 'FD');
+  
+  doc.setFontSize(12);
+  doc.setFont(fontFamily, 'bold');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Project: ${project.name}`, margin + 5, yPos + 10);
+  
+  if (options.showDates !== false) {
+    doc.setFont(fontFamily, 'normal');
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, margin + 5, yPos + 18);
+  }
+  
+  if (options.showAuthors !== false && options.author) {
+    doc.setFont(fontFamily, 'normal');
+    doc.text(`Author: ${options.author}`, margin + 5, yPos + 26);
+  }
+  
+  yPos += 40; // Move past the project info box
+  
+  // Add notes content with improved styling
+  if (notes && notes.length > 0) {
+    doc.setFontSize(18);
+    doc.setFont(fontFamily, 'bold');
+    doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
+    doc.text('Notes', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
     
     // Process each note
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       
-      // Add note title
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(note.title, 15, yPos);
-      yPos += 8;
-      
-      // Add note content (simplified, actual HTML-to-PDF would be more complex)
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      // Strip HTML tags to get plain text for simple demonstration
-      const plainContent = note.content.replace(/<[^>]*>?/gm, ' ');
-      
-      // Split content into lines that fit the page width
-      const textLines = doc.splitTextToSize(plainContent, 180);
-      
       // Check if we need a new page
-      if (yPos + (textLines.length * 5) > 280) {
+      if (yPos > pageHeight - 50) {
         doc.addPage();
-        yPos = 20;
+        yPos = margin;
       }
       
-      doc.text(textLines, 15, yPos);
-      yPos += (textLines.length * 5) + 15;
+      // Add note title with accent color
+      doc.setFontSize(14);
+      doc.setFont(fontFamily, 'bold');
+      doc.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+      doc.text(note.title, margin, yPos);
+      yPos += 8;
       
-      // Add a divider
+      // Add a subtle line under the title
+      doc.setDrawColor(accentColor.r, accentColor.g, accentColor.b, 0.5);
+      doc.line(margin, yPos, margin + 40, yPos);
+      yPos += 5;
+      
+      // Add note content with clean HTML parsing
+      doc.setFontSize(10);
+      doc.setFont(fontFamily, 'normal');
+      doc.setTextColor(60, 60, 60);
+      
+      // Strip HTML tags to get plain text
+      const plainContent = note.content.replace(/<[^>]*>?/gm, ' ');
+      
+      // Extract images if includeImages is true (basic implementation)
+      const images = [];
+      if (options.includeImages) {
+        // Basic regex to find image tags (a more robust HTML parser would be better)
+        const imgRegex = /<img[^>]+src="([^">]+)"/g;
+        let match;
+        while (match = imgRegex.exec(note.content)) {
+          images.push(match[1]);
+        }
+      }
+      
+      // Split content into lines that fit the page width
+      const textLines = doc.splitTextToSize(plainContent, contentWidth);
+      
+      // Check if we need a new page
+      if (yPos + (textLines.length * 6) > pageHeight - 50) {
+        doc.addPage();
+        yPos = margin;
+      }
+      
+      // Add the text content
+      doc.text(textLines, margin, yPos);
+      yPos += (textLines.length * 6) + 5;
+      
+      // Add extracted images
+      if (options.includeImages && images.length > 0) {
+        // This would need a more robust implementation to fetch and add images
+        // For now, we'll just add a note about images
+        doc.setFontSize(9);
+        doc.setFont(fontFamily, 'italic');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Note contains ${images.length} image(s)`, margin, yPos);
+        yPos += 5;
+      }
+      
+      // Add a divider between notes
       if (i < notes.length - 1) {
-        doc.setDrawColor(200, 200, 200);
-        doc.line(15, yPos - 10, 195, yPos - 10);
-        
-        // Check if we need a new page for the next note
-        if (yPos > 250) {
+        if (yPos > pageHeight - 60) {
           doc.addPage();
-          yPos = 20;
+          yPos = margin;
+        } else {
+          doc.setDrawColor(200, 200, 200);
+          doc.line(margin, yPos + 5, pageWidth - margin, yPos + 5);
+          yPos += 15;
         }
       }
     }
   }
   
-  // Add footer with page numbers
+  // Add footer with page numbers and custom footer on each page
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(150);
-    doc.text(`Page ${i} of ${pageCount}`, 15, 285);
+    doc.setFontSize(9);
+    doc.setFont(fontFamily, 'italic');
+    doc.setTextColor(130, 130, 130);
     
-    if (options.footer) {
-      doc.text(options.footer, 100, 285, { align: 'center' });
+    // Page numbers on the left
+    doc.text(`Page ${i} of ${pageCount}`, margin, pageHeight - 10);
+    
+    // Custom footer in the center
+    const footer = options.customFooter || options.footer || 'Kapelczak Notes - Laboratory Documentation System';
+    doc.text(footer, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    
+    // Date on the right
+    if (options.showDates !== false) {
+      const dateStr = new Date().toLocaleDateString();
+      doc.text(dateStr, pageWidth - margin, pageHeight - 10, { align: 'right' });
     }
   }
   
@@ -1583,6 +1710,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Report operations
   // Get all reports for a user
+  // Get all reports (for the current user)
+  app.get("/api/reports", apiErrorHandler(async (req: Request, res: Response) => {
+    // Get authentication token
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // Extract userId from the token
+    const userId = parseInt(token.split('-')[2]);
+    
+    if (isNaN(userId)) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    
+    // Get all reports for the user
+    const reports = await storage.getReportsByUser(userId);
+    res.json(reports);
+  }));
+
   app.get("/api/reports/user/:userId", apiErrorHandler(async (req: Request, res: Response) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
