@@ -105,6 +105,18 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   
+  const smtpForm = useForm<SmtpFormValues>({
+    resolver: zodResolver(smtpFormSchema),
+    defaultValues: {
+      smtpHost: process.env.SMTP_HOST || "smtp.socketlabs.com",
+      smtpPort: process.env.SMTP_PORT || "587",
+      smtpUser: process.env.SMTP_USER || "server35806",
+      smtpPassword: process.env.SMTP_PASSWORD || "",
+      smtpFromEmail: "noreply@kapelczak.com",
+      smtpFromName: "Kapelczak Notes",
+    },
+  });
+  
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
@@ -399,6 +411,134 @@ export default function SettingsPage() {
       toast({
         title: "Update failed",
         description: "There was an error updating your storage settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+  
+  async function testSmtpConnection() {
+    setIsTesting(true);
+    setTestResult(null);
+    
+    try {
+      console.log("⏳ Testing SMTP connection...");
+      
+      // Get the current form values
+      const { smtpHost, smtpPort, smtpUser, smtpPassword, smtpFromEmail, smtpFromName } = smtpForm.getValues();
+      
+      // Validate required fields
+      if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFromEmail || !smtpFromName) {
+        throw new Error("Please fill in all required SMTP fields before testing");
+      }
+      
+      const testData = {
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword
+        },
+        from: {
+          email: smtpFromEmail,
+          name: smtpFromName
+        }
+      };
+      
+      console.log("📤 Sending SMTP connection test request");
+      
+      const response = await apiRequest(
+        'POST', 
+        `/api/settings/email/test`, 
+        testData
+      );
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        console.log("✅ SMTP connection test successful");
+        setTestResult({
+          success: true,
+          message: result.message || "Connection successful!"
+        });
+        
+        toast({
+          title: "Connection successful",
+          description: result.message || "Your SMTP connection was tested successfully.",
+        });
+      } else {
+        console.error("❌ SMTP connection test failed:", result);
+        setTestResult({
+          success: false,
+          message: result.message || "Connection failed"
+        });
+        
+        toast({
+          title: "Connection failed",
+          description: result.message || "Failed to connect to SMTP server. Check your settings.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error testing SMTP connection:', error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      
+      setTestResult({
+        success: false,
+        message: errorMessage
+      });
+      
+      toast({
+        title: "Test failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  }
+  
+  async function onSmtpSubmit(data: SmtpFormValues) {
+    setIsUpdating(true);
+    try {
+      console.log("⏳ Updating SMTP settings with data:", data);
+      
+      // Prepare data for API request
+      const smtpData = {
+        host: data.smtpHost,
+        port: parseInt(data.smtpPort),
+        auth: {
+          user: data.smtpUser,
+          pass: data.smtpPassword
+        },
+        from: {
+          email: data.smtpFromEmail,
+          name: data.smtpFromName
+        }
+      };
+      
+      console.log("📤 Sending SMTP update request");
+      
+      const response = await apiRequest('PATCH', `/api/settings/email`, smtpData);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Server error:", response.status, errorText);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
+      
+      console.log("✅ SMTP settings updated successfully");
+      
+      toast({
+        title: "Email settings updated",
+        description: "Your email settings have been updated successfully.",
+      });
+    } catch (error) {
+      console.error('❌ Error updating SMTP settings:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your email settings.",
         variant: "destructive",
       });
     } finally {
