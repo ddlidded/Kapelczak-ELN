@@ -1109,9 +1109,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const authToken = authHeader.split(' ')[1];
     
     // Get user ID from token
-    const userId = parseInt(authToken.split('-')[2]);
+    let userId: number;
     
-    if (isNaN(userId)) {
+    try {
+      // Extract userId from the token
+      if (authToken.startsWith('jwt-token-')) {
+        userId = parseInt(authToken.replace('jwt-token-', ''));
+      } else {
+        const parts = authToken.split('-');
+        userId = parseInt(parts[parts.length - 1]);
+      }
+      
+      if (isNaN(userId)) {
+        return res.status(401).json({ message: "Invalid token format" });
+      }
+    } catch (error) {
+      console.error("❌ Error extracting userId from token:", error);
       return res.status(401).json({ message: "Invalid token" });
     }
     
@@ -1269,10 +1282,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const meToken = authHeader.split(' ')[1];
     
     // Verify token (simplified)
-    const userId = parseInt(meToken.split('-')[2]); // Extract ID from token
+    // The token format is "jwt-token-{userId}"
+    let userId: number;
     
-    if (isNaN(userId)) {
-      return res.status(401).json({ message: "Invalid token" });
+    try {
+      // Extract userId from the token
+      if (meToken.startsWith('jwt-token-')) {
+        userId = parseInt(meToken.replace('jwt-token-', ''));
+      } else {
+        const parts = meToken.split('-');
+        userId = parseInt(parts[parts.length - 1]);
+      }
+      
+      console.log("👤 Extracted userId from token:", userId);
+      
+      if (isNaN(userId)) {
+        return res.status(401).json({ message: "Invalid token format" });
+      }
+    } catch (error) {
+      console.error("❌ Error extracting userId from token:", error, {
+        token: meToken
+      });
+      return res.status(401).json({ 
+        message: "Invalid token"
+      });
     }
     
     const user = await storage.getUser(userId);
