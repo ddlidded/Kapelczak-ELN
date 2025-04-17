@@ -31,23 +31,75 @@ import autoTable from "jspdf-autotable";
 // Helper function to generate PDF reports
 // Extract images from HTML content
 function extractImagesFromHtml(html: string) {
-  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-  const images: Array<{ src: string, alt?: string }> = [];
+  // Enhanced regex to catch all img tags regardless of attribute order
+  const imgRegex = /<img\s+[^>]*?src\s*=\s*['"](.*?)['"][^>]*?>/gi;
+  const images: Array<{ src: string, alt?: string, width?: number, height?: number }> = [];
   
   let match;
   while ((match = imgRegex.exec(html)) !== null) {
-    // Get the src attribute
-    const src = match[1];
-    
-    // Try to get alt attribute if available
-    const altMatch = /<img[^>]+alt=["']([^"']+)["'][^>]*>/i.exec(match[0]);
-    const alt = altMatch ? altMatch[1] : '';
-    
-    images.push({ src, alt });
+    try {
+      // Get the src attribute
+      const src = match[1];
+      
+      // Skip empty sources or invalid formats
+      if (!src || (!src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('/api/'))) {
+        continue;
+      }
+      
+      // Extract alt text using a separate regex on the full match
+      const altMatch = /alt\s*=\s*['"]([^'"]*)['"]/i.exec(match[0]);
+      const alt = altMatch ? altMatch[1] : '';
+      
+      // Extract width if available
+      const widthMatch = /width\s*=\s*['"]?(\d+)/i.exec(match[0]);
+      const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
+      
+      // Extract height if available
+      const heightMatch = /height\s*=\s*['"]?(\d+)/i.exec(match[0]);
+      const height = heightMatch ? parseInt(heightMatch[1], 10) : undefined;
+      
+      // Check if image source is valid
+      if (src.length > 10) { // Basic validation to avoid empty/invalid sources
+        console.log(`Extracted image: ${src.substring(0, 30)}... [${alt}]`);
+        images.push({ src, alt, width, height });
+      }
+    } catch (error) {
+      console.error('Error extracting image data:', error);
+      // Continue processing other images
+    }
   }
   
+  // Log the number of images found
+  console.log(`Total images extracted from HTML: ${images.length}`);
   return images;
 }
+
+// Define utility functions outside the main PDF generation function for proper TypeScript typing
+const calculateProportionalDimensions = (
+  width: number | undefined, 
+  height: number | undefined, 
+  maxWidth: number, 
+  maxHeight: number
+): { width: number; height: number } => {
+  // Default dimensions if not specified
+  const safeWidth = width || 100;
+  const safeHeight = height || 100;
+  
+  // Calculate aspect ratio
+  const aspectRatio = safeWidth / safeHeight;
+  
+  // Calculate new dimensions based on max constraints
+  let newWidth = Math.min(safeWidth, maxWidth);
+  let newHeight = newWidth / aspectRatio;
+  
+  // If height is still too large, scale based on height instead
+  if (newHeight > maxHeight) {
+    newHeight = maxHeight;
+    newWidth = newHeight * aspectRatio;
+  }
+  
+  return { width: newWidth, height: newHeight };
+};
 
 async function generateReportPDF(
   project: { name: string; id: number }, 
@@ -141,21 +193,56 @@ async function generateReportPDF(
   
   // Add logo (either provided or default)
   try {
-    let logoWidth = options.logoWidth || 40;
-    let logoHeight = options.logoHeight || 20;
+    // For logo auto-sizing while maintaining aspect ratio - with proper TypeScript typing
+    const calculateAspectRatio = (
+      originalWidth: number, 
+      originalHeight: number, 
+      maxWidth: number
+    ): { width: number; height: number } => {
+      const aspectRatio = originalWidth / originalHeight;
+      const newWidth = Math.min(maxWidth, originalWidth);
+      const newHeight = newWidth / aspectRatio;
+      return { width: newWidth, height: newHeight };
+    }
+    
+    // Maximum width for the logo (70% of page width)
+    const maxLogoWidth = pageWidth * 0.5;
     
     // Center the logo horizontally
-    const logoX = (pageWidth - logoWidth) / 2;
-
     if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
+        
+        // Create a temporary Image object to get dimensions (we'll estimate reasonable defaults)
+        const originalWidth = options.logoWidth || 200;
+        const originalHeight = options.logoHeight || 100;
+        
+        // Calculate new dimensions maintaining aspect ratio
+        const { width: logoWidth, height: logoHeight } = 
+          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+          
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
+        
         doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        yPos += logoHeight + 15; // Add proper spacing after logo
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
+        // For URLs, we'll use standard dimensions but maintain aspect ratio
+        const originalWidth = options.logoWidth || 200;
+        const originalHeight = options.logoHeight || 100;
+        
+        // Calculate new dimensions maintaining aspect ratio
+        const { width: logoWidth, height: logoHeight } = 
+          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+          
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
+        
         doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        yPos += logoHeight + 15; // Add proper spacing after logo
       }
     } else {
       // Use default Kapelczak logo from server assets
@@ -165,21 +252,38 @@ async function generateReportPDF(
         const logoPath = './server/assets/kapelczak-logo.png';
         console.log('Using default Kapelczak logo from:', logoPath);
         
+        // Get the logo data
         const logoData = fs.readFileSync(logoPath);
         const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
         
+        // Kapelczak logo has known dimensions, but we'll maintain aspect ratio
+        // Original dimensions from the PNG
+        const originalWidth = 810;  // Actual width of kapelczak-logo.png
+        const originalHeight = 405; // Actual height of kapelczak-logo.png
+        
+        // Calculate new dimensions maintaining aspect ratio
+        const { width: logoWidth, height: logoHeight } = 
+          calculateAspectRatio(originalWidth, originalHeight, maxLogoWidth);
+        
+        // Center the logo horizontally
+        const logoX = (pageWidth - logoWidth) / 2;
+        
         // Add the default logo
         doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm`);
+        
+        // Add proper spacing after logo
+        yPos += logoHeight + 15;
       } catch (err) {
         console.error('Error loading default Kapelczak logo:', err);
-        // If default logo can't be loaded, continue without it
+        // If default logo can't be loaded, add extra spacing
+        yPos += 10;
       }
     }
-    
-    yPos += logoHeight + 10; // Add spacing after logo
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
-    // Continue without the logo
+    // Continue without the logo, add some spacing
+    yPos += 10;
   }
   
   // Add notes in a two-column layout like the provided example
@@ -312,7 +416,9 @@ async function generateReportPDF(
         doc.setFont(fontFamily, 'bold');
         doc.setTextColor(50, 50, 50);
         doc.text("Images:", margin, yPos);
-        yPos += 8;
+        yPos += 10; // Increased spacing for better visual separation
+        
+        // Using the shared calculateProportionalDimensions function defined above
         
         // Add each image from first note
         for (let imgIdx = 0; imgIdx < images1.length; imgIdx++) {
@@ -320,11 +426,20 @@ async function generateReportPDF(
           
           try {
             // Set image dimensions - limit width to columnWidth
-            const imgWidth = Math.min(columnWidth, 70); // max 70mm or column width
-            const imgHeight = 40; // fixed height for consistency
+            const maxImgWidth = Math.min(columnWidth, 70); // max 70mm or column width
+            const maxImgHeight = 50; // Increased max height for better visibility
+            
+            // Use proper proportional sizing
+            const { width: imgWidth, height: imgHeight } = 
+              calculateProportionalDimensions(
+                image.width, 
+                image.height, 
+                maxImgWidth, 
+                maxImgHeight
+              );
             
             // Check if we need a new page
-            if (yPos + imgHeight + 10 > pageHeight - 30) {
+            if (yPos + imgHeight + 15 > pageHeight - 30) {
               doc.addPage();
               yPos = margin + 10;
               
@@ -332,40 +447,71 @@ async function generateReportPDF(
               doc.setFontSize(12);
               doc.setFont(fontFamily, 'bold');
               doc.text("Images (continued):", margin, yPos);
-              yPos += 8;
+              yPos += 10;
             }
+            
+            // Log for debugging
+            console.log(`Adding image (${imgIdx+1}/${images1.length}): ${image.src.substring(0, 30)}...`);
+            console.log(`- Dimensions: ${imgWidth}mm x ${imgHeight}mm`);
             
             // Add the image
-            if (image.src.startsWith('data:')) {
-              // For base64 encoded images
-              doc.addImage(image.src, 'JPEG', margin, yPos, imgWidth, imgHeight);
-            } else if (image.src.startsWith('http')) {
-              // For URL images
-              doc.addImage(image.src, 'JPEG', margin, yPos, imgWidth, imgHeight);
-            }
-            
-            // Add caption if available
-            if (image.alt) {
-              doc.setFontSize(9);
+            try {
+              if (image.src.startsWith('data:')) {
+                // For base64 encoded images - get the correct format
+                const format = image.src.includes('image/png') ? 'PNG' : 
+                               image.src.includes('image/gif') ? 'GIF' : 'JPEG';
+                doc.addImage(image.src, format, margin, yPos, imgWidth, imgHeight);
+              } else if (image.src.startsWith('http')) {
+                // For URL images - try to determine format from URL or default to JPEG
+                const format = image.src.toLowerCase().endsWith('.png') ? 'PNG' :
+                               image.src.toLowerCase().endsWith('.gif') ? 'GIF' : 'JPEG';
+                doc.addImage(image.src, format, margin, yPos, imgWidth, imgHeight);
+              } else if (image.src.startsWith('/api/')) {
+                // For local API routes like attachments
+                console.log(`Skipping local API image: ${image.src}`);
+                doc.setFontSize(10);
+                doc.setFont(fontFamily, 'italic');
+                doc.setTextColor(100, 100, 100);
+                doc.text(`[Attachment image: ${image.alt || 'No description'}]`, margin, yPos + 10);
+              }
+              
+              // Add a light border around the image for better visibility
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, yPos, imgWidth, imgHeight);
+              
+              // Add caption if available
+              if (image.alt) {
+                doc.setFontSize(9);
+                doc.setFont(fontFamily, 'italic');
+                doc.setTextColor(80, 80, 80);
+                // Center the caption under the image
+                doc.text(image.alt, margin + (imgWidth / 2), yPos + imgHeight + 5, { align: 'center' });
+                yPos += imgHeight + 10; // Account for caption
+              } else {
+                yPos += imgHeight + 5; // Just the image height plus a small gap
+              }
+            } catch (imgErr) {
+              console.error('Failed to add specific image:', imgErr);
+              // Add error text
+              doc.setFontSize(10);
               doc.setFont(fontFamily, 'italic');
-              doc.setTextColor(80, 80, 80);
-              doc.text(image.alt, margin, yPos + imgHeight + 5);
+              doc.setTextColor(100, 100, 100);
+              doc.text(`[Image format not supported: ${image.alt || 'No description'}]`, margin, yPos + 10);
+              yPos += 20; // Just add some space and continue
             }
             
-            // Move position past the image
-            yPos += imgHeight + (image.alt ? 10 : 5);
           } catch (err) {
-            console.error('Error adding image to PDF:', err);
+            console.error('Error processing image for PDF:', err);
             // Add placeholder text instead
             doc.setFontSize(10);
             doc.setFont(fontFamily, 'italic');
             doc.setTextColor(100, 100, 100);
-            doc.text(`[Image could not be displayed: ${image.alt || 'No description'}]`, margin, yPos);
-            yPos += 5;
+            doc.text(`[Image could not be processed: ${image.alt || 'No description'}]`, margin, yPos);
+            yPos += 15;
           }
         }
         
-        yPos += 10; // Add spacing after images
+        yPos += 15; // Add extra spacing after all images
       }
       
       // Add images for second note if they exist and option is enabled
@@ -374,61 +520,105 @@ async function generateReportPDF(
         doc.setFontSize(12);
         doc.setFont(fontFamily, 'bold');
         doc.setTextColor(50, 50, 50);
-        doc.text("Images:", rightColumnX, yPos - (images1.length > 0 ? (images1.length * 45) : 0));
-        yPos += 8;
+        // Place the title in the right column at the appropriate position
+        const secondColumnYPos = yPos - (images1.length > 0 ? Math.min(images1.length * 30, 120) : 0);
+        doc.text("Images:", rightColumnX, secondColumnYPos);
         
         // Add each image from second note
+        let currentYPos = secondColumnYPos + 10; // Start position for right column
+        
         for (let imgIdx = 0; imgIdx < images2.length; imgIdx++) {
           const image = images2[imgIdx];
           
           try {
-            // Set image dimensions - limit width to columnWidth
-            const imgWidth = Math.min(columnWidth, 70); // max 70mm or column width
-            const imgHeight = 40; // fixed height for consistency
+            // Set image dimensions - use the same proportional sizing function as first column
+            const maxImgWidth = Math.min(columnWidth, 70); // max 70mm or column width
+            const maxImgHeight = 50; // Same max height as first column
+            
+            // Use proper proportional sizing (reusing the function from earlier)
+            const { width: imgWidth, height: imgHeight } = 
+              calculateProportionalDimensions(
+                image.width, 
+                image.height, 
+                maxImgWidth, 
+                maxImgHeight
+              );
             
             // Check if we need a new page
-            if (yPos + imgHeight + 10 > pageHeight - 30) {
+            if (currentYPos + imgHeight + 15 > pageHeight - 30) {
               doc.addPage();
-              yPos = margin + 10;
+              currentYPos = margin + 10;
               
               // Reprint section title on new page
               doc.setFontSize(12);
               doc.setFont(fontFamily, 'bold');
-              doc.text("Images (continued):", rightColumnX, yPos);
-              yPos += 8;
+              doc.text("Images (continued):", rightColumnX, currentYPos);
+              currentYPos += 10;
             }
+            
+            // Log for debugging
+            console.log(`Adding right column image (${imgIdx+1}/${images2.length}): ${image.src.substring(0, 30)}...`);
+            console.log(`- Dimensions: ${imgWidth}mm x ${imgHeight}mm at position y=${currentYPos}`);
             
             // Add the image in the right column
-            if (image.src.startsWith('data:')) {
-              // For base64 encoded images
-              doc.addImage(image.src, 'JPEG', rightColumnX, yPos, imgWidth, imgHeight);
-            } else if (image.src.startsWith('http')) {
-              // For URL images
-              doc.addImage(image.src, 'JPEG', rightColumnX, yPos, imgWidth, imgHeight);
-            }
-            
-            // Add caption if available
-            if (image.alt) {
-              doc.setFontSize(9);
+            try {
+              if (image.src.startsWith('data:')) {
+                // For base64 encoded images - get the correct format
+                const format = image.src.includes('image/png') ? 'PNG' : 
+                              image.src.includes('image/gif') ? 'GIF' : 'JPEG';
+                doc.addImage(image.src, format, rightColumnX, currentYPos, imgWidth, imgHeight);
+              } else if (image.src.startsWith('http')) {
+                // For URL images - determine format from URL
+                const format = image.src.toLowerCase().endsWith('.png') ? 'PNG' :
+                              image.src.toLowerCase().endsWith('.gif') ? 'GIF' : 'JPEG';
+                doc.addImage(image.src, format, rightColumnX, currentYPos, imgWidth, imgHeight);
+              } else if (image.src.startsWith('/api/')) {
+                // For local API routes like attachments
+                console.log(`Skipping local API image in right column: ${image.src}`);
+                doc.setFontSize(10);
+                doc.setFont(fontFamily, 'italic');
+                doc.setTextColor(100, 100, 100);
+                doc.text(`[Attachment image: ${image.alt || 'No description'}]`, rightColumnX, currentYPos + 10);
+              }
+              
+              // Add a light border around the image for better visibility
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight);
+              
+              // Add caption if available
+              if (image.alt) {
+                doc.setFontSize(9);
+                doc.setFont(fontFamily, 'italic');
+                doc.setTextColor(80, 80, 80);
+                // Center the caption under the image
+                doc.text(image.alt, rightColumnX + (imgWidth / 2), currentYPos + imgHeight + 5, { align: 'center' });
+                currentYPos += imgHeight + 10; // Account for caption
+              } else {
+                currentYPos += imgHeight + 5; // Just the image height plus a small gap
+              }
+            } catch (imgErr) {
+              console.error('Failed to add specific image in right column:', imgErr);
+              // Add error text
+              doc.setFontSize(10);
               doc.setFont(fontFamily, 'italic');
-              doc.setTextColor(80, 80, 80);
-              doc.text(image.alt, rightColumnX, yPos + imgHeight + 5);
+              doc.setTextColor(100, 100, 100);
+              doc.text(`[Image format not supported: ${image.alt || 'No description'}]`, rightColumnX, currentYPos + 10);
+              currentYPos += 20;
             }
             
-            // Move position past the image
-            yPos += imgHeight + (image.alt ? 10 : 5);
           } catch (err) {
-            console.error('Error adding image to PDF:', err);
+            console.error('Error processing image for PDF in right column:', err);
             // Add placeholder text instead
             doc.setFontSize(10);
             doc.setFont(fontFamily, 'italic');
             doc.setTextColor(100, 100, 100);
-            doc.text(`[Image could not be displayed: ${image.alt || 'No description'}]`, rightColumnX, yPos);
-            yPos += 5;
+            doc.text(`[Image could not be processed: ${image.alt || 'No description'}]`, rightColumnX, currentYPos);
+            currentYPos += 15;
           }
         }
         
-        yPos += 10; // Add spacing after images
+        // Update the main yPos to be max of both columns
+        yPos = Math.max(yPos, currentYPos + 15);
       }
       
       // Add a line break after each pair
