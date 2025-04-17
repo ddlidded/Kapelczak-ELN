@@ -1,36 +1,93 @@
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
+
+// Define SMTP config type
+import type { TransportOptions } from 'nodemailer';
+
+export interface SmtpConfig extends TransportOptions {
+  host: string;
+  port: number;
+  secure?: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+  from?: {
+    email: string;
+    name: string;
+  };
+  tls?: {
+    rejectUnauthorized: boolean;
+  };
+  debug?: boolean;
+  logger?: boolean;
+}
+
+// Load SMTP settings from .env or environment
+let smtpSettings = {
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  user: process.env.SMTP_USER,
+  pass: process.env.SMTP_PASSWORD,
+  fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@kapelczak.com',
+  fromName: process.env.SMTP_FROM_NAME || 'Kapelczak Notes'
+};
+
+// Custom file for persisting SMTP settings
+const SMTP_CONFIG_FILE = path.join(process.cwd(), 'smtp-config.json');
+
+// Try to load persisted settings if they exist
+try {
+  if (fs.existsSync(SMTP_CONFIG_FILE)) {
+    const persistedSettings = JSON.parse(fs.readFileSync(SMTP_CONFIG_FILE, 'utf8'));
+    smtpSettings = {
+      ...smtpSettings,
+      ...persistedSettings
+    };
+    console.log('Loaded persisted SMTP settings');
+  }
+} catch (error) {
+  console.error('Error loading persisted SMTP settings:', error);
+}
 
 // Log SMTP settings (without showing passwords)
 console.log('SMTP Configuration:');
-console.log(`- Host: ${process.env.SMTP_HOST || 'Not configured'}`);
-console.log(`- Port: ${process.env.SMTP_PORT || '587 (default)'}`);
-console.log(`- Auth User: ${process.env.SMTP_USER ? '****' + process.env.SMTP_USER.slice(-10) : 'Not configured'}`);
-console.log(`- Auth Pass: ${process.env.SMTP_PASSWORD ? '********' : 'Not configured'}`);
+console.log(`- Host: ${smtpSettings.host || 'Not configured'}`);
+console.log(`- Port: ${smtpSettings.port || '587 (default)'}`);
+console.log(`- Auth User: ${smtpSettings.user ? '****' + smtpSettings.user.slice(-10) : 'Not configured'}`);
+console.log(`- Auth Pass: ${smtpSettings.pass ? '********' : 'Not configured'}`);
 
-// Email configuration
-const mailConfig = {
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465, // Auto-detect secure mode based on port
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-  // Add additional parameters for better reliability
-  tls: {
-    // Allow self-signed certificates and other less secure options for development
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  },
-  // Debug settings to get more information
-  debug: process.env.NODE_ENV !== 'production',
-  logger: process.env.NODE_ENV !== 'production'
-};
+// Get SMTP configuration object
+function getSmtpConfig(): SmtpConfig {
+  return {
+    host: smtpSettings.host || '',
+    port: smtpSettings.port || 587,
+    secure: smtpSettings.port === 465, // Auto-detect secure mode based on port
+    auth: {
+      user: smtpSettings.user || '',
+      pass: smtpSettings.pass || '',
+    },
+    from: {
+      email: smtpSettings.fromEmail,
+      name: smtpSettings.fromName
+    },
+    // Add additional parameters for better reliability
+    tls: {
+      // Allow self-signed certificates and other less secure options for development
+      rejectUnauthorized: process.env.NODE_ENV === 'production'
+    },
+    // Debug settings to get more information
+    debug: process.env.NODE_ENV !== 'production',
+    logger: process.env.NODE_ENV !== 'production'
+  };
+}
 
 // Get a reusable transporter object
 let transporter: nodemailer.Transporter;
 
 try {
-  transporter = nodemailer.createTransport(mailConfig);
+  transporter = nodemailer.createTransport(getSmtpConfig());
   console.log('SMTP transporter created successfully');
 } catch (error) {
   console.error('Failed to create SMTP transporter:', error);
@@ -42,6 +99,87 @@ try {
       return { accepted: [mailOptions.to], rejected: [] };
     }
   } as any;
+}
+
+// Function to update SMTP settings
+export async function updateSmtpSettings(config: SmtpConfig): Promise<boolean> {
+  try {
+    // Update settings
+    smtpSettings = {
+      host: config.host,
+      port: config.port,
+      user: config.auth.user,
+      pass: config.auth.pass,
+      fromEmail: config.from?.email || 'noreply@kapelczak.com',
+      fromName: config.from?.name || 'Kapelczak Notes'
+    };
+    
+    // Recreate transporter with new settings
+    transporter = nodemailer.createTransport(getSmtpConfig());
+    
+    // Test connection to verify it works
+    await transporter.verify();
+    
+    // Persist settings to file
+    fs.writeFileSync(
+      SMTP_CONFIG_FILE,
+      JSON.stringify(smtpSettings, null, 2),
+      'utf8'
+    );
+    
+    console.log('SMTP settings updated and verified successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to update SMTP settings:', error);
+    return false;
+  }
+}
+
+// Function to test SMTP connection
+export async function testSmtpConnection(config: SmtpConfig): Promise<{success: boolean; message: string}> {
+  try {
+    console.log('Testing SMTP connection with settings:', {
+      host: config.host,
+      port: config.port,
+      user: config.auth.user,
+      secure: config.port === 465
+    });
+    
+    // Create a temporary transporter
+    const testTransporter = nodemailer.createTransport(config);
+    
+    // Verify connection configuration
+    await testTransporter.verify();
+    
+    console.log('SMTP connection test successful');
+    return {
+      success: true,
+      message: 'Connection successful! Your email settings are working.'
+    };
+  } catch (error) {
+    console.error('SMTP connection test failed:', error);
+    let errorMessage = 'Connection failed';
+    
+    if (error instanceof Error) {
+      // Provide user-friendly error messages based on common SMTP errors
+      if (error.message.includes('ECONNREFUSED')) {
+        errorMessage = 'Connection refused. Check your host and port settings.';
+      } else if (error.message.includes('ETIMEDOUT')) {
+        errorMessage = 'Connection timed out. Check your host and port settings.';
+      } else if (error.message.includes('Invalid login')) {
+        errorMessage = 'Authentication failed. Check your username and password.';
+      } else if (error.message.includes('certificate')) {
+        errorMessage = 'SSL/TLS certificate issue. Try using a different port or check server settings.';
+      } else {
+        errorMessage = `Error: ${error.message}`;
+      }
+    }
+    
+    return {
+      success: false,
+      message: errorMessage
+    };
+  }
 }
 
 export interface EmailOptions {
@@ -58,10 +196,10 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
-    // Format "from" as "Kapelczak Notes <email>" for better deliverability
+    // Format "from" as "Name <email>" for better deliverability
     // This helps with SMTP provider restrictions on plain email addresses
-    const from = process.env.SMTP_USER ? 
-      `"Kapelczak Notes" <${process.env.SMTP_USER}>` : 
+    const from = smtpSettings.user ? 
+      `"${smtpSettings.fromName}" <${smtpSettings.fromEmail}>` : 
       "Kapelczak Notes <noreply@kapelczak.com>";
     
     console.log(`📧 Sending email using: ${from}`);
@@ -80,8 +218,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     `);
     
     // Before attempting to send, verify we have required SMTP settings
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-      console.warn('⚠️ SMTP settings missing, cannot send email. Please configure SMTP_HOST, SMTP_USER, and SMTP_PASSWORD');
+    if (!smtpSettings.host || !smtpSettings.user || !smtpSettings.pass) {
+      console.warn('⚠️ SMTP settings missing, cannot send email. Please configure SMTP settings in the admin dashboard.');
       
       // Log the email content for debugging
       console.log(`📧 [SMTP NOT CONFIGURED] Email content:
