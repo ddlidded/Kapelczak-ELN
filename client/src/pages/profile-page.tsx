@@ -34,21 +34,29 @@ interface Note {
 export default function ProfilePage() {
   const { user } = useAuth();
   
-  // Fetch all notes to calculate user's total notes count
-  const { data: allNotes } = useQuery<Note[]>({
-    queryKey: ['/api/notes'],
+  // Fetch user's notes directly using a more specific endpoint
+  const { data: userNotes = [] } = useQuery<Note[]>({
+    queryKey: ['/api/notes/user', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const res = await apiRequest('GET', `/api/notes`);
-      return await res.json();
+      // If there's a specific endpoint for user notes, use it
+      try {
+        const res = await apiRequest('GET', `/api/notes/user/${user.id}`);
+        return await res.json();
+      } catch (error) {
+        console.error("Error fetching user notes by ID, falling back to filtering all notes", error);
+        // Fallback: fetch all notes and filter
+        const res = await apiRequest('GET', `/api/notes`);
+        const allNotes = await res.json();
+        return allNotes.filter((note: Note) => note.authorId === user.id);
+      }
     },
     enabled: !!user,
     initialData: [],
   });
   
-  // Filter notes by user's authorId for recent notes
-  const userNotes = allNotes?.filter(note => note.authorId === user?.id) || [];
-  const recentNotes = userNotes.sort((a, b) => 
+  // Get recent notes by sorting on updatedAt
+  const recentNotes = [...userNotes].sort((a: Note, b: Note) => 
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   ).slice(0, 5);
   

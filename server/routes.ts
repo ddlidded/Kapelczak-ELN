@@ -2008,6 +2008,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     res.json(notesWithAttachments);
   }));
+  
+  // Get notes by user ID
+  app.get("/api/notes/user/:userId", apiErrorHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId);
+    
+    // Get all notes
+    const allNotes = await storage.listNotes();
+    
+    // Filter by author ID
+    const userNotes = allNotes.filter(note => note.authorId === userId);
+    
+    // For each note, fetch its attachments
+    const notesWithAttachments = await Promise.all(
+      userNotes.map(async (note) => {
+        const attachments = await storage.listAttachmentsByNote(note.id);
+        return {
+          ...note,
+          attachments: attachments || []
+        };
+      })
+    );
+    
+    res.json(notesWithAttachments);
+  }));
 
   app.get("/api/notes/:id", apiErrorHandler(async (req: Request, res: Response) => {
     const noteId = parseInt(req.params.id);
