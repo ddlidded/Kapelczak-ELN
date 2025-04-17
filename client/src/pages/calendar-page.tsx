@@ -105,78 +105,207 @@ export default function CalendarPage() {
   const [startDate, setStartDate] = useState(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState(endOfMonth(new Date()));
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection with proper reconnection logic
   useEffect(() => {
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    console.log('📡 Preparing WebSocket connection at:', wsUrl);
+    
+    let socket: WebSocket | null = null;
+    let reconnectAttempts = 0;
+    let reconnectInterval: number | null = null;
+    const maxReconnectAttempts = 10;
+    const baseReconnectDelay = 1000; // Start with 1 second
+    
+    // Create a heartbeat mechanism to detect dead connections
+    let heartbeatInterval: number | null = null;
+    
+    // Function to start heartbeat pings
+    const startHeartbeat = () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
       
-      console.log('Attempting to connect to WebSocket at:', wsUrl);
-      
-      let socket: WebSocket;
-      
-      // Use a try-catch within a function to handle any WebSocket initialization errors
-      const connectWebSocket = () => {
-        try {
+      heartbeatInterval = window.setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          // Send a ping message to keep the connection alive
+          try {
+            socket.send(JSON.stringify({ type: 'PING', timestamp: new Date().toISOString() }));
+          } catch (err) {
+            console.warn('⚠️ Failed to send heartbeat ping:', err);
+            // If sending fails, connection might be dead but not detected yet
+            if (socket) {
+              socket.close(4000, 'Heartbeat failed');
+            }
+          }
+        }
+      }, 30000) as unknown as number; // 30-second ping interval
+    };
+
+    // Stop heartbeat mechanism
+    const stopHeartbeat = () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
+    };
+    
+    // Calculate exponential backoff delay for reconnection
+    const getReconnectDelay = () => {
+      const maxDelay = 30000; // Max 30 seconds
+      const delay = Math.min(maxDelay, baseReconnectDelay * Math.pow(1.5, reconnectAttempts));
+      return delay;
+    };
+    
+    // Function to connect WebSocket with proper error handling
+    const connectWebSocket = () => {
+      try {
+        // Clear any existing reconnect timers
+        if (reconnectInterval) {
+          clearTimeout(reconnectInterval);
+          reconnectInterval = null;
+        }
+        
+        // Only attempt to create a new socket if we don't have one or it's closed
+        if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+          console.log(`🔄 Connecting to WebSocket (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
+          
+          // Create new WebSocket connection
           socket = new WebSocket(wsUrl);
           
+          // Set up event handlers
           socket.onopen = () => {
-            console.log('WebSocket connection established');
+            console.log('✅ WebSocket connection established successfully');
+            reconnectAttempts = 0; // Reset reconnect counter on successful connection
+            
+            // Send a message to identify the client
+            try {
+              socket?.send(JSON.stringify({
+                type: 'CLIENT_CONNECTED',
+                clientType: 'calendar',
+                userId: user?.id,
+                timestamp: new Date().toISOString()
+              }));
+            } catch (err) {
+              console.error('Failed to send initial identification message:', err);
+            }
+            
+            // Start heartbeat mechanism
+            startHeartbeat();
           };
           
           socket.onmessage = (event) => {
             try {
+              // Try to parse the message data
               const data = JSON.parse(event.data);
-              if (
-                data.type === 'CALENDAR_EVENT_CREATED' ||
-                data.type === 'CALENDAR_EVENT_UPDATED' ||
-                data.type === 'CALENDAR_EVENT_DELETED'
-              ) {
+              
+              // Log the message (only in development)
+              if (process.env.NODE_ENV === 'development') {
+                console.log('📥 WebSocket message received:', data);
+              }
+              
+              // Handle different message types
+              if (data.type === 'CONNECTION_ESTABLISHED') {
+                console.log('🤝 WebSocket handshake complete:', data.message);
+              }
+              else if (data.type === 'CALENDAR_EVENT_CREATED' || data.type === 'CALENDAR_EVENT_UPDATED' || data.type === 'CALENDAR_EVENT_DELETED') {
+                console.log(`📆 Calendar update received: ${data.type}`);
                 // Invalidate and refresh calendar events
                 queryClient.invalidateQueries({
                   queryKey: ['/api/calendar-events']
                 });
+                
+                // Show a toast notification
+                toast({
+                  title: 'Calendar Updated',
+                  description: `A calendar event has been ${data.type.split('_')[2].toLowerCase()}`,
+                  variant: 'default',
+                });
+              }
+              else if (data.type === 'PONG') {
+                // Heartbeat response, no need to do anything
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('❤️ Heartbeat received');
+                }
               }
             } catch (error) {
-              console.error('Error processing WebSocket message:', error);
+              console.error('❌ Error processing WebSocket message:', error);
             }
           };
           
           socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            console.error('❌ WebSocket error:', error);
           };
           
           socket.onclose = (event) => {
-            console.log('WebSocket connection closed with code:', event.code);
+            console.log(`🔌 WebSocket connection closed with code: ${event.code}, reason: ${event.reason || 'No reason provided'}`);
             
-            if (event.code !== 1000) {
-              // If not a normal closure, attempt to reconnect after a delay
-              console.log('Attempting to reconnect WebSocket in 3 seconds...');
-              setTimeout(connectWebSocket, 3000);
+            // Stop heartbeat mechanism
+            stopHeartbeat();
+            
+            // Only attempt to reconnect if it wasn't a normal closure and we haven't exceeded max attempts
+            if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+              reconnectAttempts++;
+              const delay = getReconnectDelay();
+              
+              console.log(`🔄 Attempting to reconnect WebSocket in ${Math.round(delay / 1000)} seconds... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+              
+              reconnectInterval = window.setTimeout(connectWebSocket, delay) as unknown as number;
+            } else if (reconnectAttempts >= maxReconnectAttempts) {
+              console.error('❌ Maximum WebSocket reconnection attempts reached. Giving up.');
+              
+              toast({
+                title: 'Connection Failed',
+                description: 'Failed to connect to real-time updates. Please reload the page to try again.',
+                variant: 'destructive',
+              });
             }
           };
-        } catch (error) {
-          console.error('Failed to initialize WebSocket connection:', error);
-          // Don't try to immediately reconnect to avoid infinite error loops
-          console.log('Will attempt to reconnect WebSocket in 5 seconds...');
-          setTimeout(connectWebSocket, 5000);
         }
-      };
+      } catch (error) {
+        console.error('❌ Error creating WebSocket connection:', error);
+        
+        // Attempt to reconnect with exponential backoff
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = getReconnectDelay();
+          
+          console.log(`🔄 Will attempt to reconnect WebSocket in ${Math.round(delay / 1000)} seconds... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+          
+          reconnectInterval = window.setTimeout(connectWebSocket, delay) as unknown as number;
+        }
+      }
+    };
+    
+    // Initial connection attempt
+    connectWebSocket();
+    
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up WebSocket connection');
       
-      // Initial connection attempt
-      connectWebSocket();
+      // Stop heartbeat
+      stopHeartbeat();
       
-      // Cleanup function
-      return () => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
+      // Clear any reconnect timers
+      if (reconnectInterval) {
+        clearTimeout(reconnectInterval);
+      }
+      
+      // Close socket if it exists and is open
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        try {
           socket.close(1000, 'Component unmounting');
+        } catch (err) {
+          console.error('Error closing WebSocket connection:', err);
         }
-      };
-    } catch (error) {
-      console.error('Error in WebSocket setup:', error);
-      return () => {}; // Empty cleanup function if setup fails
-    }
-  }, []);
+      }
+      
+      // Nullify references
+      socket = null;
+    };
+  }, [queryClient, toast, user?.id]);
 
   // Reset date range when changing months
   useEffect(() => {

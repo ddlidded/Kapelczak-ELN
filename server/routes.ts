@@ -2417,7 +2417,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Function to notify all WebSocket clients with improved error handling
-  function notifyWebSocketClients(message: string) {
+  function notifyWebSocketClients(messageType: string, data: any = {}) {
+    const message = JSON.stringify({
+      type: messageType,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+    
     let successCount = 0;
     let failCount = 0;
     
@@ -2434,7 +2440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     if (wss.clients.size > 0) {
-      console.log(`WebSocket notification sent to ${successCount}/${wss.clients.size} clients (${failCount} failed)`);
+      console.log(`WebSocket notification '${messageType}' sent to ${successCount}/${wss.clients.size} clients (${failCount} failed)`);
     }
   }
   
@@ -2470,7 +2476,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         console.log(`Received from ${clientIp}:`, message.toString().substring(0, 100) + (message.toString().length > 100 ? '...' : ''));
         
-        // Echo back for now
+        // Try to parse the message JSON
+        try {
+          const msgData = JSON.parse(message.toString());
+          
+          // Handle different message types
+          if (msgData.type === 'PING') {
+            // Respond to heartbeat pings
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'PONG',
+                timestamp: new Date().toISOString()
+              }));
+            }
+            return;
+          }
+          
+          // Handle client identification
+          if (msgData.type === 'CLIENT_CONNECTED') {
+            console.log(`Client identified: ${msgData.clientType}, User: ${msgData.userId}`);
+            // No response needed, the welcome message already sent in onConnection
+            return;
+          }
+        } catch (jsonError) {
+          // If it's not valid JSON, treat it as a plain text message
+          console.warn('Received non-JSON message:', message.toString().substring(0, 50));
+        }
+        
+        // Echo back for any other message types
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             type: 'MESSAGE_RECEIVED',
