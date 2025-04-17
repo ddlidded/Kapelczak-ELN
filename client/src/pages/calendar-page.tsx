@@ -5,7 +5,6 @@ import { format, addDays, subDays, startOfMonth, endOfMonth, parseISO, isSameDay
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -377,371 +376,372 @@ export default function CalendarPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Calendar</h1>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={navigatePrev}>
-              Previous
-            </Button>
-            <Button variant="outline" onClick={navigateToday}>
-              Today
-            </Button>
-            <Button variant="outline" onClick={navigateNext}>
-              Next
-            </Button>
-            <Button variant="outline" onClick={() => toggleView()}>
-              {currentView === 'month' ? 'Month View' : 'Month View'}
-            </Button>
-            <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" /> Add Event
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Event</DialogTitle>
-                  <DialogDescription>
-                    Create a new calendar event for your lab activities.
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...addEventForm}>
-                  <form onSubmit={addEventForm.handleSubmit(onAddEvent)} className="space-y-4">
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Calendar</h1>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={navigatePrev}>
+            Previous
+          </Button>
+          <Button variant="outline" onClick={navigateToday}>
+            Today
+          </Button>
+          <Button variant="outline" onClick={navigateNext}>
+            Next
+          </Button>
+          <Button variant="outline" onClick={() => toggleView()}>
+            {currentView === 'month' ? 'Month View' : 'Day View'}
+          </Button>
+          <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" /> Add Event
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Add New Event</DialogTitle>
+                <DialogDescription>
+                  Create a new calendar event for your lab activities.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...addEventForm}>
+                <form onSubmit={addEventForm.handleSubmit(onAddEvent)} className="space-y-4">
+                  <FormField
+                    control={addEventForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Event title" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={addEventForm.control}
-                      name="title"
+                      name="startDate"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Title</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Event title" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={addEventForm.control}
-                        name="startDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Start Date</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full pl-3 text-left font-normal"
-                                  >
-                                    {field.value ? (
-                                      format(field.value, "PPP")
-                                    ) : (
-                                      <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={addEventForm.control}
-                        name="endDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>End Date</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full pl-3 text-left font-normal"
-                                  >
-                                    {field.value ? (
-                                      format(field.value, "PPP")
-                                    ) : (
-                                      <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={addEventForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Event description" 
-                              {...field} 
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addEventForm.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Event location" 
-                              {...field} 
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addEventForm.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Scheduled">Scheduled</SelectItem>
-                              <SelectItem value="Confirmed">Confirmed</SelectItem>
-                              <SelectItem value="Cancelled">Cancelled</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addEventForm.control}
-                      name="projectId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Associated Project</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                            defaultValue={field.value?.toString() || undefined}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select project (optional)" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {projects.map((project: any) => (
-                                <SelectItem key={project.id} value={project.id.toString()}>
-                                  {project.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            Optionally associate this event with a project.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button 
-                        type="submit" 
-                        disabled={createEventMutation.isPending}
-                      >
-                        {createEventMutation.isPending && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Create Event
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-
-        {isLoadingEvents ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            {currentView === 'month' ? (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && toggleView(date)}
-                  className="border-0"
-                  modifiers={{
-                    hasEvent: (date) => getEventsForDay(date).length > 0,
-                  }}
-                  modifiersClassNames={{
-                    hasEvent: "bg-primary/10 font-bold text-primary",
-                  }}
-                  components={{
-                    DayContent: ({ date }) => {
-                      const dayEvents = getEventsForDay(date);
-                      return (
-                        <div className="w-full h-full">
-                          <span>{date.getDate()}</span>
-                          {dayEvents.length > 0 && (
-                            <div className="mt-1">
-                              {dayEvents.slice(0, 2).map((event: CalendarEvent, index) => (
-                                <div 
-                                  key={event.id}
-                                  className="text-xs truncate bg-primary/20 rounded px-1 py-0.5 mt-0.5"
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Start Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className="w-full pl-3 text-left font-normal"
                                 >
-                                  {event.title}
-                                </div>
-                              ))}
-                              {dayEvents.length > 2 && (
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  + {dayEvents.length - 2} more
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    },
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                </h2>
-                <div className="space-y-4">
-                  {getEventsForDay(selectedDate).length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No events scheduled for this day.
-                    </p>
-                  ) : (
-                    getEventsForDay(selectedDate).map((event: CalendarEvent) => (
-                      <Card key={event.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <CardTitle>{event.title}</CardTitle>
-                            <div className="flex space-x-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleEditEvent(event)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Event</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this event?
-                                      This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => {
-                                        setSelectedEvent(event);
-                                        onDeleteEvent();
-                                      }}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </div>
-                          <CardDescription>
-                            {format(parseISO(event.startDate), 'h:mm a')} - 
-                            {format(parseISO(event.endDate), 'h:mm a')}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          {event.description && (
-                            <p className="text-sm mb-2">{event.description}</p>
-                          )}
-                          {event.location && (
-                            <p className="text-sm text-muted-foreground">
-                              📍 {event.location}
-                            </p>
-                          )}
-                        </CardContent>
-                        <CardFooter className="flex justify-between pt-0">
-                          <div className="text-xs text-muted-foreground">
-                            Status: <span className="font-medium">{event.status}</span>
-                          </div>
-                          {event.projectId && (
-                            <div className="text-xs text-muted-foreground">
-                              Project: {
-                                projects.find((p: any) => p.id === event.projectId)?.name ||
-                                `Project #${event.projectId}`
-                              }
-                            </div>
-                          )}
-                        </CardFooter>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={addEventForm.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>End Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className="w-full pl-3 text-left font-normal"
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={addEventForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Event description" 
+                            {...field} 
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addEventForm.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Location</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Event location" 
+                            {...field} 
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addEventForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Scheduled">Scheduled</SelectItem>
+                            <SelectItem value="Confirmed">Confirmed</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={addEventForm.control}
+                    name="projectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Associated Project</FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
+                          defaultValue={field.value?.toString() || undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select project (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None</SelectItem>
+                            {Array.isArray(projects) && projects.map((project: any) => (
+                              <SelectItem key={project.id} value={project.id.toString()}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Optionally associate this event with a project.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button 
+                      type="submit" 
+                      disabled={createEventMutation.isPending}
+                    >
+                      {createEventMutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Create Event
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      {isLoadingEvents ? (
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {currentView === 'month' ? (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && toggleView(date)}
+                className="border-0"
+                modifiers={{
+                  hasEvent: (date) => getEventsForDay(date).length > 0,
+                }}
+                modifiersClassNames={{
+                  hasEvent: "bg-primary/10 font-bold text-primary",
+                }}
+                components={{
+                  DayContent: ({ date }) => {
+                    const dayEvents = getEventsForDay(date);
+                    return (
+                      <div className="w-full h-full">
+                        <span>{date.getDate()}</span>
+                        {dayEvents.length > 0 && (
+                          <div className="mt-1">
+                            {dayEvents.slice(0, 2).map((event: CalendarEvent) => (
+                              <div 
+                                key={event.id}
+                                className="text-xs truncate bg-primary/20 rounded px-1 py-0.5 mt-0.5"
+                              >
+                                {event.title}
+                              </div>
+                            ))}
+                            {dayEvents.length > 2 && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                + {dayEvents.length - 2} more
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </h2>
+              <div className="space-y-4">
+                {getEventsForDay(selectedDate).length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No events scheduled for this day.
+                  </p>
+                ) : (
+                  getEventsForDay(selectedDate).map((event: CalendarEvent) => (
+                    <Card key={event.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle>{event.title}</CardTitle>
+                          <div className="flex space-x-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditEvent(event)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this event?
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => {
+                                      setSelectedEvent(event);
+                                      onDeleteEvent();
+                                    }}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                        <CardDescription>
+                          {format(parseISO(event.startDate), 'h:mm a')} - 
+                          {format(parseISO(event.endDate), 'h:mm a')}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {event.description && (
+                          <p className="text-sm mb-2">{event.description}</p>
+                        )}
+                        {event.location && (
+                          <p className="text-sm text-muted-foreground">
+                            Location: {event.location}
+                          </p>
+                        )}
+                        {event.projectId && (
+                          <p className="text-sm text-muted-foreground">
+                            Project: {Array.isArray(projects) && 
+                              projects.find((p: any) => p.id === event.projectId)?.name}
+                          </p>
+                        )}
+                        <div className="mt-2">
+                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                            event.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                            event.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            event.status === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {event.status}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Edit Event Dialog */}
       <Dialog open={isEditEventOpen} onOpenChange={setIsEditEventOpen}>
@@ -749,7 +749,7 @@ export default function CalendarPage() {
           <DialogHeader>
             <DialogTitle>Edit Event</DialogTitle>
             <DialogDescription>
-              Update the calendar event details.
+              Update your calendar event details.
             </DialogDescription>
           </DialogHeader>
           <Form {...editEventForm}>
@@ -881,7 +881,7 @@ export default function CalendarPage() {
                     <FormLabel>Status</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -907,7 +907,7 @@ export default function CalendarPage() {
                     <FormLabel>Associated Project</FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                      defaultValue={field.value?.toString() || undefined}
+                      value={field.value?.toString() || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -916,7 +916,7 @@ export default function CalendarPage() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="">None</SelectItem>
-                        {projects.map((project: any) => (
+                        {Array.isArray(projects) && projects.map((project: any) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
                             {project.name}
                           </SelectItem>
@@ -945,6 +945,6 @@ export default function CalendarPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </div>
   );
 }
