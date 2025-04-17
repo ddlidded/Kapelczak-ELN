@@ -9,6 +9,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import puppeteer from 'puppeteer';
 
 // Get equivalent of __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -186,6 +187,255 @@ const calculateProportionalDimensions = (
   return { width: newWidth, height: newHeight };
 };
 
+// New Puppeteer-based PDF generation function
+async function generatePuppeteerPDF(
+  project: { name: string; id: number }, 
+  notes: Array<{ title: string; content: string; id: number }>, 
+  options: { 
+    title?: string; 
+    subtitle?: string;
+    customHeader?: string;
+    customFooter?: string;
+    orientation?: string; 
+    pageSize?: string;
+    logo?: string;
+    logoWidth?: number;
+    logoHeight?: number;
+    footer?: string;
+    author?: string;
+    primaryColor?: string;
+    accentColor?: string;
+    fontFamily?: string;
+    includeImages?: boolean;
+    includeAttachments?: boolean;
+    includeExperimentDetails?: boolean;
+    showDates?: boolean;
+    showAuthors?: boolean;
+    includeSummaryTable?: boolean;
+    [key: string]: any;
+  }
+) {
+  console.log('Generating PDF with Puppeteer:', JSON.stringify(options));
+  
+  // Launch a headless browser
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  
+  try {
+    // Create a new page
+    const page = await browser.newPage();
+    
+    // Set viewport to A4 paper size in pixels (roughly 8.27 × 11.69 inches)
+    await page.setViewport({
+      width: 794, // ~8.27 inches at 96 DPI
+      height: 1123, // ~11.69 inches at 96 DPI
+      deviceScaleFactor: 2, // Higher resolution
+    });
+    
+    // Get default logo path
+    const logoPath = './server/assets/kapelczak-logo.png';
+    let logoBase64 = '';
+    
+    try {
+      const logoData = fs.readFileSync(logoPath);
+      logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+    } catch (logoErr) {
+      console.error('Error loading logo:', logoErr);
+    }
+    
+    // Get the current date as a string
+    const currentDate = new Date().toLocaleDateString();
+    
+    // Generate HTML content for the report
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${options.title || project.name}</title>
+        <style>
+          body {
+            font-family: ${options.fontFamily || 'Arial, sans-serif'};
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+          }
+          .report-header {
+            position: relative;
+            margin-bottom: 20px;
+          }
+          .logo {
+            position: absolute;
+            top: 0;
+            right: 0;
+            max-width: 120px;
+            max-height: 60px;
+          }
+          .report-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: ${options.primaryColor || '#4f46e5'};
+            margin-top: 60px;
+            text-align: center;
+          }
+          .report-subtitle {
+            font-size: 16px;
+            margin-top: 10px;
+            text-align: center;
+          }
+          .report-meta {
+            margin: 15px 0;
+            font-size: 14px;
+          }
+          .report-date {
+            text-align: right;
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+          }
+          .note-container {
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+          }
+          .note-column {
+            flex: 1;
+            min-width: 45%;
+          }
+          .note-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+          }
+          .note-content {
+            font-size: 14px;
+          }
+          .note-content img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+          }
+          .footer {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f2f2f2;
+          }
+          @media print {
+            .page-break {
+              page-break-after: always;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          ${options.logo || logoBase64 ? `<img src="${options.logo || logoBase64}" class="logo" alt="Logo">` : ''}
+          <h1 class="report-title">${options.title || project.name}</h1>
+          ${options.subtitle ? `<div class="report-subtitle">${options.subtitle}</div>` : ''}
+        </div>
+        
+        ${options.showAuthors !== false && options.author ? `
+        <div class="report-meta">
+          <div><strong>Researcher:</strong> ${options.author}</div>
+          <div><strong>Project:</strong> ${project.name}</div>
+          <div class="report-date">Generated: ${currentDate}</div>
+        </div>
+        ` : ''}
+    `;
+    
+    // Process notes in pairs for two-column layout
+    for (let i = 0; i < notes.length; i += 2) {
+      const note1 = notes[i];
+      const note2 = i + 1 < notes.length ? notes[i + 1] : null;
+      
+      htmlContent += '<div class="note-container">';
+      
+      // First column (left)
+      htmlContent += `
+        <div class="note-column">
+          <div class="note-title">${note1.title}</div>
+          <div class="note-content">${note1.content}</div>
+        </div>
+      `;
+      
+      // Second column (right) if available
+      if (note2) {
+        htmlContent += `
+          <div class="note-column">
+            <div class="note-title">${note2.title}</div>
+            <div class="note-content">${note2.content}</div>
+          </div>
+        `;
+      }
+      
+      htmlContent += '</div>';
+      
+      // Add page break after every two pairs except for the last one
+      if (i < notes.length - 2) {
+        htmlContent += '<div class="page-break"></div>';
+      }
+    }
+    
+    // Add footer
+    htmlContent += `
+        <div class="footer">
+          <div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
+          <div>${options.customFooter || options.footer || 'Kapelczak Notes - Laboratory Documentation System'}</div>
+          <div>${currentDate}</div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Set the HTML content
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: options.pageSize === 'letter' ? 'letter' : 'a4',
+      landscape: options.orientation === 'landscape',
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm',
+      },
+      displayHeaderFooter: false,
+    });
+    
+    return pdfBuffer;
+  } finally {
+    // Close the browser
+    await browser.close();
+  }
+}
+
+// Original jsPDF-based PDF function for backward compatibility
 async function generateReportPDF(
   project: { name: string; id: number }, 
   notes: Array<{ title: string; content: string; id: number }>, 
@@ -281,44 +531,37 @@ async function generateReportPDF(
     yPos += 5; // Less space if no author
   }
   
-  // Add logo BELOW the title (not in top right)
+  // Add logo in TOP RIGHT above the title
+  let initialYPos = 10; // Starting position for all content
   try {
-    // Position logo below the title and information
-    // This ensures the logo is visible but doesn't overlap with the title
-    
     if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
         
-        // Use reasonable dimensions that maintain the aspect ratio
-        // Original Kapelczak logo is 770x380 pixels (ratio ~2:1)
-        const logoWidth = 60; // Width in mm (reasonable size)
-        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
+        // Use smaller dimensions for the logo
+        const logoWidth = 30; // Width in mm (smaller size for top right)
+        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
         
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position at top right with margin
+        const logoX = pageWidth - margin - logoWidth;
         
-        // Add the logo below the title and information
-        doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        
-        // Move down after the logo
-        yPos += logoHeight + 10;
+        // Add the logo at top right
+        doc.addImage(logoData, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        console.log(`Custom logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        // Use reasonable dimensions that maintain the aspect ratio
-        const logoWidth = 60; // Width in mm (reasonable size)
-        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
+        // Use smaller dimensions for the logo
+        const logoWidth = 30; // Width in mm (smaller size for top right)
+        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
         
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position at top right with margin
+        const logoX = pageWidth - margin - logoWidth;
         
-        // Add the logo below the title and information
-        doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        
-        // Move down after the logo
-        yPos += logoHeight + 10;
+        // Add the logo at top right
+        doc.addImage(options.logo, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        console.log(`Custom logo URL dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
       }
     } else {
       // Use default Kapelczak logo from server assets
@@ -332,35 +575,34 @@ async function generateReportPDF(
         const logoData = fs.readFileSync(logoPath);
         const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
         
-        // Use reasonable dimensions for the logo that maintain the 2:1 aspect ratio
-        const logoWidth = 60; // Width in mm (reasonable size)
-        const logoHeight = 30; // Height in mm (maintains 2:1 ratio)
+        // Use smaller dimensions for the logo in top right
+        const logoWidth = 30; // Width in mm (smaller size for top right)
+        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
         
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
+        // Position at top right with margin
+        const logoX = pageWidth - margin - logoWidth;
         
-        // Add the logo below the title and information
-        doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${yPos}`);
-        
-        // Move down after the logo
-        yPos += logoHeight + 10;
+        // Add the logo at top right corner
+        doc.addImage(logoBase64, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
+        console.log(`Logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
       } catch (err) {
         console.error('Error loading default Kapelczak logo:', err);
-        // If logo fails to load, don't add extra spacing
       }
     }
     
-    // Add generation date below the logo (centered)
+    // Add more space at the top to push down title below the logo
+    initialYPos += 25; // Extra space below the logo
+    
+    // Start content at the new position
+    yPos = initialYPos;
+    
+    // Generation date - right aligned under title
     if (options.showDates !== false) {
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont(fontFamily, 'normal');
       doc.setTextColor(100, 100, 100);
       doc.text(`Generated: ${new Date().toLocaleDateString()}`, 
-          pageWidth / 2, yPos, { align: 'center' });
-      
-      // Move down after the date
-      yPos += 10;
+          pageWidth - margin, yPos + 25, { align: 'right' });
     }
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
