@@ -86,7 +86,17 @@ const storageFormSchema = z.object({
   }
 );
 
+const smtpFormSchema = z.object({
+  smtpHost: z.string().min(1, "SMTP host is required"),
+  smtpPort: z.string().regex(/^\d+$/, "SMTP port must be a number"),
+  smtpUser: z.string().min(1, "SMTP username is required"),
+  smtpPassword: z.string().min(1, "SMTP password is required"),
+  smtpFromEmail: z.string().email("Please enter a valid email address"),
+  smtpFromName: z.string().min(1, "Sender name is required"),
+});
+
 type StorageFormValues = z.infer<typeof storageFormSchema>;
+type SmtpFormValues = z.infer<typeof smtpFormSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -407,11 +417,12 @@ export default function SettingsPage() {
         </div>
         <Separator />
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="storage">Storage</TabsTrigger>
+            <TabsTrigger value="email">Email</TabsTrigger>
           </TabsList>
           
           {/* Profile Tab */}
