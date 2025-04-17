@@ -128,9 +128,9 @@ export default function ReportsPage() {
     queryFn: async () => {
       if (!selectedProject) return [];
       
-      let url = `/api/projects/${selectedProject}/notes`;
+      let url = `/api/notes/project/${selectedProject}`;
       if (selectedExperiment !== 'all') {
-        url = `/api/experiments/${selectedExperiment}/notes`;
+        url = `/api/notes/experiment/${selectedExperiment}`;
       }
       
       const res = await fetch(url);
