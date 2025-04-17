@@ -114,12 +114,10 @@ export const attachments = pgTable("attachments", {
   fileName: text("file_name").notNull(),
   fileSize: integer("file_size").notNull(),
   fileType: text("file_type").notNull(),
-  fileData: text("file_data").notNull(), // Base64 encoded data
+  fileData: text("file_data"), // Base64 encoded data
   filePath: text("file_path"), // Optional URL for external storage
   noteId: integer("note_id").notNull(),
-  userId: integer("user_id"), // Optional user ID for tracking ownership
-  s3Key: text("s3_key"), // S3 storage key
-  s3Bucket: text("s3_bucket"), // S3 bucket name
+  // Removed userId field as it doesn't exist in the database
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
