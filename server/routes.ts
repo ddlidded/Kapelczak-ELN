@@ -1479,12 +1479,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(report);
   }));
   
-  // Create a new report - Direct generation method (no schema validation)
+  // Create a new report - Simple implementation without schema validation
   app.post("/api/reports", apiErrorHandler(async (req: MulterRequest, res: Response) => {
     try {
-      // Use the default admin user if not authenticated
+      // Get user ID (use admin if not authenticated)
       const userId = req.user?.id || 1;
-
+      
       // Get project and note details from request
       const { projectId, experimentId, noteIds, options } = req.body;
       
@@ -1492,6 +1492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId, experimentId, noteIds, options
       }, null, 2));
       
+      // Basic validation
       if (!projectId || !noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
         return res.status(400).json({ 
           message: "Invalid request data", 
@@ -1523,35 +1524,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate PDF content based on notes and options
       const currentDate = new Date().toISOString().split('T')[0];
-      const reportTitle = options.title || `Report - ${project.name} - ${currentDate}`;
+      const reportTitle = options?.title || `Report - ${project.name} - ${currentDate}`;
       const fileName = `${reportTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
       
-      // Generate a dummy PDF for now
+      // For demo/testing, create a simple PDF content
       const pdfBuffer = Buffer.from('PDF content would go here');
       const fileSize = pdfBuffer.length;
       const pdfBase64 = pdfBuffer.toString('base64');
       
-      // Direct DB insertion to avoid schema validation
-      const [report] = await db
-        .insert(reports)
-        .values({
-          title: reportTitle,
-          fileName: fileName,
-          fileSize: fileSize,
-          fileType: "application/pdf",
-          authorId: userId,
-          projectId: projectId,
-          experimentId: experimentId || null,
-          options: options || {},
-          description: `Report for ${project.name}`,
-          fileData: pdfBase64,
-          filePath: null
-        })
-        .returning();
-        
+      // Use the storage interface method which has fixed schema handling
+      const report = await storage.createReport({
+        title: reportTitle,
+        fileName: fileName,
+        fileSize: fileSize,
+        fileType: "application/pdf",
+        authorId: userId,
+        projectId: projectId,
+        experimentId: experimentId || null,
+        options: options || {},
+        description: `Report for ${project.name}`,
+        fileData: pdfBase64,
+        filePath: null
+      });
+      
       if (!report) {
         return res.status(500).json({ message: "Failed to create report record" });
       }
+      
+      console.log(`Successfully created report ${report.id}`);
       
       // If S3 is configured, save the file to S3
       const user = await storage.getUser(userId);
@@ -1568,7 +1568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const fileKey = `reports/${report.fileName}`;
           
           // Use the S3 helper to upload the file
-          await uploadFileToS3(
+          const s3Path = await uploadFileToS3(
             s3Config,
             pdfBuffer,
             fileKey,
@@ -1576,16 +1576,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           // Update the report with the S3 filePath
-          const [updatedReport] = await db
-            .update(reports)
-            .set({
-              filePath: fileKey,
-              fileData: null // Clear the file data since it's now in S3
-            })
-            .where(eq(reports.id, report.id))
-            .returning();
+          const updatedReport = await storage.updateReport(report.id, {
+            filePath: s3Path,
+            fileData: null // Clear the file data since it's now in S3
+          });
           
-          console.log(`Report ${report.id} saved to S3: ${fileKey}`);
+          console.log(`Report ${report.id} saved to S3: ${s3Path}`);
           
           if (updatedReport) {
             return res.status(201).json(updatedReport);

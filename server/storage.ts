@@ -644,11 +644,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReport(insertReport: InsertReport): Promise<Report> {
-    const [report] = await db
-      .insert(reports)
-      .values(insertReport)
-      .returning();
-    return report;
+    try {
+      // Ensure all required fields are present and optional fields have proper null values
+      const reportData = {
+        ...insertReport,
+        // Set defaults and ensure proper null handling for optional fields
+        projectId: insertReport.projectId || null,
+        experimentId: insertReport.experimentId || null,
+        description: insertReport.description || null,
+        fileData: insertReport.fileData || null,
+        filePath: insertReport.filePath || null,
+        fileType: insertReport.fileType || 'application/pdf',
+      };
+      
+      console.log('Creating report with data:', JSON.stringify({ 
+        title: reportData.title,
+        fileName: reportData.fileName,
+        projectId: reportData.projectId,
+        experimentId: reportData.experimentId,
+        fileSize: reportData.fileSize
+      }));
+      
+      const [report] = await db
+        .insert(reports)
+        .values(reportData)
+        .returning();
+      
+      console.log('Report created successfully:', report.id);
+      return report;
+    } catch (error) {
+      console.error('Error in createReport:', error);
+      throw error;
+    }
   }
 
   async deleteReport(id: number): Promise<boolean> {
