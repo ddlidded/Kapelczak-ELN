@@ -64,7 +64,7 @@ export async function uploadFileToS3(
   config: S3Config,
   fileBuffer: Buffer,
   fileName: string,
-  contentType: string
+  contentType = 'application/octet-stream'
 ): Promise<string> {
   try {
     const client = await getS3Client(config);

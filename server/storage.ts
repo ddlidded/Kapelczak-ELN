@@ -720,10 +720,7 @@ export class DatabaseStorage implements IStorage {
   async updateReport(id: number, reportUpdate: Partial<InsertReport>): Promise<Report | undefined> {
     const [report] = await db
       .update(reports)
-      .set({
-        ...reportUpdate,
-        updatedAt: new Date()
-      })
+      .set(reportUpdate)
       .where(eq(reports.id, id))
       .returning();
     

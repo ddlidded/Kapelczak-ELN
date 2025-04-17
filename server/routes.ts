@@ -1480,40 +1480,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new report
   app.post("/api/reports", apiErrorHandler(async (req: MulterRequest, res: Response) => {
     try {
-      const reportData = insertReportSchema.parse(req.body);
+      // Get user info from authenticated session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get project and note details from request
+      const { projectId, experimentId, noteIds, options } = req.body;
+      
+      if (!projectId || !noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: [
+            { path: ["projectId"], message: "Project ID is required" },
+            { path: ["noteIds"], message: "At least one note ID is required" }
+          ] 
+        });
+      }
+
+      // Get project information
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Fetch notes based on the provided IDs
+      const selectedNotes = [];
+      for (const noteId of noteIds) {
+        const note = await storage.getNote(noteId);
+        if (note) {
+          selectedNotes.push(note);
+        }
+      }
+
+      if (selectedNotes.length === 0) {
+        return res.status(404).json({ message: "No valid notes found" });
+      }
+
+      // Generate PDF content based on notes and options
+      const currentDate = new Date().toISOString().split('T')[0];
+      const reportTitle = options.title || `Report - ${project.name} - ${currentDate}`;
+      const fileName = `${reportTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      
+      // TODO: Generate actual PDF content here
+      // For now, create a placeholder report entry
+      const reportData = {
+        title: reportTitle,
+        fileName: fileName,
+        fileSize: 0, // Will be updated with actual size
+        fileType: "application/pdf",
+        authorId: userId,
+        projectId: projectId,
+        experimentId: experimentId || null,
+        options: options || {},
+        description: `Report for ${project.name}`,
+        fileData: null, // Will be updated with actual data
+        filePath: null
+      };
+
+      // Create the report record
       const report = await storage.createReport(reportData);
       
-      // If S3 is configured and we have a fileData for this report
-      // Save the file to S3 in a "reports" folder
-      if (report.fileData && req.body.s3Enabled) {
+      // Generate the actual PDF here
+      // For now we'll just simulate it
+      const pdfBuffer = Buffer.from('PDF content would go here');
+      const pdfBase64 = pdfBuffer.toString('base64');
+      
+      // Update the report with the file data
+      await storage.updateReport(report.id, {
+        fileSize: pdfBuffer.length,
+        fileData: pdfBase64
+      });
+      
+      // If S3 is configured, save the file to S3
+      const user = await storage.getUser(userId);
+      if (user?.s3Enabled && user.s3AccessKey && user.s3SecretKey && user.s3Bucket) {
         try {
-          const s3Config = req.body.s3Config || {};
+          const s3Config = {
+            endpoint: user.s3Endpoint || '',
+            region: user.s3Region || 'us-east-1',
+            bucket: user.s3Bucket,
+            accessKey: user.s3AccessKey,
+            secretKey: user.s3SecretKey
+          };
+          
           const fileKey = `reports/${report.fileName}`;
           
           // Use the S3 helper to upload the file
-          const uploadResult = await uploadFileToS3(
-            report.fileData,
+          await uploadFileToS3(
+            s3Config,
+            pdfBuffer,
             fileKey,
-            report.fileType || 'application/pdf',
-            s3Config
+            'application/pdf'
           );
           
-          if (uploadResult) {
-            // Update the report with the S3 filePath
-            await storage.updateReport(report.id, {
-              filePath: fileKey,
-              fileData: null // Clear the file data since it's now in S3
-            });
-            
-            console.log(`Report ${report.id} saved to S3: ${fileKey}`);
-          }
+          // Update the report with the S3 filePath
+          await storage.updateReport(report.id, {
+            filePath: fileKey,
+            fileData: null // Clear the file data since it's now in S3
+          });
+          
+          console.log(`Report ${report.id} saved to S3: ${fileKey}`);
         } catch (error) {
           console.error('Error saving report to S3:', error);
           // Continue anyway, the report data is still saved in the database
         }
       }
       
-      res.status(201).json(report);
+      // Refetch the updated report
+      const updatedReport = await storage.getReport(report.id);
+      res.status(201).json(updatedReport);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
@@ -1523,6 +1600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      console.error('Error generating report:', error);
       throw error;
     }
   }));
