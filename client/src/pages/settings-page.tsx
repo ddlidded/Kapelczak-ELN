@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,13 +100,58 @@ type SmtpFormValues = z.infer<typeof smtpFormSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   
   // Handle case where user may be null (not logged in or data not loaded)
-  const isLoading = !user;
+  const isLoading = authLoading || !user;
+
+  // Create a local state that ensures we have safe defaults for form values, even if user object is null initially
+  const [localUserData, setLocalUserData] = useState({
+    displayName: "",
+    email: "",
+    avatarUrl: "",
+    bio: "",
+    s3Enabled: false,
+    s3Endpoint: "",
+    s3Region: "",
+    s3Bucket: "",
+    s3AccessKey: "",
+    s3SecretKey: "",
+    smtpHost: process.env.SMTP_HOST || "smtp.socketlabs.com",
+    smtpPort: process.env.SMTP_PORT || "587",
+    smtpUser: process.env.SMTP_USER || "server35806",
+    smtpPassword: process.env.SMTP_PASSWORD || "",
+    smtpFromEmail: "noreply@kapelczak.com",
+    smtpFromName: "Kapelczak Notes",
+  });
+
+  // Update local state when user object is available or changes
+  useEffect(() => {
+    if (user) {
+      setLocalUserData({
+        displayName: user.displayName || "",
+        email: user.email || "",
+        avatarUrl: user.avatarUrl || "",
+        bio: user.bio || "",
+        s3Enabled: user.s3Enabled || false,
+        s3Endpoint: user.s3Endpoint || "",
+        s3Region: user.s3Region || "",
+        s3Bucket: user.s3Bucket || "",
+        s3AccessKey: user.s3AccessKey || "",
+        s3SecretKey: user.s3SecretKey || "",
+        // These fallbacks ensure we always have SMTP defaults
+        smtpHost: user.smtpHost || process.env.SMTP_HOST || "smtp.socketlabs.com",
+        smtpPort: user.smtpPort || process.env.SMTP_PORT || "587",
+        smtpUser: user.smtpUser || process.env.SMTP_USER || "server35806",
+        smtpPassword: user.smtpPassword || process.env.SMTP_PASSWORD || "",
+        smtpFromEmail: user.smtpFromEmail || "noreply@kapelczak.com",
+        smtpFromName: user.smtpFromName || "Kapelczak Notes",
+      });
+    }
+  }, [user]);
 
   // If user is null or not loaded, show loading state
   if (isLoading) {
@@ -126,24 +171,46 @@ export default function SettingsPage() {
   const smtpForm = useForm<SmtpFormValues>({
     resolver: zodResolver(smtpFormSchema),
     defaultValues: {
-      smtpHost: process.env.SMTP_HOST || "smtp.socketlabs.com",
-      smtpPort: process.env.SMTP_PORT || "587",
-      smtpUser: process.env.SMTP_USER || "server35806",
-      smtpPassword: process.env.SMTP_PASSWORD || "",
-      smtpFromEmail: "noreply@kapelczak.com",
-      smtpFromName: "Kapelczak Notes",
+      smtpHost: localUserData.smtpHost,
+      smtpPort: localUserData.smtpPort,
+      smtpUser: localUserData.smtpUser,
+      smtpPassword: localUserData.smtpPassword,
+      smtpFromEmail: localUserData.smtpFromEmail,
+      smtpFromName: localUserData.smtpFromName,
     },
   });
+  
+  // Update SMTP form when local user data changes
+  useEffect(() => {
+    smtpForm.reset({
+      smtpHost: localUserData.smtpHost,
+      smtpPort: localUserData.smtpPort,
+      smtpUser: localUserData.smtpUser,
+      smtpPassword: localUserData.smtpPassword,
+      smtpFromEmail: localUserData.smtpFromEmail,
+      smtpFromName: localUserData.smtpFromName,
+    });
+  }, [localUserData, smtpForm]);
   
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      displayName: user?.displayName || "",
-      email: user?.email || "",
-      avatarUrl: user?.avatarUrl || "",
-      bio: user?.bio || "",
+      displayName: localUserData.displayName,
+      email: localUserData.email,
+      avatarUrl: localUserData.avatarUrl,
+      bio: localUserData.bio,
     },
   });
+
+  // Update profile form when local user data changes
+  useEffect(() => {
+    profileForm.reset({
+      displayName: localUserData.displayName,
+      email: localUserData.email,
+      avatarUrl: localUserData.avatarUrl,
+      bio: localUserData.bio,
+    });
+  }, [localUserData, profileForm]);
 
   const securityForm = useForm<SecurityFormValues>({
     resolver: zodResolver(securityFormSchema),
@@ -167,14 +234,26 @@ export default function SettingsPage() {
   const storageForm = useForm<StorageFormValues>({
     resolver: zodResolver(storageFormSchema),
     defaultValues: {
-      s3Enabled: user?.s3Enabled || false,
-      s3Endpoint: user?.s3Endpoint || "",
-      s3Region: user?.s3Region || "",
-      s3Bucket: user?.s3Bucket || "",
-      s3AccessKey: user?.s3AccessKey || "",
-      s3SecretKey: user?.s3SecretKey || "",
+      s3Enabled: localUserData.s3Enabled,
+      s3Endpoint: localUserData.s3Endpoint,
+      s3Region: localUserData.s3Region,
+      s3Bucket: localUserData.s3Bucket,
+      s3AccessKey: localUserData.s3AccessKey,
+      s3SecretKey: localUserData.s3SecretKey,
     },
   });
+  
+  // Update storage form when local user data changes
+  useEffect(() => {
+    storageForm.reset({
+      s3Enabled: localUserData.s3Enabled,
+      s3Endpoint: localUserData.s3Endpoint,
+      s3Region: localUserData.s3Region,
+      s3Bucket: localUserData.s3Bucket,
+      s3AccessKey: localUserData.s3AccessKey,
+      s3SecretKey: localUserData.s3SecretKey,
+    });
+  }, [localUserData, storageForm]);
 
   async function onProfileSubmit(data: ProfileFormValues) {
     setIsUpdating(true);
