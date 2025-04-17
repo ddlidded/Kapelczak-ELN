@@ -7,7 +7,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
-import { sendPasswordResetEmail, sendPdfReport } from "./email";
+import { sendPasswordResetEmail, sendPdfReport, testSmtpConnection, updateSmtpSettings } from "./email";
 import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getS3Config, uploadFileToS3, getFileFromS3, deleteFileFromS3 } from "./s3";
 import { db } from "./db";
@@ -2025,6 +2025,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(pdfBuffer);
   }));
   
+  // SMTP Configuration Routes
+  app.post("/api/settings/email/test", apiErrorHandler(async (req: Request, res: Response) => {
+    console.log("Testing SMTP connection with provided settings");
+    const { host, port, auth, from } = req.body;
+    
+    // Validate required fields
+    if (!host || !port || !auth?.user || !auth?.pass) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required SMTP configuration parameters"
+      });
+    }
+
+    // Test SMTP connection
+    const result = await testSmtpConnection({
+      host,
+      port: Number(port),
+      auth,
+      from
+    });
+    
+    return res.status(result.success ? 200 : 400).json(result);
+  }));
+
+  app.patch("/api/settings/email", apiErrorHandler(async (req: Request, res: Response) => {
+    console.log("Updating SMTP settings");
+    const { host, port, auth, from } = req.body;
+    
+    // Validate required fields
+    if (!host || !port || !auth?.user || !auth?.pass) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required SMTP configuration parameters"
+      });
+    }
+
+    // Update SMTP settings
+    const success = await updateSmtpSettings({
+      host,
+      port: Number(port),
+      auth,
+      from
+    });
+    
+    if (success) {
+      return res.status(200).json({
+        success: true,
+        message: "SMTP settings updated successfully"
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update SMTP settings"
+      });
+    }
+  }));
+
   // Email a report
   app.post("/api/reports/:id/email", async (req: Request, res: Response) => {
     try {
