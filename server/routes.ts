@@ -7,6 +7,12 @@ import { WebSocketServer, WebSocket } from "ws";
 import { jsPDF } from "jspdf";
 import * as path from "path";
 import * as fs from "fs";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get equivalent of __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Extended WebSocket type to include our custom properties
 interface ExtendedWebSocket extends WebSocket {
@@ -154,8 +160,9 @@ async function generateReportPDF(
     } else {
       // Use default Kapelczak logo from server assets
       try {
-        // Read the default logo file
-        const logoPath = path.join(__dirname, 'assets', 'kapelczak-logo.png');
+        // For ESM modules, we need a different approach to get the path
+        // Using relative path from the current directory
+        const logoPath = './server/assets/kapelczak-logo.png';
         console.log('Using default Kapelczak logo from:', logoPath);
         
         const logoData = fs.readFileSync(logoPath);
