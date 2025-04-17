@@ -478,17 +478,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listNotesByExperiment(experimentId: number): Promise<Note[]> {
-    return db.select()
-      .from(notes)
-      .where(eq(notes.experimentId, experimentId))
-      .orderBy(desc(notes.updatedAt));
+    try {
+      console.log("📝 Fetching notes for experiment ID:", experimentId);
+      const result = await db.select()
+        .from(notes)
+        .where(eq(notes.experimentId, experimentId))
+        .orderBy(desc(notes.updatedAt));
+      console.log(`📝 Found ${result.length} notes for experiment ${experimentId}`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching notes by experiment:", error);
+      // Print the SQL query that caused the error
+      console.error(`SQL Error details: ${JSON.stringify(error, null, 2)}`);
+      throw error;
+    }
   }
 
   async listNotesByProject(projectId: number): Promise<Note[]> {
-    return db.select()
-      .from(notes)
-      .where(eq(notes.projectId, projectId))
-      .orderBy(desc(notes.updatedAt));
+    try {
+      console.log("📝 Fetching notes for project ID:", projectId);
+      const result = await db.select()
+        .from(notes)
+        .where(eq(notes.projectId, projectId))
+        .orderBy(desc(notes.updatedAt));
+      console.log(`📝 Found ${result.length} notes for project ${projectId}`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching notes by project:", error);
+      // Print the SQL query that caused the error
+      console.error(`SQL Error details: ${JSON.stringify(error, null, 2)}`);
+      throw error;
+    }
   }
 
   async createNote(insertNote: InsertNote): Promise<Note> {
