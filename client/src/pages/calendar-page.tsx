@@ -107,43 +107,75 @@ export default function CalendarPage() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
-
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (
-          data.type === 'CALENDAR_EVENT_CREATED' ||
-          data.type === 'CALENDAR_EVENT_UPDATED' ||
-          data.type === 'CALENDAR_EVENT_DELETED'
-        ) {
-          // Invalidate and refresh calendar events
-          queryClient.invalidateQueries({
-            queryKey: ['/api/calendar-events']
-          });
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      console.log('Attempting to connect to WebSocket at:', wsUrl);
+      
+      let socket: WebSocket;
+      
+      // Use a try-catch within a function to handle any WebSocket initialization errors
+      const connectWebSocket = () => {
+        try {
+          socket = new WebSocket(wsUrl);
+          
+          socket.onopen = () => {
+            console.log('WebSocket connection established');
+          };
+          
+          socket.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (
+                data.type === 'CALENDAR_EVENT_CREATED' ||
+                data.type === 'CALENDAR_EVENT_UPDATED' ||
+                data.type === 'CALENDAR_EVENT_DELETED'
+              ) {
+                // Invalidate and refresh calendar events
+                queryClient.invalidateQueries({
+                  queryKey: ['/api/calendar-events']
+                });
+              }
+            } catch (error) {
+              console.error('Error processing WebSocket message:', error);
+            }
+          };
+          
+          socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+          };
+          
+          socket.onclose = (event) => {
+            console.log('WebSocket connection closed with code:', event.code);
+            
+            if (event.code !== 1000) {
+              // If not a normal closure, attempt to reconnect after a delay
+              console.log('Attempting to reconnect WebSocket in 3 seconds...');
+              setTimeout(connectWebSocket, 3000);
+            }
+          };
+        } catch (error) {
+          console.error('Failed to initialize WebSocket connection:', error);
+          // Don't try to immediately reconnect to avoid infinite error loops
+          console.log('Will attempt to reconnect WebSocket in 5 seconds...');
+          setTimeout(connectWebSocket, 5000);
         }
-      } catch (error) {
-        console.error('Error processing WebSocket message:', error);
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-
-    return () => {
-      socket.close();
-    };
+      };
+      
+      // Initial connection attempt
+      connectWebSocket();
+      
+      // Cleanup function
+      return () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close(1000, 'Component unmounting');
+        }
+      };
+    } catch (error) {
+      console.error('Error in WebSocket setup:', error);
+      return () => {}; // Empty cleanup function if setup fails
+    }
   }, []);
 
   // Reset date range when changing months
