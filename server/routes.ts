@@ -12,7 +12,7 @@ import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getS3Config, uploadFileToS3, getFileFromS3, deleteFileFromS3 } from "./s3";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 // Helper function to generate PDF reports
@@ -35,7 +35,7 @@ async function generateReportPDF(
   
   // Create a new PDF document
   const doc = new jsPDF({
-    orientation: options.orientation || 'portrait',
+    orientation: (options.orientation as "portrait"|"landscape") || 'portrait',
     unit: 'mm',
     format: options.pageSize || 'a4'
   });
@@ -127,13 +127,13 @@ async function generateReportPDF(
   }
   
   // Add footer with page numbers
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(150);
-    doc.text(`Page ${i} of ${totalPages}`, 15, 285);
+    doc.text(`Page ${i} of ${pageCount}`, 15, 285);
     
     if (options.footer) {
       doc.text(options.footer, 100, 285, { align: 'center' });
@@ -145,10 +145,18 @@ async function generateReportPDF(
   return pdfBuffer;
 }
 
+// Extend Express Request type to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
 // Custom type for multer with file
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
-  user?: any; // Allow user property from auth
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
