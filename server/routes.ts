@@ -21,6 +21,26 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 // Helper function to generate PDF reports
+// Extract images from HTML content
+function extractImagesFromHtml(html: string) {
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const images: Array<{ src: string, alt?: string }> = [];
+  
+  let match;
+  while ((match = imgRegex.exec(html)) !== null) {
+    // Get the src attribute
+    const src = match[1];
+    
+    // Try to get alt attribute if available
+    const altMatch = /<img[^>]+alt=["']([^"']+)["'][^>]*>/i.exec(match[0]);
+    const alt = altMatch ? altMatch[1] : '';
+    
+    images.push({ src, alt });
+  }
+  
+  return images;
+}
+
 async function generateReportPDF(
   project: { name: string; id: number }, 
   notes: Array<{ title: string; content: string; id: number }>, 
@@ -177,8 +197,12 @@ async function generateReportPDF(
       
       yPos += 8; // Space after titles
       
-      // Get note content
+      // Using the extractImagesFromHtml function defined outside this block
+      
+      // Get note content and images
       let plainText1 = '';
+      const images1 = options.includeImages !== false ? extractImagesFromHtml(note1.content) : [];
+      
       try {
         // Basic HTML tag stripping for first note
         plainText1 = note1.content
@@ -187,6 +211,7 @@ async function generateReportPDF(
           .replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n')
           .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
           .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n')
+          .replace(/<img[^>]*>/gi, '[Image]') // Mark where images were
           .replace(/<[^>]*>/g, '')
           .replace(/&nbsp;/g, ' ')
           .replace(/\n\s*\n/g, '\n')
@@ -196,6 +221,8 @@ async function generateReportPDF(
       }
       
       let plainText2 = '';
+      const images2 = note2 && options.includeImages !== false ? extractImagesFromHtml(note2.content) : [];
+      
       if (note2) {
         try {
           // Basic HTML tag stripping for second note
@@ -205,6 +232,7 @@ async function generateReportPDF(
             .replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n')
             .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
             .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n')
+            .replace(/<img[^>]*>/gi, '[Image]') // Mark where images were
             .replace(/<[^>]*>/g, '')
             .replace(/&nbsp;/g, ' ')
             .replace(/\n\s*\n/g, '\n')
@@ -257,6 +285,132 @@ async function generateReportPDF(
       
       // Move position past the content
       yPos += maxContentHeight + 15; // Add some spacing after the content
+      
+      // Add images for first note if they exist and option is enabled
+      if (options.includeImages !== false && images1.length > 0) {
+        // Add heading for images
+        doc.setFontSize(12);
+        doc.setFont(fontFamily, 'bold');
+        doc.setTextColor(50, 50, 50);
+        doc.text("Images:", margin, yPos);
+        yPos += 8;
+        
+        // Add each image from first note
+        for (let imgIdx = 0; imgIdx < images1.length; imgIdx++) {
+          const image = images1[imgIdx];
+          
+          try {
+            // Set image dimensions - limit width to columnWidth
+            const imgWidth = Math.min(columnWidth, 70); // max 70mm or column width
+            const imgHeight = 40; // fixed height for consistency
+            
+            // Check if we need a new page
+            if (yPos + imgHeight + 10 > pageHeight - 30) {
+              doc.addPage();
+              yPos = margin + 10;
+              
+              // Reprint section title on new page
+              doc.setFontSize(12);
+              doc.setFont(fontFamily, 'bold');
+              doc.text("Images (continued):", margin, yPos);
+              yPos += 8;
+            }
+            
+            // Add the image
+            if (image.src.startsWith('data:')) {
+              // For base64 encoded images
+              doc.addImage(image.src, 'JPEG', margin, yPos, imgWidth, imgHeight);
+            } else if (image.src.startsWith('http')) {
+              // For URL images
+              doc.addImage(image.src, 'JPEG', margin, yPos, imgWidth, imgHeight);
+            }
+            
+            // Add caption if available
+            if (image.alt) {
+              doc.setFontSize(9);
+              doc.setFont(fontFamily, 'italic');
+              doc.setTextColor(80, 80, 80);
+              doc.text(image.alt, margin, yPos + imgHeight + 5);
+            }
+            
+            // Move position past the image
+            yPos += imgHeight + (image.alt ? 10 : 5);
+          } catch (err) {
+            console.error('Error adding image to PDF:', err);
+            // Add placeholder text instead
+            doc.setFontSize(10);
+            doc.setFont(fontFamily, 'italic');
+            doc.setTextColor(100, 100, 100);
+            doc.text(`[Image could not be displayed: ${image.alt || 'No description'}]`, margin, yPos);
+            yPos += 5;
+          }
+        }
+        
+        yPos += 10; // Add spacing after images
+      }
+      
+      // Add images for second note if they exist and option is enabled
+      if (note2 && options.includeImages !== false && images2.length > 0) {
+        // Add heading for images
+        doc.setFontSize(12);
+        doc.setFont(fontFamily, 'bold');
+        doc.setTextColor(50, 50, 50);
+        doc.text("Images:", rightColumnX, yPos - (images1.length > 0 ? (images1.length * 45) : 0));
+        yPos += 8;
+        
+        // Add each image from second note
+        for (let imgIdx = 0; imgIdx < images2.length; imgIdx++) {
+          const image = images2[imgIdx];
+          
+          try {
+            // Set image dimensions - limit width to columnWidth
+            const imgWidth = Math.min(columnWidth, 70); // max 70mm or column width
+            const imgHeight = 40; // fixed height for consistency
+            
+            // Check if we need a new page
+            if (yPos + imgHeight + 10 > pageHeight - 30) {
+              doc.addPage();
+              yPos = margin + 10;
+              
+              // Reprint section title on new page
+              doc.setFontSize(12);
+              doc.setFont(fontFamily, 'bold');
+              doc.text("Images (continued):", rightColumnX, yPos);
+              yPos += 8;
+            }
+            
+            // Add the image in the right column
+            if (image.src.startsWith('data:')) {
+              // For base64 encoded images
+              doc.addImage(image.src, 'JPEG', rightColumnX, yPos, imgWidth, imgHeight);
+            } else if (image.src.startsWith('http')) {
+              // For URL images
+              doc.addImage(image.src, 'JPEG', rightColumnX, yPos, imgWidth, imgHeight);
+            }
+            
+            // Add caption if available
+            if (image.alt) {
+              doc.setFontSize(9);
+              doc.setFont(fontFamily, 'italic');
+              doc.setTextColor(80, 80, 80);
+              doc.text(image.alt, rightColumnX, yPos + imgHeight + 5);
+            }
+            
+            // Move position past the image
+            yPos += imgHeight + (image.alt ? 10 : 5);
+          } catch (err) {
+            console.error('Error adding image to PDF:', err);
+            // Add placeholder text instead
+            doc.setFontSize(10);
+            doc.setFont(fontFamily, 'italic');
+            doc.setTextColor(100, 100, 100);
+            doc.text(`[Image could not be displayed: ${image.alt || 'No description'}]`, rightColumnX, yPos);
+            yPos += 5;
+          }
+        }
+        
+        yPos += 10; // Add spacing after images
+      }
       
       // Add a line break after each pair
       if (i < notes.length - 2) {
