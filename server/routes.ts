@@ -12,6 +12,138 @@ import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getS3Config, uploadFileToS3, getFileFromS3, deleteFileFromS3 } from "./s3";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// Helper function to generate PDF reports
+async function generateReportPDF(
+  project: { name: string; id: number }, 
+  notes: Array<{ title: string; content: string; id: number }>, 
+  options: { 
+    title?: string; 
+    orientation?: string; 
+    pageSize?: string;
+    logo?: string;
+    logoWidth?: number;
+    logoHeight?: number;
+    footer?: string;
+    author?: string;
+    [key: string]: any;
+  }
+) {
+  console.log('Generating PDF with options:', JSON.stringify(options));
+  
+  // Create a new PDF document
+  const doc = new jsPDF({
+    orientation: options.orientation || 'portrait',
+    unit: 'mm',
+    format: options.pageSize || 'a4'
+  });
+  
+  // Add header with logo if provided
+  if (options.logo) {
+    try {
+      // For base64 images
+      if (options.logo.startsWith('data:image')) {
+        const logoData = options.logo.split(',')[1];
+        doc.addImage(logoData, 'PNG', 10, 10, options.logoWidth || 40, options.logoHeight || 20);
+      } 
+      // For URLs
+      else if (options.logo.startsWith('http')) {
+        doc.addImage(options.logo, 'PNG', 10, 10, options.logoWidth || 40, options.logoHeight || 20);
+      }
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+      // Continue without the logo
+    }
+  }
+  
+  // Add title and project name
+  const title = options.title || `Lab Report: ${project.name}`;
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title, 15, options.logo ? 40 : 20);
+  
+  // Add project info
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Project: ${project.name}`, 15, options.logo ? 50 : 30);
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, 15, options.logo ? 56 : 36);
+  
+  if (options.author) {
+    doc.text(`Author: ${options.author}`, 15, options.logo ? 62 : 42);
+  }
+  
+  let yPos = options.logo ? 75 : 55;
+  
+  // Add notes content
+  if (notes && notes.length > 0) {
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Notes', 15, yPos);
+    yPos += 10;
+    
+    // Process each note
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      
+      // Add note title
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(note.title, 15, yPos);
+      yPos += 8;
+      
+      // Add note content (simplified, actual HTML-to-PDF would be more complex)
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      // Strip HTML tags to get plain text for simple demonstration
+      const plainContent = note.content.replace(/<[^>]*>?/gm, ' ');
+      
+      // Split content into lines that fit the page width
+      const textLines = doc.splitTextToSize(plainContent, 180);
+      
+      // Check if we need a new page
+      if (yPos + (textLines.length * 5) > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text(textLines, 15, yPos);
+      yPos += (textLines.length * 5) + 15;
+      
+      // Add a divider
+      if (i < notes.length - 1) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(15, yPos - 10, 195, yPos - 10);
+        
+        // Check if we need a new page for the next note
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+      }
+    }
+  }
+  
+  // Add footer with page numbers
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(150);
+    doc.text(`Page ${i} of ${totalPages}`, 15, 285);
+    
+    if (options.footer) {
+      doc.text(options.footer, 100, 285, { align: 'center' });
+    }
+  }
+  
+  // Return the PDF as a buffer
+  const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+  return pdfBuffer;
+}
 
 // Custom type for multer with file
 interface MulterRequest extends Request {
@@ -1527,8 +1659,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reportTitle = options?.title || `Report - ${project.name} - ${currentDate}`;
       const fileName = `${reportTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
       
-      // For demo/testing, create a simple PDF content
-      const pdfBuffer = Buffer.from('PDF content would go here');
+      // Get the author if available
+      const author = req.user ? await storage.getUser(req.user.id) : await storage.getUser(userId);
+      const authorName = author ? author.displayName || author.username : "";
+      
+      // Set up report generation options
+      const reportOptions = {
+        ...(options || {}),
+        title: reportTitle,
+        author: options?.author || authorName,
+        orientation: options?.orientation || 'portrait',
+        pageSize: options?.pageSize || 'a4',
+        footer: options?.footer || `Generated by Kapelczak Notes on ${new Date().toLocaleDateString()}`,
+      };
+      
+      console.log('Generating PDF report with options:', JSON.stringify(reportOptions));
+      
+      // Generate the actual PDF using our helper function
+      const pdfBuffer = await generateReportPDF(project, selectedNotes, reportOptions);
       const fileSize = pdfBuffer.length;
       const pdfBase64 = pdfBuffer.toString('base64');
       
