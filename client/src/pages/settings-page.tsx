@@ -1076,6 +1076,181 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          
+          {/* Email Tab */}
+          <TabsContent value="email" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Settings</CardTitle>
+                <CardDescription>
+                  Configure email settings for sending reports and notifications.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...smtpForm}>
+                  <form onSubmit={smtpForm.handleSubmit(onSmtpSubmit)} className="space-y-8">
+                    <div className="space-y-4 border p-4 rounded-lg">
+                      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpHost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP Host</FormLabel>
+                              <FormControl>
+                                <Input placeholder="smtp.example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                The hostname of your SMTP server.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpPort"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP Port</FormLabel>
+                              <FormControl>
+                                <Input placeholder="587" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                The port for your SMTP server (usually 25, 465, or 587).
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP Username</FormLabel>
+                              <FormControl>
+                                <Input placeholder="user@example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                The username for authentication with your SMTP server.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP Password</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="password"
+                                  placeholder="••••••••" 
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The password for authentication with your SMTP server.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpFromEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>From Email</FormLabel>
+                              <FormControl>
+                                <Input placeholder="noreply@example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                The email address that will appear in the From field.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={smtpForm.control}
+                          name="smtpFromName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>From Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Kapelczak Notes" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                The name that will appear in the From field.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col md:flex-row gap-4 pt-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={testSmtpConnection}
+                          disabled={isTesting}
+                        >
+                          {isTesting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Testing...
+                            </>
+                          ) : (
+                            <>
+                              Test Connection
+                            </>
+                          )}
+                        </Button>
+                        
+                        {testResult && (
+                          <div className={
+                            "flex items-center p-2 px-4 rounded-md " + 
+                            (testResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")
+                          }>
+                            {testResult.success ? (
+                              <CheckCircle2 className="h-5 w-5 mr-2" />
+                            ) : (
+                              <XCircle className="h-5 w-5 mr-2" />
+                            )}
+                            {testResult.message}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Button type="submit" disabled={isUpdating} className="w-full sm:w-auto">
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
