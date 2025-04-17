@@ -642,7 +642,7 @@ async function generateReportPDF(
                       }
                       
                       // If we can get the file directly from S3
-                      if (attachment.s3Key && attachment.userId) {
+                      if (false) { // s3Key and userId fields not in DB yet
                         try {
                           // Get user S3 config
                           const user = await storage.getUser(attachment.userId);
@@ -895,7 +895,7 @@ async function generateReportPDF(
                       }
                       
                       // If we can get the file directly from S3
-                      if (attachment.s3Key && attachment.userId) {
+                      if (false) { // s3Key and userId fields not in DB yet
                         try {
                           // Get user S3 config
                           const user = await storage.getUser(attachment.userId);
