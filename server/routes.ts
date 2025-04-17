@@ -4,6 +4,9 @@ import { storage } from "./storage";
 import multer from "multer";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema, insertReportSchema, insertCalendarEventSchema, reports } from "@shared/schema";
 import { WebSocketServer, WebSocket } from "ws";
+import { jsPDF } from "jspdf";
+import * as path from "path";
+import * as fs from "fs";
 
 // Extended WebSocket type to include our custom properties
 interface ExtendedWebSocket extends WebSocket {
@@ -17,7 +20,6 @@ import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getS3Config, uploadFileToS3, getFileFromS3, deleteFileFromS3 } from "./s3";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 // Helper function to generate PDF reports
@@ -68,6 +70,8 @@ async function generateReportPDF(
     [key: string]: any;
   }
 ) {
+  // Always use the Kapelczak logo by default
+  const useDefaultLogo = !options.logo;
   console.log('Generating PDF with options:', JSON.stringify(options));
   
   // Create a new PDF document
@@ -129,38 +133,46 @@ async function generateReportPDF(
     yPos += 5; // Less space if no author
   }
   
-  // Add logo if provided
-  if (options.logo) {
-    try {
+  // Add logo (either provided or default)
+  try {
+    let logoWidth = options.logoWidth || 40;
+    let logoHeight = options.logoHeight || 20;
+    
+    // Center the logo horizontally
+    const logoX = (pageWidth - logoWidth) / 2;
+
+    if (options.logo) {
       // For base64 images
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
-        
-        // Determine logo dimensions with better aspect ratio handling
-        let logoWidth = options.logoWidth || 40;
-        let logoHeight = options.logoHeight || 20;
-        
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
-        
         doc.addImage(logoData, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 10; // Add spacing after logo
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        let logoWidth = options.logoWidth || 40;
-        let logoHeight = options.logoHeight || 20;
-        
-        // Center the logo horizontally
-        const logoX = (pageWidth - logoWidth) / 2;
-        
         doc.addImage(options.logo, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 10; // Add spacing after logo
       }
-    } catch (error) {
-      console.error('Error adding logo to PDF:', error);
-      // Continue without the logo
+    } else {
+      // Use default Kapelczak logo from server assets
+      try {
+        // Read the default logo file
+        const logoPath = path.join(__dirname, 'assets', 'kapelczak-logo.png');
+        console.log('Using default Kapelczak logo from:', logoPath);
+        
+        const logoData = fs.readFileSync(logoPath);
+        const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+        
+        // Add the default logo
+        doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, logoHeight);
+      } catch (err) {
+        console.error('Error loading default Kapelczak logo:', err);
+        // If default logo can't be loaded, continue without it
+      }
     }
+    
+    yPos += logoHeight + 10; // Add spacing after logo
+  } catch (error) {
+    console.error('Error adding logo to PDF:', error);
+    // Continue without the logo
   }
   
   // Add notes in a two-column layout like the provided example
