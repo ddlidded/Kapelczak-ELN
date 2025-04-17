@@ -219,7 +219,7 @@ async function generatePuppeteerPDF(
   
   // Launch a headless browser
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
   
@@ -3006,8 +3006,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Generating PDF report with options:', JSON.stringify(reportOptions));
       
-      // Generate the actual PDF using our helper function
-      const pdfBuffer = await generateReportPDF(project, selectedNotes, reportOptions);
+      // Variable to store the generated PDF buffer
+      let pdfBuffer: Buffer;
+      
+      try {
+        // Use the new Puppeteer-based PDF generation for better image support
+        console.log('Using Puppeteer-based PDF generation for better image support');
+        const puppeteerBuffer = await generatePuppeteerPDF(project, selectedNotes, reportOptions);
+        
+        // If puppeteer generation fails, fall back to the original method
+        if (!puppeteerBuffer || puppeteerBuffer.length === 0) {
+          throw new Error('Puppeteer PDF generation produced empty buffer');
+        }
+        
+        // Convert to Buffer if it's not already a Buffer
+        pdfBuffer = Buffer.isBuffer(puppeteerBuffer) ? puppeteerBuffer : Buffer.from(puppeteerBuffer);
+      } catch (puppeteerErr) {
+        console.error('Puppeteer PDF generation failed, falling back to jsPDF:', puppeteerErr);
+        
+        // Fall back to the original PDF generation method
+        const jspdfBuffer = await generateReportPDF(project, selectedNotes, reportOptions);
+        if (!jspdfBuffer) {
+          throw new Error('PDF generation failed with both methods');
+        }
+        pdfBuffer = jspdfBuffer;
+      }
+      
+      // Get file size and convert to base64 for storage
       const fileSize = pdfBuffer.length;
       const pdfBase64 = pdfBuffer.toString('base64');
       
@@ -3021,7 +3046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         projectId: projectId,
         experimentId: experimentId || null,
         options: options || {},
-        description: `Report for ${project.name}`,
+        description: `Report for ${project?.name || 'Project'}`,
         fileData: pdfBase64,
         filePath: null
       });
