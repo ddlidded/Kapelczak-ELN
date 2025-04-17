@@ -4,6 +4,11 @@ import { storage } from "./storage";
 import multer from "multer";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertNoteSchema, insertAttachmentSchema, insertProjectCollaboratorSchema, insertReportSchema, insertCalendarEventSchema, reports } from "@shared/schema";
 import { WebSocketServer, WebSocket } from "ws";
+
+// Extended WebSocket type to include our custom properties
+interface ExtendedWebSocket extends WebSocket {
+  isAlive: boolean;
+}
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import crypto from "crypto";
@@ -2387,36 +2392,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Configure WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws',
+    // Add error handling for WebSocket server
+    clientTracking: true,
+    // Increase the ping/pong timeouts to maintain connections better
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024
+      },
+      // Below options specified to avoid warning logs
+      serverNoContextTakeover: true,
+      clientNoContextTakeover: true,
+      serverMaxWindowBits: 10,
+      concurrencyLimit: 10,
+      threshold: 1024
+    }
+  });
   
-  // Function to notify all WebSocket clients
+  // Function to notify all WebSocket clients with improved error handling
   function notifyWebSocketClients(message: string) {
+    let successCount = 0;
+    let failCount = 0;
+    
     wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+      try {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+          successCount++;
+        }
+      } catch (error) {
+        console.error('Failed to send message to WebSocket client:', error);
+        failCount++;
       }
     });
+    
+    if (wss.clients.size > 0) {
+      console.log(`WebSocket notification sent to ${successCount}/${wss.clients.size} clients (${failCount} failed)`);
+    }
   }
   
-  // Handle WebSocket connections
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
+  // Handle WebSocket server errors at the server level
+  wss.on('error', (error) => {
+    console.error('WebSocket server error:', error);
+  });
+  
+  // Handle WebSocket connections with improved error handling
+  wss.on('connection', (ws, req) => {
+    const clientIp = req.socket.remoteAddress || 'unknown';
+    console.log(`WebSocket client connected from ${clientIp}`);
+    
+    // Send a welcome message to confirm connection
+    try {
+      ws.send(JSON.stringify({
+        type: 'CONNECTION_ESTABLISHED',
+        message: 'Successfully connected to Kapelczak Notes WebSocket server',
+        timestamp: new Date().toISOString()
+      }));
+    } catch (err) {
+      console.error('Error sending welcome message:', err);
+    }
+    
+    // Set up ping-pong to keep connection alive
+    const extendedWs = ws as ExtendedWebSocket;
+    extendedWs.isAlive = true;
+    ws.on('pong', () => {
+      extendedWs.isAlive = true;
+    });
     
     ws.on('message', (message) => {
       try {
-        console.log('Received:', message.toString());
+        console.log(`Received from ${clientIp}:`, message.toString().substring(0, 100) + (message.toString().length > 100 ? '...' : ''));
+        
         // Echo back for now
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(message.toString());
+          ws.send(JSON.stringify({
+            type: 'MESSAGE_RECEIVED',
+            data: message.toString(),
+            timestamp: new Date().toISOString()
+          }));
         }
       } catch (error) {
-        console.error('WebSocket error:', error);
+        console.error('WebSocket message handling error:', error);
+        
+        // Try to send an error message back
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'ERROR',
+              message: 'Failed to process your message',
+              timestamp: new Date().toISOString()
+            }));
+          }
+        } catch (err) {
+          console.error('Failed to send error notification:', err);
+        }
       }
     });
     
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for client ${clientIp}:`, error);
     });
+    
+    ws.on('close', (code, reason) => {
+      console.log(`WebSocket client from ${clientIp} disconnected. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
+    });
+  });
+  
+  // Set up interval to check for dead connections and terminate them
+  const interval = setInterval(() => {
+    wss.clients.forEach((wsClient) => {
+      const extWs = wsClient as ExtendedWebSocket;
+      
+      if (extWs.isAlive === false) {
+        console.log('Terminating dead WebSocket connection');
+        return wsClient.terminate();
+      }
+      
+      extWs.isAlive = false;
+      try {
+        wsClient.ping();
+      } catch (err) {
+        console.error('Error sending ping:', err);
+        wsClient.terminate();
+      }
+    });
+  }, 30000); // Check every 30 seconds
+  
+  // Clean up the interval on server close
+  wss.on('close', () => {
+    clearInterval(interval);
   });
   
   return httpServer;
