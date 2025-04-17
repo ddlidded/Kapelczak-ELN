@@ -201,7 +201,7 @@ export default function CalendarPage() {
               const data = JSON.parse(event.data);
               
               // Log the message (only in development)
-              if (process.env.NODE_ENV === 'development') {
+              if (import.meta.env.DEV) {
                 console.log('📥 WebSocket message received:', data);
               }
               
@@ -225,7 +225,7 @@ export default function CalendarPage() {
               }
               else if (data.type === 'PONG') {
                 // Heartbeat response, no need to do anything
-                if (process.env.NODE_ENV === 'development') {
+                if (import.meta.env.DEV) {
                   console.log('❤️ Heartbeat received');
                 }
               }

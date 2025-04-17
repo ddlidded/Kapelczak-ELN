@@ -1,0 +1,8 @@
+{
+  "host": "smtp.socketlabs.com",
+  "port": 587,
+  "user": "server35806",
+  "pass": "w5CJt6s7ZBi3f4R",
+  "fromEmail": "noreply@kapelczak.com",
+  "fromName": "Kapelczak Notes"
+}
