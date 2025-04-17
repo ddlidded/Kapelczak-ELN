@@ -934,42 +934,92 @@ async function generateReportPDF(
                         format = 'JPEG';
                       }
                       
-                      // If we can get the file directly from S3
-                      if (false) { // s3Key and userId fields not in DB yet
+                      // First check if we have a filepath (S3 URL)
+                      if (attachment.filePath) {
                         try {
-                          // Get user S3 config
-                          const user = await storage.getUser(attachment.userId);
-                          if (user && user.s3Config) {
-                            // Parse S3 config
-                            const s3Config = JSON.parse(user.s3Config);
+                          console.log(`Using attachment with filePath in right column: ${attachment.filePath}`);
+                          
+                          // Get the admin user for S3 access permissions
+                          const adminUser = await storage.getUser(1);
+                          
+                          if (adminUser && adminUser.s3Enabled) {
+                            // Get S3 config for fetching
+                            const s3Config = await getS3Config(adminUser);
                             
-                            // Try to download the file from S3
-                            const fileBuffer = await getFileFromS3(s3Config, attachment.s3Key);
-                            
-                            if (fileBuffer) {
-                              // Convert to base64
-                              const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                            if (s3Config) {
+                              // Extract the file key from the URL path
+                              // Example: https://...com/kapelczak-notes/files/12345-filename.png
+                              // We need the "files/12345-filename.png" part
+                              const url = new URL(attachment.filePath);
+                              const pathParts = url.pathname.split('/');
+                              const fileIndex = pathParts.findIndex(part => part === 'files');
+                              const s3Key = pathParts.slice(fileIndex).join('/');
                               
-                              // Add border
-                              doc.setDrawColor(200, 200, 200);
-                              doc.setFillColor(250, 250, 250);
-                              doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                              console.log(`Extracted S3 key from URL for right column: ${s3Key}`);
                               
-                              // Add the image
-                              doc.addImage(base64Data, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
-                              console.log(`Added attachment from S3 in right column: ${attachment.fileName}`);
-                              
-                              // No need to fetch from local file
-                              return;
+                              // Try to download the file from S3
+                              try {
+                                const fileBuffer = await getFileFromS3(s3Config, s3Key);
+                                
+                                if (fileBuffer && fileBuffer.length > 0) {
+                                  // Convert to base64
+                                  const base64Data = `data:image/${format.toLowerCase()};base64,${fileBuffer.toString('base64')}`;
+                                  
+                                  // Add border
+                                  doc.setDrawColor(200, 200, 200);
+                                  doc.setFillColor(250, 250, 250);
+                                  doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                                  
+                                  // Add the image
+                                  doc.addImage(base64Data, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                                  console.log(`Added attachment from S3 in right column: ${attachment.fileName}`);
+                                  return;
+                                } else {
+                                  throw new Error(`Empty file buffer returned from S3 for right column`);
+                                }
+                              } catch (s3FetchErr) {
+                                console.error(`Error fetching from S3 for right column:`, s3FetchErr);
+                                
+                                // Fall back to direct URL method
+                                try {
+                                  // Try direct image URL as fallback
+                                  doc.addImage(attachment.filePath, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                                  console.log(`Added attachment from direct URL in right column: ${attachment.fileName}`);
+                                  return;
+                                } catch (directUrlErr) {
+                                  console.error(`Error using direct URL in right column:`, directUrlErr);
+                                  // Continue to next fallback
+                                }
+                              }
                             }
                           }
-                        } catch (s3Err) {
-                          console.error('Error getting attachment from S3 in right column:', s3Err);
-                          // Continue to try local file
+                        } catch (filePathErr) {
+                          console.error(`Error processing file path in right column:`, filePathErr);
+                          // Continue to next fallback
                         }
                       }
                       
-                      // Try to read the file from local path
+                      // Next, try file data if available
+                      if (attachment.fileData) {
+                        try {
+                          console.log(`Using attachment fileData for right column: ${attachment.fileName}`);
+                          
+                          // Add border
+                          doc.setDrawColor(200, 200, 200);
+                          doc.setFillColor(250, 250, 250);
+                          doc.rect(rightColumnX, currentYPos, imgWidth, imgHeight, 'FD');
+                          
+                          // Add the image directly from file data
+                          doc.addImage(attachment.fileData, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
+                          console.log(`Added attachment from fileData in right column: ${attachment.fileName}`);
+                          return;
+                        } catch (fileDataErr) {
+                          console.error(`Error using fileData in right column:`, fileDataErr);
+                          // Continue to next fallback
+                        }
+                      }
+                      
+                      // Finally, try local file storage
                       try {
                         const fileLocalPath = `./uploads/${attachment.fileName}`;
                         if (fs.existsSync(fileLocalPath)) {
@@ -987,6 +1037,8 @@ async function generateReportPDF(
                           doc.addImage(base64Data, format, rightColumnX, currentYPos, imgWidth, imgHeight, undefined, 'FAST');
                           console.log(`Added attachment from local file in right column: ${attachment.fileName}`);
                           return;
+                        } else {
+                          console.warn(`Local file does not exist for right column: ${fileLocalPath}`);
                         }
                       } catch (fileErr) {
                         console.error('Error getting attachment from local file in right column:', fileErr);
