@@ -1400,11 +1400,16 @@ interface MulterRequest extends Request {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for container monitoring
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+  
   // Configure multer for in-memory storage
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 1024 * 1024 * 1024, // 1GB limit, as requested
+      fileSize: parseInt(process.env.MAX_FILE_SIZE || '1073741824'), // Default to 1GB limit, customizable via env
     },
   });
   

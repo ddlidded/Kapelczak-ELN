@@ -1,184 +1,120 @@
 #!/bin/bash
 # Kapelczak Notes Auto-Deployment Script
-# ---------------------------------------
+# This script automates the deployment of Kapelczak Notes on a Linux server with Docker.
 
-set -e  # Exit on any error
-
-# Configuration variables - edit these to match your environment
-APP_DIR="$PWD"
-LOGS_DIR="$APP_DIR/logs"
-UPLOADS_DIR="$APP_DIR/uploads"
-PORT=5000
-DB_USER="kapelczak_user"
-DB_PASSWORD="your_password"
-DB_NAME="kapelczak_notes"
-DB_HOST="localhost"
-DOMAIN="your-domain.com"
-
-# Display header
-echo "=========================================================="
-echo "    KAPELCZAK NOTES DEPLOYMENT SCRIPT"
-echo "=========================================================="
-echo "This script will deploy the Kapelczak Notes application."
-echo "Make sure you have edited the script configuration section."
-echo ""
-
-# Create necessary directories
-echo "[INFO] Creating necessary directories..."
-mkdir -p "$LOGS_DIR"
-mkdir -p "$UPLOADS_DIR"
-echo "[SUCCESS] Directories created."
-
-# Check for Node.js
-if ! command -v node &> /dev/null; then
-    echo "[ERROR] Node.js is not installed. Please install Node.js 14 or higher."
-    exit 1
-fi
-
-# Check for npm
-if ! command -v npm &> /dev/null; then
-    echo "[ERROR] npm is not installed. Please install npm."
-    exit 1
-fi
-
-# Install project dependencies
-echo "[INFO] Installing project dependencies..."
-npm install
-echo "[SUCCESS] Project dependencies installed."
-
-# Configure environment
-echo "[INFO] Configuring environment..."
-cat > .env.production << ENVEND
-# Database Configuration
-DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}
-
-# Application Configuration
-PORT=${PORT}
-NODE_ENV=production
-
-# File Upload Configuration
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=10485760
-ENVEND
-echo "[SUCCESS] Environment configured."
-
-# Build the frontend
-echo "[INFO] Building the frontend..."
-npx vite build
-echo "[SUCCESS] Frontend built successfully."
-
-# Push database schema
-echo "[INFO] Pushing database schema..."
-npx drizzle-kit push
-echo "[SUCCESS] Database schema updated."
-
-# Setup PM2 configuration
-echo "[INFO] Setting up PM2 configuration..."
-if ! command -v pm2 &> /dev/null; then
-    echo "[WARNING] PM2 not found. Installing PM2..."
-    npm install -g pm2
-    echo "[SUCCESS] PM2 installed."
-fi
-
-# Start the application with PM2
-echo "[INFO] Starting the application with PM2..."
-pm2 delete kapelczak-notes 2>/dev/null || true
-pm2 start ecosystem.config.js
-pm2 save
-echo "[SUCCESS] Application started with PM2."
-
-# Nginx configuration (if needed)
-if command -v nginx &> /dev/null; then
-    echo "[INFO] Nginx is installed. Would you like to configure Nginx as a reverse proxy? (y/n)"
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "[INFO] Creating Nginx configuration..."
-        cat > kapelczak-notes.conf << NGINXEND
-server {
-    listen 80;
-    server_name ${DOMAIN};
-
-    # Logs
-    access_log /var/log/nginx/kapelczak-notes.access.log;
-    error_log /var/log/nginx/kapelczak-notes.error.log;
-
-    # File upload size limit
-    client_max_body_size 10M;
-
-    # Proxy to Node.js application
-    location / {
-        proxy_pass http://localhost:${PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    # Static file caching for improved performance
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-        proxy_pass http://localhost:${PORT};
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-
-    # Security headers
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
-NGINXEND
-        echo "[SUCCESS] Nginx configuration created at kapelczak-notes.conf"
-        echo "[INFO] To use this configuration, run:"
-        echo "  sudo cp kapelczak-notes.conf /etc/nginx/sites-available/"
-        echo "  sudo ln -s /etc/nginx/sites-available/kapelczak-notes.conf /etc/nginx/sites-enabled/"
-        echo "  sudo nginx -t && sudo systemctl reload nginx"
-    fi
-else
-    echo "[INFO] Nginx is not installed. Skipping Nginx configuration."
-fi
-
-# Create a helper script for redeployment
-echo "[INFO] Creating redeployment script..."
-cat > redeploy.sh << 'REDEPLOYEND'
-#!/bin/bash
 set -e
 
-echo "[INFO] Running git pull to get latest changes..."
-git pull
+# Text colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-echo "[INFO] Installing dependencies..."
-npm install
+# Banner
+echo -e "${BLUE}"
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║                 KAPELCZAK NOTES AUTO-DEPLOY                    ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
 
-echo "[INFO] Building the application..."
-npx vite build
+# Check if Docker is installed
+if ! [ -x "$(command -v docker)" ]; then
+  echo -e "${RED}Error: Docker is not installed.${NC}" >&2
+  echo "Installing Docker..."
+  curl -fsSL https://get.docker.com -o get-docker.sh
+  sudo sh get-docker.sh
+  sudo usermod -aG docker $USER
+  echo -e "${GREEN}Docker installed. You may need to log out and back in.${NC}"
+  echo "Please run this script again after logging back in."
+  exit 1
+fi
 
-echo "[INFO] Pushing database schema..."
-npx drizzle-kit push
+# Check if Docker Compose is installed
+if ! [ -x "$(command -v docker-compose)" ]; then
+  echo -e "${RED}Error: Docker Compose is not installed.${NC}" >&2
+  echo "Installing Docker Compose..."
+  sudo curl -L "https://github.com/docker/compose/releases/download/v2.21.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+  echo -e "${GREEN}Docker Compose installed.${NC}"
+fi
 
-echo "[INFO] Restarting the application with PM2..."
-pm2 restart kapelczak-notes
+# Environment setup
+echo -e "${YELLOW}Setting up environment...${NC}"
 
-echo "[SUCCESS] Redeployment complete!"
-REDEPLOYEND
-chmod +x redeploy.sh
-echo "[SUCCESS] Created redeploy.sh script for future updates."
+# Check if .env file exists, create if needed
+if [ ! -f .env ]; then
+  echo -e "${YELLOW}Creating .env file...${NC}"
+  
+  # Generate a random password and session secret
+  DB_PASSWORD=$(openssl rand -base64 12)
+  SESSION_SECRET=$(openssl rand -base64 32)
+  
+  cat > .env << EOF
+# Database Configuration
+POSTGRES_USER=kapelczak_user
+POSTGRES_PASSWORD=${DB_PASSWORD}
+POSTGRES_DB=kapelczak_notes
 
-echo ""
-echo "=========================================================="
-echo "    DEPLOYMENT COMPLETE"
-echo "=========================================================="
-echo ""
-echo "[INFO] Your application is deployed and running!"
-echo "[INFO] Local URL: http://localhost:$PORT"
-echo ""
-echo "To ensure the application starts on system boot:"
-echo "Run: pm2 startup"
-echo "Follow the instructions provided by the command"
-echo ""
-echo "To redeploy after updates, run: ./redeploy.sh"
-echo ""
+# Application Configuration
+PORT=5000
+NODE_ENV=production
+MAX_FILE_SIZE=1073741824  # 1GB in bytes
+
+# Security
+SESSION_SECRET=${SESSION_SECRET}
+
+# SMTP Configuration (configure manually)
+# SMTP_HOST=your.smtp.host
+# SMTP_PORT=587
+# SMTP_USER=your_smtp_username
+# SMTP_PASSWORD=your_smtp_password
+EOF
+
+  echo -e "${GREEN}.env file created with secure random credentials.${NC}"
+  echo -e "${YELLOW}Please add SMTP settings manually if needed.${NC}"
+else
+  echo -e "${GREEN}.env file already exists. Using existing configuration.${NC}"
+fi
+
+# Build and deploy
+echo -e "${YELLOW}Building and deploying application...${NC}"
+
+# Pull latest changes if in a git repository
+if [ -d .git ]; then
+  echo -e "${YELLOW}Pulling latest changes...${NC}"
+  git pull
+fi
+
+# Build and start containers
+echo -e "${YELLOW}Building and starting containers...${NC}"
+docker-compose down || true
+docker-compose build
+docker-compose up -d
+
+# Wait for services to start
+echo -e "${YELLOW}Waiting for services to start...${NC}"
+sleep 10
+
+# Check if services are running
+if docker-compose ps | grep -q "Up"; then
+  echo -e "${GREEN}Deployment successful!${NC}"
+  echo -e "${BLUE}Application is running on port 5000${NC}"
+  echo -e "${YELLOW}Default login credentials:${NC}"
+  echo -e "  Username: ${GREEN}admin${NC}"
+  echo -e "  Password: ${GREEN}demo${NC}"
+  echo -e "${RED}IMPORTANT: Change the default password immediately after first login!${NC}"
+  
+  # Get server IP address for convenience
+  SERVER_IP=$(hostname -I | awk '{print $1}')
+  echo -e "${BLUE}Access the application at: http://${SERVER_IP}:5000${NC}"
+else
+  echo -e "${RED}Deployment failed. Check logs with: docker-compose logs${NC}"
+  exit 1
+fi
+
+echo -e "${BLUE}"
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║                DEPLOYMENT COMPLETED SUCCESSFULLY               ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
