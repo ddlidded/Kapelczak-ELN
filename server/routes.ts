@@ -2659,7 +2659,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // File is stored in the database
         console.log(`Serving file from database storage: ${attachment.fileName}`);
-        const buffer = Buffer.from(attachment.fileData, "base64");
+        
+        if (!attachment.fileData) {
+          return res.status(404).json({ message: "File data not found" });
+        }
+        
+        // Use type assertion to tell TypeScript that fileData is a string
+        const buffer = Buffer.from(attachment.fileData as string, "base64");
         
         res.setHeader("Content-Type", attachment.fileType);
         res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
