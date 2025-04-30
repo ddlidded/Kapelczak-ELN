@@ -169,33 +169,64 @@ echo -e "${GREEN}✓ Database schema created${NC}"
 
 # Create admin user
 section_header "Creating admin user"
-# Check if package.json has type: module
-if grep -q '"type": "module"' package.json; then
-  # Try ESM module first
-  if [ -f server/scripts/create-admin.js ]; then
-    NODE_OPTIONS="--experimental-specifier-resolution=node" node server/scripts/create-admin.js || {
-      echo -e "${YELLOW}ESM module import failed, trying CommonJS version...${NC}"
-      # Try CommonJS version as fallback
-      if [ -f server/scripts/create-admin.cjs ]; then
-        node server/scripts/create-admin.cjs || handle_error "Failed to create admin user with both ESM and CommonJS scripts"
-      else
-        handle_error "Failed to create admin user and CommonJS script not found"
-      fi
-    }
-  elif [ -f server/scripts/create-admin.cjs ]; then
-    # If ESM script not found, try CommonJS version
-    node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
-  else
-    handle_error "Admin user creation script not found"
-  fi
+
+# Try our universal admin setup script first
+if [ -f setup-admin.js ]; then
+  echo -e "${BLUE}Using universal admin setup script...${NC}"
+  node setup-admin.js || {
+    echo -e "${YELLOW}Universal script failed, trying fallback methods...${NC}"
+    
+    # Try CommonJS version as first fallback
+    if [ -f server/scripts/create-admin.cjs ]; then
+      node server/scripts/create-admin.cjs || {
+        # Try ESM module as second fallback with proper flags
+        if [ -f server/scripts/create-admin.js ]; then
+          NODE_OPTIONS="--experimental-specifier-resolution=node" node server/scripts/create-admin.js || handle_error "Failed to create admin user with all available methods"
+        else
+          handle_error "Failed to create admin user with CommonJS script and ESM script not found"
+        fi
+      }
+    elif [ -f server/scripts/create-admin.js ]; then
+      # If CommonJS script not found, try ESM version
+      NODE_OPTIONS="--experimental-specifier-resolution=node" node server/scripts/create-admin.js || handle_error "Failed to create admin user with ESM script"
+    else
+      handle_error "No admin user creation scripts found"
+    fi
+  }
 else
-  # For CommonJS projects
-  if [ -f server/scripts/create-admin.cjs ]; then
-    node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
-  elif [ -f server/scripts/create-admin.js ]; then
-    node server/scripts/create-admin.js || handle_error "Failed to create admin user"
+  # If universal script not found, try CommonJS and ESM scripts
+  echo -e "${YELLOW}Universal admin setup script not found, trying specific versions...${NC}"
+  
+  # Check if package.json has type: module
+  if grep -q '"type": "module"' package.json; then
+    echo -e "${BLUE}Detected ESM project...${NC}"
+    # Try ESM module first
+    if [ -f server/scripts/create-admin.js ]; then
+      NODE_OPTIONS="--experimental-specifier-resolution=node" node server/scripts/create-admin.js || {
+        echo -e "${YELLOW}ESM module import failed, trying CommonJS version...${NC}"
+        # Try CommonJS version as fallback
+        if [ -f server/scripts/create-admin.cjs ]; then
+          node server/scripts/create-admin.cjs || handle_error "Failed to create admin user with both ESM and CommonJS scripts"
+        else
+          handle_error "Failed to create admin user and CommonJS script not found"
+        fi
+      }
+    elif [ -f server/scripts/create-admin.cjs ]; then
+      # If ESM script not found, try CommonJS version
+      node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
+    else
+      handle_error "Admin user creation script not found"
+    fi
   else
-    handle_error "Admin user creation script not found"
+    echo -e "${BLUE}Detected CommonJS project...${NC}"
+    # For CommonJS projects
+    if [ -f server/scripts/create-admin.cjs ]; then
+      node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
+    elif [ -f server/scripts/create-admin.js ]; then
+      node server/scripts/create-admin.js || handle_error "Failed to create admin user"
+    else
+      handle_error "Admin user creation script not found"
+    fi
   fi
 fi
 
