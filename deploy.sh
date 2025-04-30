@@ -1,306 +1,273 @@
 #!/bin/bash
-# Kapelczak Notes Auto-Deployment Script
-# ---------------------------------------
+# Comprehensive deployment script for Kapelczak Notes
+# Handles PostgreSQL provisioning and app deployment on bare metal servers
 
-set -e  # Exit on any error
+set -e # Exit immediately if any command fails
 
-# Configuration variables - edit these to match your environment
-APP_DIR="$PWD"                 # Application directory
-LOGS_DIR="$APP_DIR/logs"       # Logs directory
-UPLOADS_DIR="$APP_DIR/uploads" # Uploads directory
-NODE_VERSION="20"              # Node.js version to use
-PORT=5000                      # Application port
-DB_USER="kapelczak_user"       # Database user
-DB_PASSWORD="your_password"    # Database password (change this!)
-DB_NAME="kapelczak_notes"      # Database name
-DB_HOST="localhost"            # Database host
-DOMAIN="your-domain.com"       # Domain name (for Nginx config)
-USE_PM2=true                   # Whether to use PM2
-
-# Color codes for output
+# Define colors for console output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Helper functions
-log_info() {
-  echo -e "${BLUE}[INFO]${NC} $1"
+# Define default database settings
+DB_USER="kapelczak_user"
+DB_PASSWORD=$(openssl rand -hex 12) # Generate secure random password
+DB_NAME="kapelczak_notes"
+DB_PORT=5432
+SESSION_SECRET=$(openssl rand -hex 16) # Generate secure random session secret
+
+# Function to display section headers
+function section_header() {
+  echo -e "\n${BLUE}=== $1 ===${NC}"
 }
 
-log_success() {
-  echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-  echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-  echo -e "${RED}[ERROR]${NC} $1"
-}
-
-check_command() {
-  if ! command -v $1 &> /dev/null; then
-    log_error "$1 is not installed. Installing..."
-    return 1
-  else
-    return 0
-  fi
-}
-
-# Display header
-echo "=========================================================="
-echo "    KAPELCZAK NOTES DEPLOYMENT SCRIPT"
-echo "=========================================================="
-echo "This script will deploy the Kapelczak Notes application."
-echo "Make sure you have edited the script configuration section."
-echo ""
-
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then
-  log_warning "Running as root is not recommended. Continue? (y/n)"
-  read -r confirm
-  if [[ $confirm != "y" ]]; then
-    log_info "Deployment aborted."
-    exit 0
-  fi
-fi
-
-# Create necessary directories
-log_info "Creating necessary directories..."
-mkdir -p "$LOGS_DIR"
-mkdir -p "$UPLOADS_DIR"
-log_success "Directories created."
-
-# Check for required software
-log_info "Checking for required software..."
-
-# Check for Node.js
-if ! check_command node; then
-  log_info "Installing Node.js $NODE_VERSION..."
-  curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
-  sudo apt-get install -y nodejs
-  log_success "Node.js installed."
-else
-  node_version=$(node -v)
-  log_info "Node.js $node_version is already installed."
-fi
-
-# Check for npm
-if ! check_command npm; then
-  log_error "npm is not installed. This should have been installed with Node.js."
+# Function to handle errors
+function handle_error() {
+  echo -e "\n${RED}ERROR: $1${NC}"
   exit 1
+}
+
+# Display welcome banner
+echo -e "${PURPLE}===============================================${NC}"
+echo -e "${PURPLE}          KAPELCZAK NOTES DEPLOYMENT          ${NC}"
+echo -e "${PURPLE}===============================================${NC}"
+
+# Check for root privileges
+if [ "$EUID" -ne 0 ]; then
+  handle_error "This script must be run as root to install system packages and configure PostgreSQL."
+fi
+
+# Check for required tools
+section_header "Checking prerequisites"
+for cmd in curl wget npm node openssl; do
+  if ! command -v $cmd &> /dev/null; then
+    echo -e "${YELLOW}$cmd not found. Installing...${NC}"
+    apt-get update && apt-get install -y $cmd || handle_error "Failed to install $cmd"
+  fi
+  echo -e "${GREEN}✓ $cmd is installed${NC}"
+done
+
+# Install PostgreSQL if not already installed
+section_header "Setting up PostgreSQL"
+if ! command -v psql &> /dev/null; then
+  echo -e "${YELLOW}PostgreSQL not found. Installing...${NC}"
+  
+  # Add PostgreSQL repository
+  echo -e "${BLUE}Adding PostgreSQL repository...${NC}"
+  apt-get install -y gnupg2 lsb-release
+  
+  # Import the repository signing key
+  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+  
+  # Add PostgreSQL apt repository
+  echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  
+  # Install PostgreSQL
+  apt-get update
+  apt-get install -y postgresql-14 postgresql-contrib
+  
+  if [ $? -ne 0 ]; then
+    handle_error "Failed to install PostgreSQL"
+  fi
+  
+  echo -e "${GREEN}✓ PostgreSQL installed successfully${NC}"
 else
-  npm_version=$(npm -v)
-  log_info "npm $npm_version is already installed."
+  echo -e "${GREEN}✓ PostgreSQL is already installed${NC}"
 fi
 
-# Install global dependencies
-log_info "Installing global dependencies..."
-sudo npm install -g npm@latest
-sudo npm install -g drizzle-kit vite tsx
-if [ "$USE_PM2" = true ]; then
-  sudo npm install -g pm2
+# Ensure PostgreSQL is running
+systemctl is-active --quiet postgresql || systemctl start postgresql
+systemctl enable postgresql
+echo -e "${GREEN}✓ PostgreSQL service is running${NC}"
+
+# Create database user and database
+section_header "Creating database user and database"
+# Check if user already exists
+if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+  echo -e "${YELLOW}User $DB_USER already exists. Resetting password...${NC}"
+  sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+else
+  echo -e "${BLUE}Creating database user $DB_USER...${NC}"
+  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
 fi
-log_success "Global dependencies installed."
 
-# Install project dependencies
-log_info "Installing project dependencies..."
-npm ci || npm install
-log_success "Project dependencies installed."
+# Check if database already exists
+if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
+  echo -e "${YELLOW}Database $DB_NAME already exists${NC}"
+else
+  echo -e "${BLUE}Creating database $DB_NAME...${NC}"
+  sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+fi
 
-# Configure environment
-log_info "Configuring environment..."
-cat > .env.production << EOF
+# Additional permissions needed for schema creation
+sudo -u postgres psql -c "ALTER USER $DB_USER WITH SUPERUSER;"
+
+echo -e "${GREEN}✓ Database configuration complete${NC}"
+
+# Configure connection
+DB_HOST="localhost"
+DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+echo -e "${GREEN}✓ Database connection URL generated${NC}"
+
+# Update the environment configuration
+section_header "Configuring environment variables"
+if [ -f .env.production ]; then
+  echo -e "${YELLOW}Backing up existing .env.production to .env.production.bak${NC}"
+  cp .env.production .env.production.bak
+fi
+
+cat > .env.production << EOL
 # Database Configuration
-DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}
-PGUSER=${DB_USER}
-PGPASSWORD=${DB_PASSWORD}
-PGDATABASE=${DB_NAME}
-PGHOST=${DB_HOST}
-PGPORT=5432
+DATABASE_URL=${DATABASE_URL}
 
 # Application Configuration
-PORT=${PORT}
+PORT=5000
 NODE_ENV=production
 
 # File Upload Configuration
 UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=10485760
-EOF
-log_success "Environment configured."
-log_success "Environment configured."
+MAX_FILE_SIZE=1073741824  # 1GB limit for file uploads
 
-# Build the frontend
-log_info "Building the frontend..."
-npm run build
-log_success "Frontend built successfully."
+# Security Configuration
+SESSION_SECRET=${SESSION_SECRET}
 
-# Check for PostgreSQL
-if ! check_command psql; then
-  log_warning "PostgreSQL is not installed. Would you like to install it? (y/n)"
-  read -r confirm
-  if [[ $confirm == "y" ]]; then
-    log_info "Installing PostgreSQL..."
-    sudo apt-get update
-    sudo apt-get install -y postgresql postgresql-contrib
-    sudo systemctl start postgresql
-    sudo systemctl enable postgresql
-    log_success "PostgreSQL installed."
-    
-    log_info "Setting up PostgreSQL database..."
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;" || log_warning "Database may already exist."
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH ENCRYPTED PASSWORD '$DB_PASSWORD';" || log_warning "User may already exist."
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || log_warning "Privileges may already be granted."
-    log_success "PostgreSQL database setup complete."
-  else
-    log_warning "Skipping PostgreSQL installation. Make sure your database is properly configured."
-  fi
-else
-  log_info "PostgreSQL is already installed."
-fi
+# SMTP Configuration (for email features)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+EOL
+
+echo -e "${GREEN}✓ Environment configuration created${NC}"
+echo -e "${YELLOW}NOTE: You may need to update SMTP settings in .env.production${NC}"
+
+# Install node dependencies
+section_header "Installing dependencies"
+npm ci || handle_error "Failed to install Node.js dependencies"
+echo -e "${GREEN}✓ Node.js dependencies installed${NC}"
+
+# Build the application
+section_header "Building the application"
+npm run build || handle_error "Failed to build the application"
+echo -e "${GREEN}✓ Application built successfully${NC}"
+
+# Create required directories
+mkdir -p uploads
+chmod 755 uploads
+echo -e "${GREEN}✓ Upload directory created${NC}"
 
 # Push database schema
-log_info "Pushing database schema..."
-npm run db:push
+section_header "Setting up database schema"
+export DATABASE_URL="$DATABASE_URL"
+echo -e "${BLUE}Database URL: $DATABASE_URL${NC}"
+npm run db:push || handle_error "Failed to push database schema"
+echo -e "${GREEN}✓ Database schema created${NC}"
 
-# Setup Nginx (if requested)
-log_info "Would you like to configure Nginx as a reverse proxy? (y/n)"
-read -r configure_nginx
-if [[ $configure_nginx == "y" ]]; then
-  if ! check_command nginx; then
-    log_info "Installing Nginx..."
-    sudo apt-get update
-    sudo apt-get install -y nginx
-    sudo systemctl start nginx
-    sudo systemctl enable nginx
-    log_success "Nginx installed."
-  else
-    log_info "Nginx is already installed."
-  fi
-  
-  log_info "Configuring Nginx..."
-  sudo tee /etc/nginx/sites-available/kapelczak-notes << EOF
-server {
-    listen 80;
-    server_name ${DOMAIN};
-    
-    access_log /var/log/nginx/kapelczak-notes.access.log;
-    error_log /var/log/nginx/kapelczak-notes.error.log;
-    
-    client_max_body_size 10M;
-    
-    location / {
-        proxy_pass http://localhost:${PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-    
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-        proxy_pass http://localhost:${PORT};
-        expires 30d;
-        add_header Cache-Control "public, no-transform";
-    }
-    
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
-EOF
-  sudo ln -sf /etc/nginx/sites-available/kapelczak-notes /etc/nginx/sites-enabled/
-  sudo nginx -t && sudo systemctl reload nginx
-  log_success "Nginx configured successfully."
-  
-  log_info "Would you like to set up SSL with Let's Encrypt? (y/n)"
-  read -r setup_ssl
-  if [[ $setup_ssl == "y" ]]; then
-    if ! check_command certbot; then
-      log_info "Installing Certbot..."
-      sudo apt-get update
-      sudo apt-get install -y certbot python3-certbot-nginx
-      log_success "Certbot installed."
-    else
-      log_info "Certbot is already installed."
-    fi
-    
-    log_info "Setting up SSL with Let's Encrypt..."
-    sudo certbot --nginx -d $DOMAIN
-    log_success "SSL configured successfully."
-  fi
-fi
+# Create admin user
+section_header "Creating admin user"
+node server/scripts/create-admin.js || handle_error "Failed to create admin user"
+echo -e "${GREEN}✓ Admin user setup complete${NC}"
+
+# Setup systemd service for the application
+section_header "Setting up systemd service"
+SERVICE_FILE="/etc/systemd/system/kapelczak-notes.service"
+
+cat > $SERVICE_FILE << EOL
+[Unit]
+Description=Kapelczak Notes Laboratory Documentation Platform
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$(pwd)
+Environment="NODE_ENV=production"
+Environment="PORT=5000"
+Environment="DATABASE_URL=${DATABASE_URL}"
+Environment="SESSION_SECRET=${SESSION_SECRET}"
+ExecStart=$(which node) dist/index.js
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+# Reload systemd to recognize the new service
+systemctl daemon-reload
+systemctl enable kapelczak-notes
+echo -e "${GREEN}✓ Systemd service created and enabled${NC}"
 
 # Start the application
-if [ "$USE_PM2" = true ]; then
-  log_info "Starting the application with PM2..."
-  pm2 delete kapelczak-notes 2>/dev/null || true
-  pm2 start ecosystem.config.js --env production
-  pm2 save
-  log_info "Setting up PM2 to start on system boot..."
-  pm2 startup | tail -n 1 | sh
-  log_success "Application started with PM2."
-else
-  log_info "Starting the application with Node.js..."
-  nohup node server/prod.js > "$LOGS_DIR/app.log" 2>&1 &
-  echo $! > "$APP_DIR/app.pid"
-  log_success "Application started."
+section_header "Starting the application"
+systemctl start kapelczak-notes || handle_error "Failed to start the application"
+echo -e "${GREEN}✓ Application started successfully${NC}"
+
+# Configure firewall if ufw is installed
+if command -v ufw &> /dev/null; then
+  section_header "Configuring firewall"
+  ufw allow 5000/tcp
+  echo -e "${GREEN}✓ Firewall configured to allow traffic on port 5000${NC}"
 fi
 
-# Create a helper script for redeployment
-cat > redeploy.sh << 'EOF'
-#!/bin/bash
-set -e
+# Final steps and instructions
+section_header "Deployment Summary"
+echo -e "${GREEN}Kapelczak Notes has been successfully deployed!${NC}"
+echo -e "${YELLOW}Database Information:${NC}"
+echo -e "  Host:     ${DB_HOST}"
+echo -e "  Port:     ${DB_PORT}"
+echo -e "  Database: ${DB_NAME}"
+echo -e "  Username: ${DB_USER}"
+echo -e "  Password: ${DB_PASSWORD}"
+echo -e "${YELLOW}Application URL:${NC}"
+echo -e "  http://$(hostname -I | awk '{print $1}'):5000"
+echo -e "${YELLOW}Default Admin Credentials:${NC}"
+echo -e "  Username: admin"
+echo -e "  Password: demo"
+echo -e "${RED}IMPORTANT: Change the default admin password immediately after first login!${NC}"
+echo -e "${YELLOW}Service Management Commands:${NC}"
+echo -e "  Start:   systemctl start kapelczak-notes"
+echo -e "  Stop:    systemctl stop kapelczak-notes"
+echo -e "  Restart: systemctl restart kapelczak-notes"
+echo -e "  Status:  systemctl status kapelczak-notes"
+echo -e "  Logs:    journalctl -u kapelczak-notes -f"
 
-echo "Running git pull to get latest changes..."
-git pull
+# Save deployment info to a file for reference
+cat > deployment-info.txt << EOL
+Kapelczak Notes Deployment Information
+=====================================
+Deployment Date: $(date)
+Server: $(hostname)
 
-echo "Installing dependencies..."
-npm ci
+Database Information:
+- Host: ${DB_HOST}
+- Port: ${DB_PORT}
+- Database: ${DB_NAME}
+- Username: ${DB_USER}
+- Password: ${DB_PASSWORD}
 
-echo "Building the application..."
-npm run build
+Application URL:
+http://$(hostname -I | awk '{print $1}'):5000
 
-echo "Pushing database schema..."
-npm run db:push
+Default Admin Credentials:
+- Username: admin
+- Password: demo
 
-if command -v pm2 &> /dev/null; then
-  echo "Restarting the application with PM2..."
-  pm2 restart kapelczak-notes
-else
-  echo "Restarting the application..."
-  kill $(cat app.pid)
-  nohup node server/prod.js > logs/app.log 2>&1 &
-  echo $! > app.pid
-fi
+IMPORTANT: Change the default admin password immediately after first login!
 
-echo "Redeployment complete!"
-EOF
-chmod +x redeploy.sh
-log_success "Created redeploy.sh script for future updates."
+Service Management Commands:
+- Start:   systemctl start kapelczak-notes
+- Stop:    systemctl stop kapelczak-notes
+- Restart: systemctl restart kapelczak-notes
+- Status:  systemctl status kapelczak-notes
+- Logs:    journalctl -u kapelczak-notes -f
+EOL
 
-# Final check
-log_info "Checking if the application is running..."
-if curl -s http://localhost:$PORT > /dev/null; then
-  log_success "Application is running successfully!"
-else
-  log_warning "Application may not be running. Check logs for errors."
-fi
-
-echo ""
-echo "=========================================================="
-echo "    DEPLOYMENT COMPLETE"
-echo "=========================================================="
-echo ""
-log_info "Your application is deployed and running!"
-log_info "Access it at: http://$DOMAIN"
-log_info "Local URL: http://localhost:$PORT"
-log_info "To redeploy after updates, run: ./redeploy.sh"
-echo ""
+echo -e "${GREEN}Deployment information saved to deployment-info.txt${NC}"
+echo -e "${PURPLE}===============================================${NC}"
+echo -e "${PURPLE}          DEPLOYMENT COMPLETE                 ${NC}"
+echo -e "${PURPLE}===============================================${NC}"
