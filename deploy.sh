@@ -169,7 +169,36 @@ echo -e "${GREEN}✓ Database schema created${NC}"
 
 # Create admin user
 section_header "Creating admin user"
-node server/scripts/create-admin.js || handle_error "Failed to create admin user"
+# Check if package.json has type: module
+if grep -q '"type": "module"' package.json; then
+  # Try ESM module first
+  if [ -f server/scripts/create-admin.js ]; then
+    NODE_OPTIONS="--experimental-specifier-resolution=node" node server/scripts/create-admin.js || {
+      echo -e "${YELLOW}ESM module import failed, trying CommonJS version...${NC}"
+      # Try CommonJS version as fallback
+      if [ -f server/scripts/create-admin.cjs ]; then
+        node server/scripts/create-admin.cjs || handle_error "Failed to create admin user with both ESM and CommonJS scripts"
+      else
+        handle_error "Failed to create admin user and CommonJS script not found"
+      fi
+    }
+  elif [ -f server/scripts/create-admin.cjs ]; then
+    # If ESM script not found, try CommonJS version
+    node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
+  else
+    handle_error "Admin user creation script not found"
+  fi
+else
+  # For CommonJS projects
+  if [ -f server/scripts/create-admin.cjs ]; then
+    node server/scripts/create-admin.cjs || handle_error "Failed to create admin user"
+  elif [ -f server/scripts/create-admin.js ]; then
+    node server/scripts/create-admin.js || handle_error "Failed to create admin user"
+  else
+    handle_error "Admin user creation script not found"
+  fi
+fi
+
 echo -e "${GREEN}✓ Admin user setup complete${NC}"
 
 # Setup systemd service for the application

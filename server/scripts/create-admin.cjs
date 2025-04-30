@@ -1,11 +1,11 @@
 /**
- * Create Admin User Script for Kapelczak Notes
+ * Create Admin User Script for Kapelczak Notes (CommonJS version)
  * This script creates an admin user if one doesn't exist.
  * Used during deployment to ensure an admin user is available.
  */
 
-import { Pool } from 'pg';
-import { createHash } from 'crypto';
+const { Pool } = require('pg');
+const crypto = require('crypto');
 
 // Get database connection string from environment variables
 const connectionString = process.env.DATABASE_URL;
@@ -21,7 +21,7 @@ const pool = new Pool({ connectionString });
 
 // Simple password hashing function for the admin user
 function hashPassword(password) {
-  return createHash('sha256').update(password).digest('hex');
+  return crypto.createHash('sha256').update(password).digest('hex');
 }
 
 async function createAdminUser() {

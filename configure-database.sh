@@ -178,7 +178,9 @@ echo -e "  ${DATABASE_URL}"
 # Next steps
 echo -e "\n${BLUE}Next Steps:${NC}"
 echo -e "1. Run 'npm run db:push' to create the database schema"
-echo -e "2. Run 'node server/scripts/create-admin.js' to create the admin user"
+echo -e "2. Create admin user with one of these commands:"
+echo -e "   - For ESM projects: NODE_OPTIONS=\"--experimental-specifier-resolution=node\" node server/scripts/create-admin.js"
+echo -e "   - For CommonJS projects: node server/scripts/create-admin.cjs"
 echo -e "3. Build and start the application"
 
 echo -e "${PURPLE}===============================================${NC}"
