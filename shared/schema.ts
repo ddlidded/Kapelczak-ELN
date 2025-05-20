@@ -99,13 +99,15 @@ export const notes = pgTable("notes", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Custom schema for notes
+// Custom schema for notes with more flexible experimentId handling
 export const insertNoteSchema = z.object({
   title: z.string().min(1, "Title is required"),
   content: z.string().default(""),
   authorId: z.number().default(1),
   projectId: z.number(),
-  experimentId: z.number().nullable().optional()
+  experimentId: z.union([z.number(), z.null(), z.string().transform(val => 
+    val === '' || val === 'null' || val === 'undefined' ? null : parseInt(val) || null
+  )]).optional().nullable()
 });
 
 // Attachments table
