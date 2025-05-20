@@ -170,8 +170,16 @@ export default function ReportsPage() {
       if (!res.ok) throw new Error('Failed to delete report');
       return reportId;
     },
-    onSuccess: () => {
+    onSuccess: (deletedReportId) => {
+      // Optimistically update UI by filtering out the deleted report
+      queryClient.setQueryData(['/api/reports'], (oldData: Report[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.filter(report => report.id !== deletedReportId);
+      });
+      
+      // Also invalidate to ensure data consistency with server
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+      
       toast({
         title: 'Report Deleted',
         description: 'The report has been permanently deleted.',
