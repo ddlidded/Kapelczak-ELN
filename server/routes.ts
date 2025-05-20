@@ -264,7 +264,7 @@ async function generatePuppeteerPDF(
     // Get the current date as a string
     const currentDate = new Date().toLocaleDateString();
     
-    // Generate HTML content for the report
+    // Generate HTML content for the report with improved layout
     let htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -277,75 +277,108 @@ async function generatePuppeteerPDF(
             line-height: 1.6;
             color: #333;
             margin: 0;
-            padding: 20px;
+            padding: 30px;
           }
           .report-header {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
+            padding-top: 20px;
+            clear: both;
+            height: 120px;
           }
           .logo {
             position: absolute;
             top: 0;
             right: 0;
-            max-width: 120px;
-            max-height: 60px;
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
           }
           .report-title {
             font-size: 24px;
             font-weight: bold;
             color: ${options.primaryColor || '#4f46e5'};
-            margin-top: 60px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            padding-top: 10px;
             text-align: center;
+            clear: both;
           }
           .report-subtitle {
             font-size: 16px;
-            margin-top: 10px;
+            margin-top: 15px;
+            margin-bottom: 15px;
             text-align: center;
+            clear: both;
           }
           .report-meta {
-            margin: 15px 0;
+            margin: 25px 0;
+            padding: 10px 0;
             font-size: 14px;
+            clear: both;
           }
           .report-date {
             text-align: right;
             color: #666;
             font-size: 12px;
-            margin-top: 5px;
+            margin-top: 10px;
+            clear: both;
           }
           .note-container {
-            margin-bottom: 30px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
+            margin-top: 40px;
+            margin-bottom: 40px;
+            padding: 15px 0;
+            display: block;
+            clear: both;
           }
           .note-column {
-            flex: 1;
-            min-width: 45%;
+            margin-bottom: 30px;
+            padding: 0 10px;
+            box-sizing: border-box;
+            width: 100%;
+            clear: both;
           }
           .note-title {
             font-size: 18px;
             font-weight: bold;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
             border-bottom: 1px solid #ddd;
+            clear: both;
           }
           .note-content {
             font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.7;
+            clear: both;
+          }
+          .note-content p {
+            margin-bottom: 10px;
           }
           .note-content img {
-            max-width: 100%;
+            max-width: 90%;
             height: auto;
             border: 1px solid #ddd;
-            margin: 10px 0;
+            margin: 15px 0;
+            display: block;
+            padding: 5px;
+            background: #fff;
+          }
+          .image-section {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            clear: both;
           }
           .footer {
-            margin-top: 30px;
+            margin-top: 40px;
             border-top: 1px solid #ddd;
-            padding-top: 10px;
+            padding-top: 15px;
             font-size: 12px;
             color: #666;
             display: flex;
             justify-content: space-between;
+            clear: both;
           }
           table {
             width: 100%;
@@ -383,37 +416,26 @@ async function generatePuppeteerPDF(
         ` : ''}
     `;
     
-    // Process notes in pairs for two-column layout
-    for (let i = 0; i < notes.length; i += 2) {
-      const note1 = notes[i];
-      const note2 = i + 1 < notes.length ? notes[i + 1] : null;
+    // Process notes one at a time for better layout control and avoid overlapping text
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      
+      // Add page break for each note except the first one
+      if (i > 0) {
+        htmlContent += '<div class="page-break"></div>';
+      }
       
       htmlContent += '<div class="note-container">';
       
-      // First column (left)
+      // Note title and content with better spacing
       htmlContent += `
         <div class="note-column">
-          <div class="note-title">${note1.title}</div>
-          <div class="note-content">${note1.content}</div>
+          <div class="note-title">${note.title}</div>
+          <div class="note-content">${note.content}</div>
         </div>
       `;
       
-      // Second column (right) if available
-      if (note2) {
-        htmlContent += `
-          <div class="note-column">
-            <div class="note-title">${note2.title}</div>
-            <div class="note-content">${note2.content}</div>
-          </div>
-        `;
-      }
-      
       htmlContent += '</div>';
-      
-      // Add page break after every two pairs except for the last one
-      if (i < notes.length - 2) {
-        htmlContent += '<div class="page-break"></div>';
-      }
     }
     
     // Add footer
@@ -427,8 +449,11 @@ async function generatePuppeteerPDF(
       </html>
     `;
     
-    // Set the HTML content
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    // Set the HTML content with improved parameters for better rendering
+    await page.setContent(htmlContent, { 
+      waitUntil: ['networkidle0', 'load', 'domcontentloaded'], 
+      timeout: 30000 
+    });
     
     // Wait for images to load properly (important for attachments)
     console.log('Waiting for images to load');
