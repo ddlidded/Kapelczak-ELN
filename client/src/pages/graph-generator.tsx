@@ -225,14 +225,19 @@ export default function GraphGenerator() {
       const imageTag = `<img src="/api/attachments/${attachment.id}/download" alt="${options.title || 'Generated Graph'}" style="max-width: 100%;" />`;
       const updatedContent = note.content + '<p>' + imageTag + '</p>';
       
-      // Save the updated note
-      // Make sure experimentId is properly handled as either a number or null
+      // Save the updated note with better handling of experimentId
+      // We only send the fields we're actually updating to avoid validation issues
       const noteUpdate = {
-        ...note,
+        title: note.title,
         content: updatedContent,
-        experimentId: note.experimentId === undefined ? null : 
-                     note.experimentId === "" ? null : 
-                     typeof note.experimentId === "string" ? parseInt(note.experimentId) || null : 
+        projectId: note.projectId,
+        // Properly handle experimentId to ensure it's either null or a valid number
+        experimentId: note.experimentId === undefined || 
+                     note.experimentId === null || 
+                     note.experimentId === "" ? 
+                     null : 
+                     typeof note.experimentId === "string" ? 
+                     (parseInt(note.experimentId) || null) : 
                      note.experimentId,
       };
       
