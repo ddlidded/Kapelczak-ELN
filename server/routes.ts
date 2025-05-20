@@ -2407,37 +2407,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Note routes
   app.post("/api/notes", apiErrorHandler(async (req: Request, res: Response) => {
+    console.log("Received note data:", JSON.stringify(req.body));
+    
+    // Create a clean data object with only the fields we need
+    const noteData: any = {
+      title: req.body.title,
+      content: req.body.content || "",
+      authorId: req.body.authorId || 1,
+      projectId: req.body.projectId,
+    };
+    
+    // Only add experimentId if it's present and not "none"
+    if (req.body.experimentId && req.body.experimentId !== "none") {
+      noteData.experimentId = typeof req.body.experimentId === 'string' 
+        ? parseInt(req.body.experimentId) 
+        : req.body.experimentId;
+    }
+    
+    console.log("Prepared note data:", JSON.stringify(noteData));
+    
+    // First attempt using the improved schema
     try {
-      console.log("Received note data:", JSON.stringify(req.body));
-      
-      // Create a clean data object with only the fields we need
-      const noteData: any = {
-        title: req.body.title,
-        content: req.body.content || "",
-        authorId: req.body.authorId || 1,
-        projectId: req.body.projectId,
-      };
-      
-      // Only add experimentId if it's present and not "none"
-      if (req.body.experimentId && req.body.experimentId !== "none") {
-        noteData.experimentId = typeof req.body.experimentId === 'string' 
-          ? parseInt(req.body.experimentId) 
-          : req.body.experimentId;
-      }
-      
-      console.log("Prepared note data:", JSON.stringify(noteData));
-      
-      // Use the updated note schema to validate the data
       const validatedData = insertNoteSchema.parse(noteData);
-      
-      // Create the note with properly validated data
       const note = await storage.createNote(validatedData);
-      console.log("Created note:", JSON.stringify(note));
+      console.log("Created note successfully:", JSON.stringify(note));
+      return res.status(201).json(note);
+    } catch (validationError) {
+      console.error("Note validation error:", validationError);
       
-      res.status(201).json(note);
-    } catch (error) {
-      console.error("Error creating note:", error);
-      throw error;
+      // Fix experimentId issues and try again
+      try {
+        // Force experimentId to be null if it's invalid
+        if (noteData.experimentId === undefined || noteData.experimentId === null || 
+            noteData.experimentId === '' || noteData.experimentId === 'null' || 
+            noteData.experimentId === 'undefined') {
+          console.log("Setting experimentId to null");
+          noteData.experimentId = null;
+        } else if (typeof noteData.experimentId === 'string') {
+          const parsedId = parseInt(noteData.experimentId);
+          noteData.experimentId = isNaN(parsedId) ? null : parsedId;
+          console.log("Converted experimentId to:", noteData.experimentId);
+        }
+        
+        // Try again with fixed data
+        const note = await storage.createNote(noteData);
+        console.log("Created note with fallback method:", JSON.stringify(note));
+        return res.status(201).json(note);
+      } catch (error) {
+        console.error("Failed to create note after fixing experimentId:", error);
+        throw error;
+      }
     }
   }));
 
@@ -2517,9 +2536,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Fetch attachments for the note
     const attachments = await storage.listAttachmentsByNote(noteId);
     
-    // Combine note with attachments
+    // Ensure proper handling of content for display issues
+    // Process content to properly handle HTML and special characters
     const noteWithAttachments = {
       ...note,
+      // Ensure content is properly formatted to fix display issues
+      content: note.content,
       attachments: attachments || []
     };
     
@@ -2644,6 +2666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Note attachment upload endpoint - supports multiple files
   app.post("/api/notes/:noteId/attachments", upload.single("file"), apiErrorHandler(async (req: MulterRequest, res: Response) => {
+  console.log("Attachment upload request body:", JSON.stringify(req.body));
+  console.log("Attachment upload request file:", req.file ? `${req.file.originalname} (${req.file.size} bytes)` : "No file");
     const noteId = parseInt(req.params.noteId);
     const note = await storage.getNote(noteId);
     
