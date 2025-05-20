@@ -82,14 +82,43 @@ interface CalendarEvent {
 // Form schema for creating/editing events
 const eventFormSchema = z.object({
   title: z.string().min(1, { message: 'Title is required' }),
-  startDate: z.date(),
-  endDate: z.date(),
+  startDate: z.date({
+    required_error: "Start date is required",
+    invalid_type_error: "Start date must be a valid date"
+  }),
+  endDate: z.date({
+    required_error: "End date is required",
+    invalid_type_error: "End date must be a valid date"
+  }),
   description: z.string().nullable().optional(),
   location: z.string().nullable().optional(),
   status: z.string().default('Scheduled'),
-  projectId: z.union([z.number(), z.null()]).nullable().optional(),
-  experimentId: z.union([z.number(), z.null()]).nullable().optional(),
+  projectId: z.union([z.number(), z.string(), z.null()]).nullable().optional()
+    .transform(val => {
+      if (val === "" || val === "none" || val === "null") return null;
+      if (typeof val === 'string') {
+        const parsed = parseInt(val);
+        return isNaN(parsed) ? null : parsed;
+      }
+      return val;
+    }),
+  experimentId: z.union([z.number(), z.string(), z.null()]).nullable().optional()
+    .transform(val => {
+      if (val === "" || val === "none" || val === "null") return null;
+      if (typeof val === 'string') {
+        const parsed = parseInt(val);
+        return isNaN(parsed) ? null : parsed;
+      }
+      return val;
+    }),
   attendees: z.any().optional(),
+})
+.refine(data => {
+  // Ensure end date is equal to or after start date
+  return data.endDate >= data.startDate;
+}, {
+  message: "End date must be on or after the start date",
+  path: ["endDate"]
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -375,6 +404,20 @@ export default function CalendarPage() {
   // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
+      // Validate dates first to ensure they are valid Date objects
+      if (!(data.startDate instanceof Date) || isNaN(data.startDate.getTime())) {
+        throw new Error('Invalid start date provided');
+      }
+      
+      if (!(data.endDate instanceof Date) || isNaN(data.endDate.getTime())) {
+        throw new Error('Invalid end date provided');
+      }
+      
+      // Ensure end date is not before start date
+      if (data.endDate < data.startDate) {
+        throw new Error('End date cannot be before start date');
+      }
+      
       // Add proper defaults and handle empty values
       const eventData = {
         ...data,
@@ -429,6 +472,20 @@ export default function CalendarPage() {
   const updateEventMutation = useMutation({
     mutationFn: async (data: EventFormValues & { id: number }) => {
       const { id, ...restData } = data;
+      
+      // Validate dates first to ensure they are valid Date objects
+      if (!(data.startDate instanceof Date) || isNaN(data.startDate.getTime())) {
+        throw new Error('Invalid start date provided');
+      }
+      
+      if (!(data.endDate instanceof Date) || isNaN(data.endDate.getTime())) {
+        throw new Error('Invalid end date provided');
+      }
+      
+      // Ensure end date is not before start date
+      if (data.endDate < data.startDate) {
+        throw new Error('End date cannot be before start date');
+      }
       
       // Format the data and ensure all required fields are properly handled
       const formattedData = {
