@@ -575,9 +575,12 @@ async function generateReportPDF(
         const logoData = fs.readFileSync(logoPath);
         const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
         
-        // Use smaller dimensions for the logo in top right
-        const logoWidth = 30; // Width in mm (smaller size for top right)
-        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
+        // Load the logo and maintain its aspect ratio
+        const logoImg = new Image();
+        // Use a more balanced size for the logo, preserving its aspect ratio
+        const logoWidth = 25; // Width in mm (smaller size for top right)
+        // Calculate height to maintain the actual aspect ratio of the Kapelczak logo
+        const logoHeight = 25; // Use same height as width for 1:1 aspect ratio
         
         // Position at top right with margin
         const logoX = pageWidth - margin - logoWidth;
@@ -3517,6 +3520,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedData.status = "Scheduled";
       }
       
+      // Format dates as proper Date objects
+      try {
+        if (typeof validatedData.startDate === 'string') {
+          validatedData.startDate = new Date(validatedData.startDate);
+        }
+        if (typeof validatedData.endDate === 'string') {
+          validatedData.endDate = new Date(validatedData.endDate);
+        }
+      } catch (err) {
+        console.error("Error parsing date strings:", err);
+        return res.status(400).json({ 
+          message: "Invalid date format", 
+          details: "Please provide valid dates in ISO format"
+        });
+      }
+
       // Make sure projectId and experimentId are properly handled with improved validation
       if (validatedData.projectId !== undefined) {
         if (validatedData.projectId === null) {
