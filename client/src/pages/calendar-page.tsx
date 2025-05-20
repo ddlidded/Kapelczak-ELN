@@ -429,7 +429,7 @@ export default function CalendarPage() {
     mutationFn: async (data: EventFormValues & { id: number }) => {
       const { id, ...restData } = data;
       
-      // Format the dates and ensure required fields are properly formatted
+      // Format the dates and ensure all required fields are properly formatted
       const formattedData = {
         ...restData,
         status: data.status || 'Scheduled',
@@ -437,13 +437,24 @@ export default function CalendarPage() {
         endDate: data.endDate.toISOString(),
         // Ensure null values are properly handled
         description: data.description || null,
-        location: data.location || null
+        location: data.location || null,
+        projectId: data.projectId === undefined ? null : data.projectId,
+        experimentId: data.experimentId === undefined ? null : data.experimentId,
+        // Add required fields that might be missing
+        allDay: false,
+        attendees: data.attendees || []
       };
       
       console.log("Updating calendar event:", id, formattedData);
       
-      const res = await apiRequest('PUT', `/api/calendar-events/${id}`, formattedData);
-      return await res.json();
+      try {
+        const res = await apiRequest('PUT', `/api/calendar-events/${id}`, formattedData);
+        const result = await res.json();
+        return result;
+      } catch (error) {
+        console.error("Error updating calendar event:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({

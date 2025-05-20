@@ -1,41 +1,10 @@
-# Base image
-FROM node:20-alpine AS builder
+# Multi-stage build for the Kapelczak Notes application
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ curl
+# Build stage
+FROM node:20-alpine AS build
 
-# Set working directory
-WORKDIR /app
-
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy all files
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Production image
-FROM node:20-alpine
-
-# Install Puppeteer dependencies for PDF generation
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    fontconfig
-
-# Set environment variable for Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Install curl for healthchecks and build dependencies
+RUN apk add --no-cache curl python3 make g++ 
 
 # Set working directory
 WORKDIR /app
@@ -43,30 +12,57 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install dependencies
+RUN npm ci
 
-# Copy built files from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server/assets ./server/assets
+# Copy the rest of the application
+COPY . .
 
-# Create uploads directory with proper permissions
-RUN mkdir -p uploads && chmod 777 uploads
+# Build the application
+RUN npm run build
 
-# Create health check script
-RUN echo '#!/bin/sh\ncurl -f http://localhost:5000/api/health || exit 1' > /healthcheck.sh && \
-    chmod +x /healthcheck.sh
+# Production stage
+FROM node:20-alpine
 
-# Expose the port
-EXPOSE 5000
+# Install runtime dependencies including puppeteer dependencies
+RUN apk add --no-cache curl chromium nss freetype harfbuzz ca-certificates ttf-freefont
+
+# Create app directory
+WORKDIR /app
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=5000
-ENV MAX_FILE_SIZE=1073741824
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 CMD [ "/healthcheck.sh" ]
+# Copy package files for production dependencies
+COPY package*.json ./
 
-# Run the application
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Create uploads directory
+RUN mkdir -p uploads
+RUN chmod 755 uploads
+
+# Copy built application from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/setup-admin.js ./setup-admin.js
+
+# Copy any necessary configuration files
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Set up a healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:5000/api/health || exit 1
+
+# Expose application port
+EXPOSE 5000
+
+# Set entry point
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Set default command to start the application
 CMD ["node", "dist/index.js"]
