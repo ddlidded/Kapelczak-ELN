@@ -3457,36 +3457,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // Create a new calendar event
-  app.post("/api/calendar-events", apiErrorHandler(async (req: Request, res: Response) => {
-    // Validate request body against schema
-    const validatedData = insertCalendarEventSchema.parse(req.body);
+  app.post("/api/calendar-events", async (req: Request, res: Response) => {
+    try {
+      console.log("Calendar event data received:", JSON.stringify(req.body));
+      
+      // Fix dates before validation
+      const dataToValidate = { ...req.body };
+      
+      // Ensure dates are properly formatted
+      if (dataToValidate.startDate && !(dataToValidate.startDate instanceof Date)) {
+        if (typeof dataToValidate.startDate === 'string') {
+          dataToValidate.startDate = new Date(dataToValidate.startDate);
+        } else if (dataToValidate.startDate.toISOString) {
+          // Handle date object with toISOString method
+          dataToValidate.startDate = new Date(dataToValidate.startDate.toISOString());
+        }
+      }
+      
+      if (dataToValidate.endDate && !(dataToValidate.endDate instanceof Date)) {
+        if (typeof dataToValidate.endDate === 'string') {
+          dataToValidate.endDate = new Date(dataToValidate.endDate);
+        } else if (dataToValidate.endDate.toISOString) {
+          // Handle date object with toISOString method
+          dataToValidate.endDate = new Date(dataToValidate.endDate.toISOString());
+        }
+      }
+      
+      // Convert empty string values to null for optional fields
+      if (dataToValidate.experimentId === '') dataToValidate.experimentId = null;
+      if (dataToValidate.projectId === '') dataToValidate.projectId = null;
+      
+      // Validate the fixed data
+      const validatedData = insertCalendarEventSchema.parse(dataToValidate);
     
-    // Ensure dates are properly formatted
-    if (typeof validatedData.startDate === 'string') {
-      validatedData.startDate = new Date(validatedData.startDate);
+      // Check that end date is after start date
+      if (validatedData.endDate < validatedData.startDate) {
+        return res.status(400).json({ message: "End date must be after start date" });
+      }
+      
+      // Set default status if not provided
+      if (!validatedData.status) {
+        validatedData.status = "Scheduled";
+      }
+      
+      // Make sure projectId and experimentId are properly handled
+      if (typeof validatedData.projectId === 'string') {
+        if (validatedData.projectId === "none" || validatedData.projectId === "") {
+          validatedData.projectId = null;
+        } else {
+          // Try to convert string to number if needed
+          validatedData.projectId = parseInt(validatedData.projectId) || null;
+        }
+      }
+      
+      if (typeof validatedData.experimentId === 'string') {
+        if (validatedData.experimentId === "none" || validatedData.experimentId === "") {
+          validatedData.experimentId = null;
+        } else {
+          // Try to convert string to number if needed
+          validatedData.experimentId = parseInt(validatedData.experimentId) || null;
+        }
+      }
+      
+      // Create the calendar event
+      const event = await storage.createCalendarEvent(validatedData);
+      
+      // Broadcast to WebSocket clients with our improved notification function
+      notifyWebSocketClients('CALENDAR_EVENT_CREATED', event);
+      
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+      
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to create calendar event", error: String(error) });
     }
-    
-    if (typeof validatedData.endDate === 'string') {
-      validatedData.endDate = new Date(validatedData.endDate);
-    }
-    
-    // Check that end date is after start date
-    if (validatedData.endDate < validatedData.startDate) {
-      return res.status(400).json({ message: "End date must be after start date" });
-    }
-    
-    // Set default status if not provided
-    if (!validatedData.status) {
-      validatedData.status = "Scheduled";
-    }
-    
-    // Create the calendar event
-    const event = await storage.createCalendarEvent(validatedData);
-    
-    // Broadcast to WebSocket clients with our improved notification function
-    notifyWebSocketClients('CALENDAR_EVENT_CREATED', event);
-    
-    res.status(201).json(event);
+  });
   }));
   
   // Update a calendar event

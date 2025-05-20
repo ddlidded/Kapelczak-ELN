@@ -770,7 +770,11 @@ export default function CalendarPage() {
                       <FormItem>
                         <FormLabel>Associated Project</FormLabel>
                         <Select 
-                          onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
+                          onValueChange={(value) => {
+                            const newValue = value && value !== "none" ? parseInt(value) : null;
+                            console.log("Project selection changed to:", newValue);
+                            field.onChange(newValue);
+                          }} 
                           defaultValue={field.value?.toString() || "none"}
                         >
                           <FormControl>
@@ -1117,7 +1121,11 @@ export default function CalendarPage() {
                   <FormItem>
                     <FormLabel>Associated Project</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
+                      onValueChange={(value) => {
+                        const newValue = value && value !== "none" ? parseInt(value) : null;
+                        console.log("Edit form - Project selection changed to:", newValue);
+                        field.onChange(newValue);
+                      }} 
                       value={field.value?.toString() || "none"}
                     >
                       <FormControl>
