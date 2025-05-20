@@ -502,20 +502,20 @@ async function generatePuppeteerPDF(
       // Continue anyway
     });
     
-    // Generate PDF with improved error handling
-    console.log('Generating PDF file');
+    // Generate PDF with improved layout to fix overlapping text
+    console.log('Generating PDF file with enhanced layout');
     const pdfBuffer = await page.pdf({
       format: options.pageSize === 'letter' ? 'letter' : 'a4',
       landscape: options.orientation === 'landscape',
       printBackground: true,
       margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm',
+        top: '30mm',    // Increased top margin
+        right: '25mm',  // Increased right margin
+        bottom: '30mm', // Increased bottom margin
+        left: '25mm',   // Increased left margin
       },
       displayHeaderFooter: false,
-      timeout: 60000, // 60 second timeout
+      timeout: 90000, // Extended timeout for complex reports
     }).catch(err => {
       console.error('Error generating PDF:', err);
       throw new Error('Failed to generate PDF: ' + err.message);
@@ -2427,11 +2427,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Prepared note data:", JSON.stringify(noteData));
       
-      // Skip validation temporarily to debug
-      // const validatedData = insertNoteSchema.parse(noteData);
+      // Use the updated note schema to validate the data
+      const validatedData = insertNoteSchema.parse(noteData);
       
-      // Create the note directly with the provided data
-      const note = await storage.createNote(noteData);
+      // Create the note with properly validated data
+      const note = await storage.createNote(validatedData);
       console.log("Created note:", JSON.stringify(note));
       
       res.status(201).json(note);
