@@ -384,9 +384,9 @@ export default function CalendarPage() {
         location: data.location || null,
         projectId: data.projectId === undefined ? null : data.projectId,
         experimentId: data.experimentId === undefined ? null : data.experimentId,
-        // Format dates properly as ISO strings
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
+        // Keep dates as Date objects (don't convert to ISO strings)
+        startDate: data.startDate,
+        endDate: data.endDate,
         // Default values for required fields in the schema
         allDay: false,
         attendees: data.attendees || [],
@@ -429,12 +429,13 @@ export default function CalendarPage() {
     mutationFn: async (data: EventFormValues & { id: number }) => {
       const { id, ...restData } = data;
       
-      // Format the dates and ensure all required fields are properly formatted
+      // Format the data and ensure all required fields are properly handled
       const formattedData = {
         ...restData,
         status: data.status || 'Scheduled',
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
+        // Keep dates as Date objects (don't convert to ISO strings)
+        startDate: data.startDate,
+        endDate: data.endDate,
         // Ensure null values are properly handled
         description: data.description || null,
         location: data.location || null,
