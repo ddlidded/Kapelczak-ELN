@@ -769,8 +769,8 @@ export default function CalendarPage() {
                       <FormItem>
                         <FormLabel>Associated Project</FormLabel>
                         <Select 
-                          onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                          defaultValue={field.value?.toString() || undefined}
+                          onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
+                          defaultValue={field.value?.toString() || "none"}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -778,7 +778,7 @@ export default function CalendarPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
                             {Array.isArray(projects) && projects.map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.name}
@@ -1116,8 +1116,8 @@ export default function CalendarPage() {
                   <FormItem>
                     <FormLabel>Associated Project</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                      value={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -1125,7 +1125,7 @@ export default function CalendarPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {Array.isArray(projects) && projects.map((project: any) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
                             {project.name}
