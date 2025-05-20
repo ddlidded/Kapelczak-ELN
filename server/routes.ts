@@ -3235,7 +3235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update the report with the S3 filePath
           const updatedReport = await storage.updateReport(report.id, {
             filePath: s3Path,
-            fileData: null // Clear the file data since it's now in S3
+            fileData: "" // Clear the file data since it's now in S3
           });
           
           console.log(`Report ${report.id} saved to S3: ${s3Path}`);
@@ -3656,30 +3656,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Make sure projectId and experimentId are properly handled with improved validation
       if (validatedData.projectId !== undefined) {
         if (validatedData.projectId === null) {
-          validatedData.projectId = null;
+          // If null, convert to undefined as the API expects
+          delete validatedData.projectId;
         } else if (typeof validatedData.projectId === 'string') {
           // Check for empty string or "none" values
           if (validatedData.projectId === "" || validatedData.projectId === "none") {
-            validatedData.projectId = null;
+            delete validatedData.projectId;
           } else {
-            // Convert string to number safely with fallback to null
+            // Convert string to number safely with fallback to undefined
             const parsedId = parseInt(validatedData.projectId);
-            validatedData.projectId = isNaN(parsedId) ? null : parsedId;
+            validatedData.projectId = isNaN(parsedId) ? undefined : parsedId;
           }
         }
       }
       
       if (validatedData.experimentId !== undefined) {
         if (validatedData.experimentId === null) {
-          validatedData.experimentId = null;
+          // If null, convert to undefined as the API expects
+          delete validatedData.experimentId;
         } else if (typeof validatedData.experimentId === 'string') {
           // Check for empty string or "none" values
           if (validatedData.experimentId === "" || validatedData.experimentId === "none") {
-            validatedData.experimentId = null;
+            delete validatedData.experimentId;
           } else {
-            // Convert string to number safely with fallback to null
+            // Convert string to number safely with fallback to undefined
             const parsedId = parseInt(validatedData.experimentId);
-            validatedData.experimentId = isNaN(parsedId) ? null : parsedId;
+            validatedData.experimentId = isNaN(parsedId) ? undefined : parsedId;
           }
         }
       }
