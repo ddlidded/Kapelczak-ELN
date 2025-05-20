@@ -217,21 +217,37 @@ async function generatePuppeteerPDF(
 ) {
   console.log('Generating PDF with Puppeteer:', JSON.stringify(options));
   
-  // Launch a headless browser
+  // Launch a headless browser with additional arguments for better stability
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
+    ],
   });
   
   try {
-    // Create a new page
-    const page = await browser.newPage();
+    // Create a new page with error handling
+    console.log('Creating new browser page');
+    const page = await browser.newPage().catch(err => {
+      console.error('Error creating browser page:', err);
+      throw new Error('Failed to create browser page: ' + err.message);
+    });
     
     // Set viewport to A4 paper size in pixels (roughly 8.27 × 11.69 inches)
+    console.log('Setting viewport size');
     await page.setViewport({
       width: 794, // ~8.27 inches at 96 DPI
       height: 1123, // ~11.69 inches at 96 DPI
-      deviceScaleFactor: 2, // Higher resolution
+      deviceScaleFactor: 1.5, // Lower resolution for better stability
+    }).catch(err => {
+      console.error('Error setting viewport:', err);
+      throw new Error('Failed to set viewport: ' + err.message);
     });
     
     // Get default logo path
@@ -414,7 +430,55 @@ async function generatePuppeteerPDF(
     // Set the HTML content
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     
-    // Generate PDF
+    // Wait for images to load properly (important for attachments)
+    console.log('Waiting for images to load');
+    await page.evaluate(() => {
+      return new Promise<void>(resolve => {
+        // Check if all images are loaded
+        const images = document.querySelectorAll('img');
+        let loadedImages = 0;
+        
+        // If there are no images, resolve immediately
+        if (images.length === 0) {
+          resolve();
+          return;
+        }
+        
+        // For each image, check if it's loaded
+        images.forEach(img => {
+          if (img.complete) {
+            loadedImages++;
+            if (loadedImages === images.length) {
+              resolve();
+            }
+          } else {
+            img.addEventListener('load', () => {
+              loadedImages++;
+              if (loadedImages === images.length) {
+                resolve();
+              }
+            });
+            // Handle image loading errors
+            img.addEventListener('error', () => {
+              console.error('Image failed to load:', img.src);
+              loadedImages++;
+              if (loadedImages === images.length) {
+                resolve();
+              }
+            });
+          }
+        });
+        
+        // Set a timeout in case some images never load
+        setTimeout(resolve, 5000);
+      });
+    }).catch(err => {
+      console.warn('Warning: Error waiting for images to load:', err);
+      // Continue anyway
+    });
+    
+    // Generate PDF with improved error handling
+    console.log('Generating PDF file');
     const pdfBuffer = await page.pdf({
       format: options.pageSize === 'letter' ? 'letter' : 'a4',
       landscape: options.orientation === 'landscape',
@@ -426,6 +490,10 @@ async function generatePuppeteerPDF(
         left: '15mm',
       },
       displayHeaderFooter: false,
+      timeout: 60000, // 60 second timeout
+    }).catch(err => {
+      console.error('Error generating PDF:', err);
+      throw new Error('Failed to generate PDF: ' + err.message);
     });
     
     return pdfBuffer;
@@ -2990,9 +3058,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id || 1;
       
       // Get project and note details from request
-      const { projectId, experimentId, noteIds, options } = req.body;
+      let { projectId, experimentId, noteIds, options } = req.body;
       
-      console.log('Report request data:', JSON.stringify({
+      // Handle numeric conversions for projectId and experimentId
+      if (typeof projectId === 'string') {
+        projectId = parseInt(projectId);
+        if (isNaN(projectId)) {
+          return res.status(400).json({ 
+            message: "Invalid request data", 
+            errors: [{ path: ["projectId"], message: "Project ID must be a valid number" }]
+          });
+        }
+      }
+      
+      // Handle experimentId properly - allow null values
+      if (experimentId === null || experimentId === undefined || experimentId === '' || experimentId === 'null') {
+        experimentId = null;
+      } else if (typeof experimentId === 'string') {
+        const parsedId = parseInt(experimentId);
+        experimentId = isNaN(parsedId) ? null : parsedId;
+      }
+      
+      console.log('Report request data after processing:', JSON.stringify({
         projectId, experimentId, noteIds, options
       }, null, 2));
       
