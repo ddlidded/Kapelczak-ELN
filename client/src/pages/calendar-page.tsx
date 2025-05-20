@@ -375,26 +375,33 @@ export default function CalendarPage() {
   // Create event mutation
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
-      console.log("Creating calendar event with data:", {
+      // Add proper defaults and handle empty values
+      const eventData = {
         ...data,
-        creatorId: user?.id,
-        // Ensure status is provided to avoid schema validation errors
+        creatorId: user?.id || 1,
         status: data.status || 'Scheduled',
+        description: data.description || null,
+        location: data.location || null,
+        projectId: data.projectId === undefined ? null : data.projectId,
+        experimentId: data.experimentId === undefined ? null : data.experimentId,
         // Format dates properly as ISO strings
         startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString()
-      });
+        endDate: data.endDate.toISOString(),
+        // Default values for required fields in the schema
+        allDay: false,
+        attendees: data.attendees || [],
+      };
       
-      const res = await apiRequest('POST', '/api/calendar-events', {
-        ...data,
-        creatorId: user?.id,
-        // Ensure status is provided to avoid schema validation errors
-        status: data.status || 'Scheduled',
-        // Format dates properly as ISO strings
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString()
-      });
-      return await res.json();
+      console.log("Creating calendar event with data:", eventData);
+      
+      try {
+        const res = await apiRequest('POST', '/api/calendar-events', eventData);
+        const result = await res.json();
+        return result;
+      } catch (error) {
+        console.error("Error creating calendar event:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
