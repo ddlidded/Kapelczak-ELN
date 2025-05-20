@@ -385,9 +385,9 @@ export default function CalendarPage() {
         // Handle project and experiment IDs properly - ensure they're null or valid numbers
         projectId: data.projectId === undefined || data.projectId === null ? null : Number(data.projectId),
         experimentId: data.experimentId === undefined || data.experimentId === null ? null : Number(data.experimentId),
-        // Keep dates as Date objects (don't convert to ISO strings)
-        startDate: data.startDate,
-        endDate: data.endDate,
+        // Convert dates to ISO strings for API submission
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
         // Default values for required fields in the schema
         allDay: false,
         attendees: data.attendees || [],
@@ -434,9 +434,9 @@ export default function CalendarPage() {
       const formattedData = {
         ...restData,
         status: data.status || 'Scheduled',
-        // Keep dates as Date objects (don't convert to ISO strings)
-        startDate: data.startDate,
-        endDate: data.endDate,
+        // Convert dates to ISO strings for API submission
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
         // Ensure null values are properly handled
         description: data.description || null,
         location: data.location || null,
