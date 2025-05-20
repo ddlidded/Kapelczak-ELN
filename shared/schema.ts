@@ -262,9 +262,21 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertReportSchema = createInsertSchema(reports).omit({
-  id: true,
-  createdAt: true,
+// Use custom schema for reports to handle experimentId properly
+export const insertReportSchema = z.object({
+  fileName: z.string(),
+  fileSize: z.number(),
+  fileType: z.string().default("application/pdf"),
+  filePath: z.string().nullable().optional(),
+  fileData: z.string().optional(),
+  title: z.string(),
+  description: z.string().optional(),
+  projectId: z.number(),
+  experimentId: z.union([z.number(), z.null(), z.string().transform(val => 
+    val === '' || val === 'null' || val === 'undefined' ? null : parseInt(val) || null
+  )]).optional().nullable(),
+  authorId: z.number(),
+  options: z.any().default({}),
 });
 
 export type Report = typeof reports.$inferSelect;
@@ -290,10 +302,23 @@ export const calendarEvents = pgTable("calendar_events", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// Use custom schema for calendar events to handle experimentId properly
+export const insertCalendarEventSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  location: z.string().optional(),
+  startDate: z.date(),
+  endDate: z.date(),
+  allDay: z.boolean().default(false),
+  recurrence: z.string().optional(),
+  color: z.string().default("#4285F4"),
+  projectId: z.number().optional(),
+  experimentId: z.union([z.number(), z.null(), z.string().transform(val => 
+    val === '' || val === 'null' || val === 'undefined' ? null : parseInt(val) || null
+  )]).optional().nullable(),
+  creatorId: z.number(),
+  attendees: z.any().default([]),
+  status: z.string().default("confirmed"),
 });
 
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
