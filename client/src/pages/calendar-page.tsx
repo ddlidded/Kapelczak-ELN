@@ -87,8 +87,8 @@ const eventFormSchema = z.object({
   description: z.string().nullable().optional(),
   location: z.string().nullable().optional(),
   status: z.string().default('Scheduled'),
-  projectId: z.number().nullable().optional(),
-  experimentId: z.number().nullable().optional(),
+  projectId: z.union([z.number(), z.null()]).nullable().optional(),
+  experimentId: z.union([z.number(), z.null()]).nullable().optional(),
   attendees: z.any().optional(),
 });
 
@@ -382,9 +382,9 @@ export default function CalendarPage() {
         status: data.status || 'Scheduled',
         description: data.description || null,
         location: data.location || null,
-        // Handle project and experiment IDs properly
-        projectId: !data.projectId ? null : Number(data.projectId),
-        experimentId: !data.experimentId ? null : Number(data.experimentId),
+        // Handle project and experiment IDs properly - ensure they're null or valid numbers
+        projectId: data.projectId === undefined || data.projectId === null ? null : Number(data.projectId),
+        experimentId: data.experimentId === undefined || data.experimentId === null ? null : Number(data.experimentId),
         // Keep dates as Date objects (don't convert to ISO strings)
         startDate: data.startDate,
         endDate: data.endDate,
@@ -441,8 +441,8 @@ export default function CalendarPage() {
         description: data.description || null,
         location: data.location || null,
         // Handle project and experiment IDs properly
-        projectId: !data.projectId || String(data.projectId) === "none" ? null : Number(data.projectId),
-        experimentId: !data.experimentId || String(data.experimentId) === "none" ? null : Number(data.experimentId),
+        projectId: data.projectId === undefined || data.projectId === null ? null : Number(data.projectId),
+        experimentId: data.experimentId === undefined || data.experimentId === null ? null : Number(data.experimentId),
         // Add required fields that might be missing
         allDay: false,
         attendees: data.attendees || []

@@ -230,7 +230,10 @@ export default function GraphGenerator() {
       const noteUpdate = {
         ...note,
         content: updatedContent,
-        experimentId: note.experimentId || null,
+        experimentId: note.experimentId === undefined ? null : 
+                     note.experimentId === "" ? null : 
+                     typeof note.experimentId === "string" ? parseInt(note.experimentId) || null : 
+                     note.experimentId,
       };
       
       const updateResponse = await apiRequest('PUT', `/api/notes/${noteId}`, noteUpdate);
