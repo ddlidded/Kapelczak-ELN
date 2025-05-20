@@ -382,8 +382,9 @@ export default function CalendarPage() {
         status: data.status || 'Scheduled',
         description: data.description || null,
         location: data.location || null,
-        projectId: data.projectId === undefined ? null : data.projectId,
-        experimentId: data.experimentId === undefined ? null : data.experimentId,
+        // Handle project and experiment IDs properly, ensuring they're either valid numbers or null
+        projectId: data.projectId === "none" || data.projectId === undefined ? null : data.projectId,
+        experimentId: data.experimentId === "none" || data.experimentId === undefined ? null : data.experimentId,
         // Keep dates as Date objects (don't convert to ISO strings)
         startDate: data.startDate,
         endDate: data.endDate,
@@ -439,8 +440,9 @@ export default function CalendarPage() {
         // Ensure null values are properly handled
         description: data.description || null,
         location: data.location || null,
-        projectId: data.projectId === undefined ? null : data.projectId,
-        experimentId: data.experimentId === undefined ? null : data.experimentId,
+        // Handle project and experiment IDs properly, ensuring they're either valid numbers or null
+        projectId: data.projectId === "none" || data.projectId === undefined ? null : data.projectId,
+        experimentId: data.experimentId === "none" || data.experimentId === undefined ? null : data.experimentId,
         // Add required fields that might be missing
         allDay: false,
         attendees: data.attendees || []
