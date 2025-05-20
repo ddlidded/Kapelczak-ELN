@@ -2432,12 +2432,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/notes/:id", apiErrorHandler(async (req: Request, res: Response) => {
     const noteId = parseInt(req.params.id);
-    const validatedData = insertNoteSchema.partial().parse(req.body);
+    
+    // Process the request data to handle experimentId properly
+    const requestData = { ...req.body };
+    if ('experimentId' in requestData) {
+      if (requestData.experimentId === undefined || requestData.experimentId === null || 
+          requestData.experimentId === '' || String(requestData.experimentId) === 'none') {
+        requestData.experimentId = null;
+      } else if (typeof requestData.experimentId === 'string') {
+        const parsedId = parseInt(requestData.experimentId, 10);
+        requestData.experimentId = isNaN(parsedId) ? null : parsedId;
+      }
+    }
+    
+    // Now validate the processed data
+    const validatedData = insertNoteSchema.partial().parse(requestData);
     const updatedNote = await storage.updateNote(noteId, validatedData);
     
     if (!updatedNote) {
       return res.status(404).json({ message: "Note not found" });
     }
+    
+    // Notify clients about the note update
+    notifyWebSocketClients('NOTE_UPDATED', { noteId, note: updatedNote });
     
     res.json(updatedNote);
   }));
@@ -3500,22 +3517,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedData.status = "Scheduled";
       }
       
-      // Make sure projectId and experimentId are properly handled
-      if (typeof validatedData.projectId === 'string') {
-        if (validatedData.projectId === "none" || validatedData.projectId === "") {
+      // Make sure projectId and experimentId are properly handled with improved validation
+      if (validatedData.projectId !== undefined) {
+        if (validatedData.projectId === null) {
           validatedData.projectId = null;
-        } else {
-          // Try to convert string to number if needed
-          validatedData.projectId = parseInt(validatedData.projectId) || null;
+        } else if (typeof validatedData.projectId === 'string') {
+          // Check for empty string or "none" values
+          if (validatedData.projectId === "" || validatedData.projectId === "none") {
+            validatedData.projectId = null;
+          } else {
+            // Convert string to number safely with fallback to null
+            const parsedId = parseInt(validatedData.projectId);
+            validatedData.projectId = isNaN(parsedId) ? null : parsedId;
+          }
         }
       }
       
-      if (typeof validatedData.experimentId === 'string') {
-        if (validatedData.experimentId === "none" || validatedData.experimentId === "") {
+      if (validatedData.experimentId !== undefined) {
+        if (validatedData.experimentId === null) {
           validatedData.experimentId = null;
-        } else {
-          // Try to convert string to number if needed
-          validatedData.experimentId = parseInt(validatedData.experimentId) || null;
+        } else if (typeof validatedData.experimentId === 'string') {
+          // Check for empty string or "none" values
+          if (validatedData.experimentId === "" || validatedData.experimentId === "none") {
+            validatedData.experimentId = null;
+          } else {
+            // Convert string to number safely with fallback to null
+            const parsedId = parseInt(validatedData.experimentId);
+            validatedData.experimentId = isNaN(parsedId) ? null : parsedId;
+          }
         }
       }
       
