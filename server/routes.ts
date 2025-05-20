@@ -3172,7 +3172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType: "application/pdf",
         authorId: userId,
         projectId: projectId,
-        experimentId: experimentId || null,
+        experimentId: experimentId === undefined || experimentId === null || experimentId === '' ? null : typeof experimentId === 'string' ? (parseInt(experimentId) || null) : experimentId,
         options: options || {},
         description: `Report for ${project?.name || 'Project'}`,
         fileData: pdfBase64,
