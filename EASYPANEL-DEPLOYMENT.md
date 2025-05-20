@@ -163,6 +163,9 @@ When a new version is available:
    - Check the container logs in Easypanel for error messages
    - Ensure all required environment variables are properly set
    - Verify that volumes are properly mounted and have sufficient permissions
+   - If you see "drizzle-kit: not found" errors during startup, you can either:
+     - Add `RUN npm install -g drizzle-kit` to your Dockerfile before deployment, or
+     - Use the alternative manual database setup script included in the repository
 
 ### Checking Logs
 

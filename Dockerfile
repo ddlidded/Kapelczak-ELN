@@ -39,8 +39,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 # Copy package files for production dependencies
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install production dependencies and drizzle-kit globally for migrations
+RUN npm ci --only=production && npm install -g drizzle-kit
 
 # Create uploads directory
 RUN mkdir -p uploads
