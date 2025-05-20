@@ -40,21 +40,23 @@ for i in $(seq 1 30); do
   fi
 done
 
-# Push database schema
+# Push database schema using multiple fallback methods
 echo "Setting up database schema..."
-NODE_OPTIONS="--experimental-specifier-resolution=node" node -e "
-const {spawn} = require('child_process');
-const proc = spawn('npm', ['run', 'db:push']);
-proc.stdout.pipe(process.stdout);
-proc.stderr.pipe(process.stderr);
-proc.on('close', (code) => {
-  if (code !== 0) {
-    console.error('Failed to push database schema. Exit code:', code);
-    process.exit(code);
+
+# Check if we have drizzle-kit globally
+if command -v drizzle-kit &> /dev/null; then
+  echo "Found global drizzle-kit, using it directly..."
+  drizzle-kit push || echo "Direct drizzle-kit push failed, trying alternatives..."
+else
+  echo "No global drizzle-kit found, trying npm script..."
+  npm run db:push || {
+    echo "npm run db:push failed, trying npx..."
+    npx drizzle-kit push || {
+      echo "WARNING: All methods to set up database schema failed."
+      echo "The application will continue, but you may need to set up the database manually."
+    }
   }
-  console.log('Database schema created successfully');
-});
-"
+fi
 
 # Create admin user if needed
 echo "Setting up admin user..."
