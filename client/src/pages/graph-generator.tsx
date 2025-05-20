@@ -226,10 +226,14 @@ export default function GraphGenerator() {
       const updatedContent = note.content + '<p>' + imageTag + '</p>';
       
       // Save the updated note
-      const updateResponse = await apiRequest('PUT', `/api/notes/${noteId}`, {
+      // Make sure experimentId is properly handled as either a number or null
+      const noteUpdate = {
         ...note,
         content: updatedContent,
-      });
+        experimentId: note.experimentId || null,
+      };
+      
+      const updateResponse = await apiRequest('PUT', `/api/notes/${noteId}`, noteUpdate);
       
       if (!updateResponse.ok) {
         throw new Error('Failed to update note with graph');
