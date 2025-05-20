@@ -2448,8 +2448,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     
-    // Now validate the processed data
-    const validatedData = insertNoteSchema.partial().parse(requestData);
+    // Create a custom validation schema for note updates that properly handles null values
+    const noteUpdateSchema = insertNoteSchema.partial().extend({
+      experimentId: z.number().nullable().optional(),
+    });
+    
+    // Now validate the processed data with our enhanced schema
+    const validatedData = noteUpdateSchema.parse(requestData);
     const updatedNote = await storage.updateNote(noteId, validatedData);
     
     if (!updatedNote) {

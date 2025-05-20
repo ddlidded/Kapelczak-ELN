@@ -105,7 +105,7 @@ export const insertNoteSchema = z.object({
   content: z.string().default(""),
   authorId: z.number().default(1),
   projectId: z.number(),
-  experimentId: z.number().optional()
+  experimentId: z.number().nullable().optional()
 });
 
 // Attachments table
