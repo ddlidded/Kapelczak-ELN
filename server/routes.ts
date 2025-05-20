@@ -539,27 +539,27 @@ async function generateReportPDF(
       if (options.logo.startsWith('data:image')) {
         const logoData = options.logo.split(',')[1];
         
-        // Use smaller dimensions for the logo
-        const logoWidth = 30; // Width in mm (smaller size for top right)
-        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
+        // Use optimal dimensions for the logo with proper aspect ratio
+        const logoWidth = 25; // Width in mm (smaller size for top right)
+        const logoHeight = 25; // Square aspect ratio (1:1) for better rendering
         
         // Position at top right with margin
         const logoX = pageWidth - margin - logoWidth;
         
-        // Add the logo at top right
+        // Add the logo at top right with proper aspect ratio
         doc.addImage(logoData, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
         console.log(`Custom logo dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
       } 
       // For URLs
       else if (options.logo.startsWith('http')) {
-        // Use smaller dimensions for the logo
-        const logoWidth = 30; // Width in mm (smaller size for top right)
-        const logoHeight = 15; // Height in mm (maintains 2:1 ratio)
+        // Use optimal dimensions for the logo with proper aspect ratio
+        const logoWidth = 25; // Width in mm (smaller size for top right)
+        const logoHeight = 25; // Square aspect ratio (1:1) for better rendering
         
         // Position at top right with margin
         const logoX = pageWidth - margin - logoWidth;
         
-        // Add the logo at top right
+        // Add the logo at top right with proper aspect ratio
         doc.addImage(options.logo, 'PNG', logoX, initialYPos, logoWidth, logoHeight);
         console.log(`Custom logo URL dimensions: ${logoWidth}mm x ${logoHeight}mm at position X: ${logoX}, Y: ${initialYPos}`);
       }
@@ -594,9 +594,9 @@ async function generateReportPDF(
     }
     
     // Add more space at the top to push down title below the logo
-    initialYPos += 25; // Extra space below the logo
+    initialYPos += 35; // Increased space below the logo for better separation
     
-    // Start content at the new position
+    // Start content at the new position with proper spacing
     yPos = initialYPos;
     
     // Generation date - right aligned under title
@@ -733,17 +733,17 @@ async function generateReportPDF(
         doc.text(textLines2, rightColumnX, yPos);
       }
       
-      // Move position past the content
-      yPos += maxContentHeight + 15; // Add some spacing after the content
+      // Move position past the content with more generous spacing
+      yPos += maxContentHeight + 25; // Increased spacing after content for better readability
       
       // Add images for first note if they exist and option is enabled
       if (options.includeImages !== false && images1.length > 0) {
-        // Add heading for images
+        // Add heading for images with improved spacing
         doc.setFontSize(12);
         doc.setFont(fontFamily, 'bold');
         doc.setTextColor(50, 50, 50);
         doc.text("Images:", margin, yPos);
-        yPos += 10; // Increased spacing for better visual separation
+        yPos += 15; // Further increased spacing for better visual separation
         
         // Using the shared calculateProportionalDimensions function defined above
         
