@@ -10,6 +10,8 @@ import cors from 'cors';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
 import { registerRoutes } from './routes.js';
+// This line will be removed as it's causing issues
+// Variable 'registerRoutes' is already defined by the import statement
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

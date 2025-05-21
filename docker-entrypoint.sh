@@ -79,6 +79,26 @@ node setup-admin.js || {
   echo "WARNING: Failed to create admin user. You may need to create one manually."
 }
 
+# Create a production version of package.json with type: module
+if [ ! -f package.json.prod ]; then
+  echo "Creating production package.json with type: module..."
+  echo '{
+    "name": "kapelczak-notes",
+    "version": "1.0.0",
+    "type": "module",
+    "engines": {
+      "node": ">=16.0.0"
+    }
+  }' > package.json.prod
+  
+  # If we are running dist/index.js, swap in the production package.json
+  if [[ "$*" == *"dist/index.js"* ]]; then
+    echo "Using production package.json with type: module"
+    mv package.json package.json.dev
+    mv package.json.prod package.json
+  fi
+fi
+
 echo "----------------------------------------"
 echo "Kapelczak Notes is now starting..."
 echo "----------------------------------------"
