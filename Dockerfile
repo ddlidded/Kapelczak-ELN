@@ -49,6 +49,9 @@ RUN chmod 755 uploads
 # Copy built application from build stage
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/setup-admin.js ./setup-admin.js
+COPY --from=build /app/shared ./shared
+COPY --from=build /app/server ./server
+COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
 
 # Copy any necessary configuration files
 COPY docker-entrypoint.sh /docker-entrypoint.sh
@@ -65,4 +68,4 @@ EXPOSE 5000
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Set default command to start the application
-CMD ["node", "dist/index.js"]
+CMD ["node", "server/prod.js"]

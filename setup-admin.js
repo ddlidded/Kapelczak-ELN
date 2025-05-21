@@ -18,21 +18,22 @@ const isESM = typeof require === 'undefined';
 
 // Dynamically import or require based on module system
 async function main() {
-  let pg, crypto;
+  let pg, crypto, Pool;
   
   if (isESM) {
     console.log('Running in ESM mode');
     // Dynamic imports for ESM
-    pg = await import('pg');
+    const pgModule = await import('pg');
+    pg = pgModule.default || pgModule;
+    Pool = pg.Pool;
     crypto = await import('crypto');
   } else {
     console.log('Running in CommonJS mode');
     // CommonJS requires
     pg = require('pg');
+    Pool = pg.Pool;
     crypto = require('crypto');
   }
-  
-  const { Pool } = pg;
 
   // Get database connection string from environment variables
   const connectionString = process.env.DATABASE_URL;

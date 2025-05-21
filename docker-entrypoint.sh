@@ -43,6 +43,21 @@ done
 # Push database schema using multiple fallback methods
 echo "Setting up database schema..."
 
+# Create drizzle.config.json if it doesn't exist
+if [ ! -f drizzle.config.json ]; then
+  echo "Creating drizzle.config.json..."
+  cat > drizzle.config.json << EOF
+{
+  "out": "./migrations",
+  "schema": "./shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "${DATABASE_URL}"
+  }
+}
+EOF
+fi
+
 # Check if we have drizzle-kit globally
 if command -v drizzle-kit &> /dev/null; then
   echo "Found global drizzle-kit, using it directly..."
