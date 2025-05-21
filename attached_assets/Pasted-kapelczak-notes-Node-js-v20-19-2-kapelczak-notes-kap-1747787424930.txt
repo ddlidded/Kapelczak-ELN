@@ -1,0 +1,75 @@
+kapelczak-notes  | Node.js v20.19.2
+kapelczak-notes  | =========================================
+kapelczak-notes  | Starting Kapelczak Notes Application
+kapelczak-notes  | =========================================
+kapelczak-notes  | Waiting for PostgreSQL to be ready...
+kapelczak-notes  | PostgreSQL is ready!
+kapelczak-notes  | Setting up database schema...
+kapelczak-notes  | Found global drizzle-kit, using it directly...
+kapelczak-notes  | No config path provided, using default 'drizzle.config.json'
+kapelczak-notes  | /app/drizzle.config.json file does not exist
+kapelczak-notes  | Direct drizzle-kit push failed, trying alternatives...
+kapelczak-notes  | Setting up admin user...
+kapelczak-notes  | Running in ESM mode
+kapelczak-notes  | 🔄 Checking database connection...
+kapelczak-notes  |    Using connection string: postgresql://kapelczak_user:****@localhost:5432/kapelczak_notes
+kapelczak-notes  | Fatal error: TypeError: Pool is not a constructor
+kapelczak-notes  |     at main (file:///app/setup-admin.js:50:16)
+kapelczak-notes  | WARNING: Failed to create admin user. You may need to create one manually.
+kapelczak-notes  | ----------------------------------------
+kapelczak-notes  | Kapelczak Notes is now starting...
+kapelczak-notes  | ----------------------------------------
+kapelczak-notes  | node:internal/modules/esm/resolve:873
+kapelczak-notes  |   throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+kapelczak-notes  |         ^
+kapelczak-notes  | 
+kapelczak-notes  | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/dist/index.js
+kapelczak-notes  |     at packageResolve (node:internal/modules/esm/resolve:873:9)
+kapelczak-notes  |     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+kapelczak-notes  |     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+kapelczak-notes  |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:642:12)
+kapelczak-notes  |     at #cachedDefaultResolve (node:internal/modules/esm/loader:591:25)
+kapelczak-notes  |     at ModuleLoader.resolve (node:internal/modules/esm/loader:574:38)
+kapelczak-notes  |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:236:38)
+kapelczak-notes  |     at ModuleJob._link (node:internal/modules/esm/module_job:130:49) {
+kapelczak-notes  |   code: 'ERR_MODULE_NOT_FOUND'
+kapelczak-notes  | }
+kapelczak-notes  | 
+kapelczak-notes  | Node.js v20.19.2
+kapelczak-notes  | =========================================
+kapelczak-notes  | Starting Kapelczak Notes Application
+kapelczak-notes  | =========================================
+kapelczak-notes  | Waiting for PostgreSQL to be ready...
+kapelczak-notes  | PostgreSQL is ready!
+kapelczak-notes  | Setting up database schema...
+kapelczak-notes  | Found global drizzle-kit, using it directly...
+kapelczak-notes  | No config path provided, using default 'drizzle.config.json'
+kapelczak-notes  | /app/drizzle.config.json file does not exist
+kapelczak-notes  | Direct drizzle-kit push failed, trying alternatives...
+kapelczak-notes  | Setting up admin user...
+kapelczak-notes  | Running in ESM mode
+kapelczak-notes  | 🔄 Checking database connection...
+kapelczak-notes  |    Using connection string: postgresql://kapelczak_user:****@localhost:5432/kapelczak_notes
+kapelczak-notes  | Fatal error: TypeError: Pool is not a constructor
+kapelczak-notes  |     at main (file:///app/setup-admin.js:50:16)
+kapelczak-notes  | WARNING: Failed to create admin user. You may need to create one manually.
+kapelczak-notes  | ----------------------------------------
+kapelczak-notes  | Kapelczak Notes is now starting...
+kapelczak-notes  | ----------------------------------------
+kapelczak-notes  | node:internal/modules/esm/resolve:873
+kapelczak-notes  |   throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+kapelczak-notes  |         ^
+kapelczak-notes  | 
+kapelczak-notes  | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/dist/index.js
+kapelczak-notes  |     at packageResolve (node:internal/modules/esm/resolve:873:9)
+kapelczak-notes  |     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+kapelczak-notes  |     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+kapelczak-notes  |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:642:12)
+kapelczak-notes  |     at #cachedDefaultResolve (node:internal/modules/esm/loader:591:25)
+kapelczak-notes  |     at ModuleLoader.resolve (node:internal/modules/esm/loader:574:38)
+kapelczak-notes  |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:236:38)
+kapelczak-notes  |     at ModuleJob._link (node:internal/modules/esm/module_job:130:49) {
+kapelczak-notes  |   code: 'ERR_MODULE_NOT_FOUND'
+kapelczak-notes  | }
+kapelczak-notes  | 
+kapelczak-notes  | Node.js v20.19.2
