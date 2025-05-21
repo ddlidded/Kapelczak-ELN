@@ -2666,28 +2666,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Note attachment upload endpoint - supports multiple files
   app.post("/api/notes/:noteId/attachments", upload.single("file"), apiErrorHandler(async (req: MulterRequest, res: Response) => {
-    console.log("Processing attachment upload for note");
-    console.log("Attachment upload request body:", JSON.stringify(req.body));
-    console.log("Attachment upload request file:", req.file ? `${req.file.originalname} (${req.file.size} bytes)` : "No file");
-    
-    const noteId = parseInt(req.params.noteId);
-    const note = await storage.getNote(noteId);
-    
-    if (!note) {
-      return res.status(404).json({ message: "Note not found" });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
-    
-    // Get the uploaded file details
-    const file = req.file;
-    
-    // Get the user making the request
-    const userId = req.user?.id || 1; // Default to admin user if not authenticated
-    const user = await storage.getUser(userId);
+    try {
+      console.log("Processing attachment upload for note");
+      console.log("Attachment upload request body:", JSON.stringify(req.body));
+      console.log("Attachment upload request file:", req.file ? `${req.file.originalname} (${req.file.size} bytes)` : "No file");
       
+      const noteId = parseInt(req.params.noteId);
+      const note = await storage.getNote(noteId);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      // Get the uploaded file details
+      const file = req.file;
+      
+      // Get the user making the request
+      const userId = req.user?.id || 1; // Default to admin user if not authenticated
+      const user = await storage.getUser(userId);
+        
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
