@@ -53,6 +53,10 @@ COPY --from=build /app/shared ./shared
 COPY --from=build /app/server ./server
 COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
 
+# Create necessary files for ESM support in production
+RUN echo '{"type":"module"}' > ./package.json.module
+RUN cp ./package.json ./package.json.original
+
 # Copy any necessary configuration files
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
@@ -68,4 +72,4 @@ EXPOSE 5000
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Set default command to start the application
-CMD ["node", "server/prod.js"]
+CMD ["node", "server/esm-prod.js"]
