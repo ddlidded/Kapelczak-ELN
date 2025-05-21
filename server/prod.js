@@ -1,96 +1,52 @@
 /**
- * Production server entry point.
- * This file is used when the application is started in production mode.
+ * Production server entry point for Kapelczak Notes
+ * This file is used when running in production mode
  */
 
-// Set NODE_ENV to production
-process.env.NODE_ENV = 'production';
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import cors from 'cors';
+import morgan from 'morgan';
+import { fileURLToPath } from 'url';
+import { registerRoutes } from './routes.js';
 
-// Import required modules
-const path = require('path');
-const express = require('express');
-const fs = require('fs');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Create the express application
+// Create Express app
 const app = express();
 
-// Enable request logging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
+// Apply middleware
+app.use(cors());
+app.use(express.json({ limit: '1gb' }));
+app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
-// Middleware for JSON parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Setup logging
+app.use(morgan('common'));
 
-// Import database configuration
-const { pool } = require('./db');
+// Register API routes
+const server = await registerRoutes(app);
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Serve static files from the React app
+const distPath = path.resolve(__dirname, "public");
+
+if (!fs.existsSync(distPath)) {
+  console.error(`Could not find the build directory: ${distPath}`);
+  console.error('Make sure to build the client first with: npm run build');
+  process.exit(1);
 }
 
-// Serve upload files statically
-app.use('/uploads', express.static(uploadsDir));
+app.use(express.static(distPath));
 
-// Set up port and start server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server started on port ${PORT} in ${process.env.NODE_ENV} mode`);
+// For any request that doesn't match an API route or static file, serve the React app
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Initialize API routes first
-console.log('Initializing API routes...');
-require('./routes')(app, server)
-  .then(() => {
-    console.log('API routes initialized successfully');
-    
-    // After API routes are initialized, set up the static file serving
-    console.log('Setting up static file serving...');
-    
-    // Check which dist directory structure exists
-    const distDir = fs.existsSync(path.join(__dirname, '../dist/public')) 
-      ? path.join(__dirname, '../dist/public') 
-      : path.join(__dirname, '../dist');
-    
-    console.log(`Using static files from: ${distDir}`);
-    
-    // Serve static files from the detected dist directory
-    app.use(express.static(distDir, {
-      maxAge: '1d', // Cache static assets for 1 day
-    }));
-    
-    // Serve static files as fallback for client-side routing
-    // This must be the last middleware
-    app.get('*', (req, res) => {
-      console.log(`Serving index.html for path: ${req.path}`);
-      const indexPath = fs.existsSync(path.join(distDir, 'index.html'))
-        ? path.join(distDir, 'index.html')
-        : path.join(__dirname, '../dist/index.html');
-      
-      console.log(`Using index.html from: ${indexPath}`);
-      res.sendFile(indexPath);
-    });
-    
-    console.log('Static file serving configured');
-    
-    // Add global error handler - must be after all routes and middleware
-    app.use((err, req, res, next) => {
-      console.error('Unhandled error:', err);
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'production' 
-          ? 'An unexpected error occurred' 
-          : err.message
-      });
-    });
-    
-    console.log('Error handler configured');
-  })
-  .catch(err => {
-    console.error('Failed to initialize routes:', err);
-    process.exit(1);
-  });
+// Start the server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`⚡ Environment: ${process.env.NODE_ENV}`);
+});
