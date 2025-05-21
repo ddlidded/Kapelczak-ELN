@@ -1,0 +1,8 @@
+{
+  "out": "./migrations",
+  "schema": "./shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "postgresql://kapelczak_user:password@postgres:5432/kapelczak_notes"
+  }
+}
