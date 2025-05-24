@@ -1,195 +1,231 @@
-# Kapelczak Notes - Easypanel Deployment Guide
+# Kapelczak Notes - Easypanel Auto-Deployment Guide
 
-This guide provides step-by-step instructions for deploying Kapelczak Notes on your server using Easypanel, a modern server control panel that simplifies Docker-based application deployment.
+This guide provides complete instructions for deploying Kapelczak Notes on Easypanel using Docker Compose with all required components.
 
-## Table of Contents
+## 🚀 Quick Start
 
-1. [Prerequisites](#prerequisites)
-2. [Installation Steps](#installation-steps)
-3. [Environment Configuration](#environment-configuration)
-4. [Post-Installation](#post-installation)
-5. [Maintenance](#maintenance)
-6. [Troubleshooting](#troubleshooting)
+### Prerequisites
+- Easypanel account with Docker Compose support
+- Git repository access to this project
 
-## Prerequisites
+### 1. Clone Repository
+```bash
+git clone <your-repository-url>
+cd kapelczak-notes
+```
 
-Before you begin, ensure you have:
+### 2. Configure Environment Variables
+Copy the example environment file and configure your settings:
+```bash
+cp .env.example .env
+```
 
-- A server running Easypanel (see [Easypanel Installation](https://easypanel.io/docs/installation) if needed)
-- Access to the Easypanel dashboard
-- Domain name (optional but recommended)
-- SMTP credentials for email functionality (optional)
+### 3. Deploy with Docker Compose
+```bash
+docker-compose up -d
+```
 
-## Installation Steps
-
-### Option 1: Using Docker Compose Template (Recommended)
-
-1. **Access Easypanel Dashboard**
-   - Log in to your Easypanel dashboard
-
-2. **Create a New Project**
-   - Click "New Project" in your Easypanel dashboard
-   - Select "Docker Compose"
-   - Provide a name for your project (e.g., "kapelczak-notes")
-
-3. **Upload or Paste the Docker Compose Configuration**
-   - Copy the content of the [docker-compose.yml](docker-compose.yml) file in this repository
-   - Paste it into the Docker Compose template field in Easypanel
-
-4. **Configure Environment Variables**
-   - Set the following required environment variables:
-     - `SESSION_SECRET`: A random secret string for session encryption
-     - `POSTGRES_USER`: Username for PostgreSQL (default: kapelczak_user)
-     - `POSTGRES_PASSWORD`: A secure password for PostgreSQL 
-     - `POSTGRES_DB`: Database name (default: kapelczak_notes)
-   
-   - Set optional environment variables:
-     - `SMTP_HOST`: Your SMTP server host
-     - `SMTP_PORT`: Your SMTP server port
-     - `SMTP_USER`: Your SMTP username
-     - `SMTP_PASSWORD`: Your SMTP password
-
-5. **Configure Networking**
-   - Set the public port to 5000 or map it to port 80
-   - Enable HTTPS if you have a domain configured
-
-6. **Deploy the Project**
-   - Click "Deploy" to start the deployment process
-   - Easypanel will pull the necessary images and start the containers
-
-### Option 2: Manual Multi-Container Setup
-
-1. **Create PostgreSQL Database Container**
-   - Click "New Project" in your Easypanel dashboard
-   - Select "App" from the templates
-   - Search for "postgres" and select the official PostgreSQL image
-   - Configure environment variables:
-     - `POSTGRES_USER`: Username for PostgreSQL (e.g., kapelczak_user)
-     - `POSTGRES_PASSWORD`: A secure password
-     - `POSTGRES_DB`: Database name (e.g., kapelczak_notes)
-   - Create a volume for database persistence
-   - Deploy the database container
-
-2. **Create Kapelczak Notes Application Container**
-   - Click "New Project" again
-   - Select "Dockerfile" template
-   - Upload or paste the content of the [Dockerfile](Dockerfile) from this repository
-   - Configure environment variables:
-     - `NODE_ENV`: Set to "production"
-     - `PORT`: Set to 5000
-     - `SESSION_SECRET`: A random string for session encryption
-     - `DATABASE_URL`: The PostgreSQL connection URL pointing to your database container
-     - SMTP settings if needed
-   - Create a volume for uploads persistence
-   - Deploy the application container
-
-## Environment Configuration
+## 📋 Environment Configuration
 
 ### Required Environment Variables
+Create a `.env` file with the following variables:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SESSION_SECRET` | Secret key for session encryption | `random_string_here` |
-| `DATABASE_URL` | PostgreSQL connection URL | `postgresql://kapelczak_user:password@postgres:5432/kapelczak_notes` |
+```env
+# Database Configuration
+POSTGRES_PASSWORD=your_secure_database_password
 
-### Optional Environment Variables
+# Application Security
+SESSION_SECRET=your_secure_session_secret_key
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SMTP_HOST` | SMTP server hostname | `smtp.example.com` |
-| `SMTP_PORT` | SMTP server port | `587` |
-| `SMTP_USER` | SMTP username | `user` |
-| `SMTP_PASSWORD` | SMTP password | `password` |
-| `POSTGRES_USER` | PostgreSQL username | `kapelczak_user` |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `password` |
-| `POSTGRES_DB` | PostgreSQL database name | `kapelczak_notes` |
+# Optional: SMTP Email Configuration
+SMTP_HOST=your_smtp_host
+SMTP_PORT=587
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
 
-## Post-Installation
+# Optional: S3 Storage Configuration
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+S3_BUCKET=your_s3_bucket_name
+S3_ENDPOINT=your_s3_endpoint_url
+```
 
-After deployment, follow these steps:
+## 🐳 Docker Compose Services
 
-1. **Access Your Application**
-   - Open your browser and navigate to your application URL
+### Services Included:
+1. **PostgreSQL Database** - Persistent data storage
+2. **Kapelczak Notes App** - Main application server
+3. **Nginx Proxy** - Reverse proxy and load balancer
 
-2. **First Login**
-   - Log in with the default admin credentials:
-     - Username: `admin`
-     - Password: `demo`
-   - **IMPORTANT:** Change the default password immediately after login
+### Volumes:
+- `postgres_data` - Database persistence
+- `uploads_data` - File uploads storage
+- `logs_data` - Application logs
 
-3. **Configure SMTP Settings**
-   - Go to Settings → Email in the application
-   - Verify your SMTP configuration is working by sending a test email
+## 🔧 Easypanel Configuration
 
-## Maintenance
+### Using Easypanel Web Interface:
 
-### Backing Up Your Data
+1. **Create New Project**
+   - Project Name: `kapelczak-notes`
+   - Repository: Your Git repository URL
 
-Easypanel makes it easy to back up your application data:
+2. **Deploy Type**
+   - Select "Docker Compose"
+   - Use the provided `docker-compose.yml`
 
-1. **Database Backup**
-   - In Easypanel, navigate to the PostgreSQL container
-   - Click on "Volumes" tab
-   - Use the "Backup" option to download a backup of your database
+3. **Environment Variables**
+   - Add all required environment variables from `.env.example`
+   - Set secure passwords for production
 
-2. **Upload Files Backup**
-   - Navigate to the Kapelczak Notes application container
-   - Click on "Volumes" tab
-   - Backup the uploads volume similarly
+4. **Domain Configuration**
+   - Set up your custom domain or use Easypanel subdomain
+   - Configure SSL certificates if needed
 
-### Updating the Application
+### Using Easypanel CLI:
 
-When a new version is available:
+```bash
+# Install Easypanel CLI
+npm install -g @easypanel/cli
 
-1. In Easypanel, navigate to your Kapelczak Notes project
-2. Click "Redeploy" to pull the latest image and restart the containers
-3. Verify the application is working correctly after the update
+# Login to Easypanel
+easypanel login
 
-## Troubleshooting
+# Deploy the project
+easypanel deploy --compose docker-compose.yml
+```
 
-### Common Issues
+## 🔐 Security Considerations
 
-1. **Database Connection Error**
-   - Check if the PostgreSQL container is running
-   - Verify the `DATABASE_URL` environment variable is correct
-   - Check container networking to ensure the application can reach the database
+### Required Security Settings:
+1. **Change Default Passwords**
+   - Set strong `POSTGRES_PASSWORD`
+   - Set unique `SESSION_SECRET`
 
-2. **Email Sending Failure**
-   - Verify SMTP credentials in the environment variables
-   - Test the SMTP connection in the application settings
-   - Check network rules to ensure email ports are not blocked
+2. **Database Security**
+   - Database is isolated in Docker network
+   - No external database ports exposed in production
 
-3. **Container Starting Issues**
-   - Check the container logs in Easypanel for error messages
-   - Ensure all required environment variables are properly set
-   - Verify that volumes are properly mounted and have sufficient permissions
-   - If you see "drizzle-kit: not found" errors during startup, you can either:
-     - Add `RUN npm install -g drizzle-kit` to your Dockerfile before deployment, or
-     - Use the alternative manual database setup script included in the repository
+3. **File Upload Security**
+   - 1GB upload limit configured
+   - File type validation in application
 
-### Checking Logs
+## 📊 Health Checks & Monitoring
 
-To view application logs:
+### Built-in Health Checks:
+- **Database**: PostgreSQL ready check every 10 seconds
+- **Application**: HTTP health endpoint check every 30 seconds
+- **Nginx**: Depends on application health
 
-1. In Easypanel, navigate to your Kapelczak Notes project
-2. Click on the "Logs" tab to view real-time logs
-3. Look for error messages that might indicate the source of any issues
+### Monitoring Endpoints:
+- Health Check: `http://your-domain/api/health`
+- Database Status: Included in health check response
 
-### Reset Admin Password
+## 🛠️ Troubleshooting
 
-If you lose access to the admin account:
+### Common Issues:
 
-1. Connect to the application container via Easypanel's terminal
-2. Run the following command to reset the admin password:
+1. **Database Connection Failed**
+   ```bash
+   # Check PostgreSQL logs
+   docker-compose logs postgres
+   
+   # Restart database service
+   docker-compose restart postgres
    ```
-   node setup-admin.js
+
+2. **Application Won't Start**
+   ```bash
+   # Check application logs
+   docker-compose logs kapelczak-notes
+   
+   # Rebuild and restart
+   docker-compose down
+   docker-compose up --build -d
    ```
-3. This will create or reset the admin user with default credentials
 
-## Support
+3. **File Upload Issues**
+   ```bash
+   # Check upload directory permissions
+   docker-compose exec kapelczak-notes ls -la /app/uploads
+   
+   # Reset upload directory
+   docker-compose exec kapelczak-notes mkdir -p /app/uploads
+   docker-compose exec kapelczak-notes chmod 755 /app/uploads
+   ```
 
-If you encounter any issues during deployment or operation:
+### Log Access:
+```bash
+# View all logs
+docker-compose logs
 
-1. Check the application logs for error messages
-2. Review this guide for troubleshooting steps
-3. Consult the Easypanel documentation for platform-specific concerns
+# View specific service logs
+docker-compose logs kapelczak-notes
+docker-compose logs postgres
+docker-compose logs nginx
+
+# Follow logs in real-time
+docker-compose logs -f kapelczak-notes
+```
+
+## 🔄 Updates & Maintenance
+
+### Updating the Application:
+```bash
+# Pull latest changes
+git pull origin main
+
+# Rebuild and restart
+docker-compose down
+docker-compose up --build -d
+```
+
+### Database Backup:
+```bash
+# Create backup
+docker-compose exec postgres pg_dump -U kapelczak_user kapelczak_notes > backup.sql
+
+# Restore backup
+docker-compose exec -T postgres psql -U kapelczak_user kapelczak_notes < backup.sql
+```
+
+## 📁 Project Structure
+
+```
+kapelczak-notes/
+├── docker-compose.yml          # Main Docker Compose configuration
+├── Dockerfile                  # Application container definition
+├── .env.example               # Environment variables template
+├── nginx.conf                 # Nginx proxy configuration
+├── init-db.sql               # Database initialization
+├── docker-entrypoint.sh      # Application startup script
+├── client/                    # React frontend application
+├── server/                    # Node.js backend application
+└── shared/                    # Shared schemas and types
+```
+
+## 🎯 Default Admin Access
+
+After successful deployment:
+- **URL**: `http://your-domain`
+- **Username**: `admin`
+- **Password**: `demo`
+
+⚠️ **Important**: Change the default admin password immediately after first login!
+
+## 🌐 Production Recommendations
+
+1. **Use HTTPS**: Configure SSL certificates in Easypanel
+2. **Set Strong Passwords**: Use unique, complex passwords for all services
+3. **Enable SMTP**: Configure email service for notifications
+4. **Configure S3**: Set up S3-compatible storage for file uploads
+5. **Monitor Resources**: Keep track of CPU, memory, and storage usage
+6. **Regular Backups**: Schedule automated database backups
+
+## 📞 Support
+
+For deployment issues or questions:
+1. Check the troubleshooting section above
+2. Review Docker Compose logs for error details
+3. Ensure all environment variables are properly configured
+4. Verify Easypanel service status and resource limits
