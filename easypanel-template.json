@@ -1,0 +1,154 @@
+{
+  "name": "kapelczak-notes",
+  "description": "Complete laboratory documentation platform for scientific researchers with note-taking, file management, and collaboration features",
+  "logo": "https://raw.githubusercontent.com/yourusername/kapelczak-notes/main/client/public/favicon.ico",
+  "links": [
+    {
+      "name": "Documentation",
+      "url": "https://github.com/yourusername/kapelczak-notes/blob/main/README-EASYPANEL-DEPLOYMENT.md"
+    },
+    {
+      "name": "GitHub Repository",
+      "url": "https://github.com/yourusername/kapelczak-notes"
+    }
+  ],
+  "services": [
+    {
+      "type": "app",
+      "data": {
+        "projectName": "kapelczak-notes",
+        "serviceName": "kapelczak-notes",
+        "source": {
+          "type": "github",
+          "owner": "yourusername",
+          "repo": "kapelczak-notes",
+          "ref": "main"
+        },
+        "build": {
+          "type": "dockerfile",
+          "dockerfile": "Dockerfile"
+        },
+        "domains": [
+          {
+            "host": "$(EASYPANEL_DOMAIN)",
+            "port": 80,
+            "https": true
+          }
+        ],
+        "env": [
+          {
+            "key": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "key": "PORT",
+            "value": "5000"
+          },
+          {
+            "key": "POSTGRES_PASSWORD",
+            "value": "$(generate_password)"
+          },
+          {
+            "key": "SESSION_SECRET", 
+            "value": "$(generate_secret)"
+          },
+          {
+            "key": "DATABASE_URL",
+            "value": "postgresql://kapelczak_user:$(POSTGRES_PASSWORD)@postgres:5432/kapelczak_notes"
+          }
+        ],
+        "mounts": [
+          {
+            "type": "volume",
+            "name": "uploads",
+            "mountPath": "/app/uploads"
+          },
+          {
+            "type": "volume", 
+            "name": "logs",
+            "mountPath": "/app/logs"
+          }
+        ],
+        "deploy": {
+          "replicas": 1,
+          "command": null,
+          "zeroDowntime": true
+        },
+        "healthcheck": {
+          "path": "/api/health",
+          "port": 5000,
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3
+        }
+      }
+    },
+    {
+      "type": "postgres",
+      "data": {
+        "projectName": "kapelczak-notes",
+        "serviceName": "postgres", 
+        "password": "$(POSTGRES_PASSWORD)",
+        "image": "postgres:15-alpine",
+        "env": [
+          {
+            "key": "POSTGRES_DB",
+            "value": "kapelczak_notes"
+          },
+          {
+            "key": "POSTGRES_USER", 
+            "value": "kapelczak_user"
+          },
+          {
+            "key": "POSTGRES_PASSWORD",
+            "value": "$(POSTGRES_PASSWORD)"
+          }
+        ],
+        "mounts": [
+          {
+            "type": "volume",
+            "name": "postgres-data",
+            "mountPath": "/var/lib/postgresql/data"
+          }
+        ]
+      }
+    }
+  ],
+  "variables": [
+    {
+      "key": "POSTGRES_PASSWORD",
+      "name": "Database Password",
+      "description": "PostgreSQL database password (auto-generated if not provided)",
+      "defaultValue": "SecurePass123!ChangeMe",
+      "isOptional": false
+    },
+    {
+      "key": "SESSION_SECRET",
+      "name": "Session Secret",
+      "description": "Secret key for session encryption (auto-generated if not provided)", 
+      "defaultValue": "UniqueSessionSecret2024!",
+      "isOptional": false
+    },
+    {
+      "key": "SMTP_HOST",
+      "name": "SMTP Host",
+      "description": "Email server hostname (optional)",
+      "defaultValue": "",
+      "isOptional": true
+    },
+    {
+      "key": "SMTP_USER",
+      "name": "SMTP Username", 
+      "description": "Email server username (optional)",
+      "defaultValue": "",
+      "isOptional": true
+    },
+    {
+      "key": "SMTP_PASSWORD",
+      "name": "SMTP Password",
+      "description": "Email server password (optional)",
+      "defaultValue": "",
+      "isOptional": true
+    }
+  ]
+}
